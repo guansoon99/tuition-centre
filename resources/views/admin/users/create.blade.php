@@ -1,0 +1,10 @@
+@extends('layouts.app')
+
+@section('title', 'New user')
+
+@section('content')
+    <div class="mx-auto max-w-3xl space-y-4">
+        <h1 class="text-xl font-semibold text-slate-900">New user</h1>
+        @include('admin.users._form', ['action' => route('users.store')])
+    </div>
+@endsection
