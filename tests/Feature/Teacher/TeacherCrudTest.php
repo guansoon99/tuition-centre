@@ -75,7 +75,7 @@ class TeacherCrudTest extends TestCase
                 'sort_order' => 1,
                 'is_published' => '1',
             ])
-            ->assertRedirect(route('courses.show', $this->course));
+            ->assertRedirect(route('courses.edit', [$this->course, 'tab' => 'sections']));
 
         $material = Material::where('title', '【上课资料】Minggu 1')->first();
         $this->assertNotNull($material);

@@ -36,27 +36,36 @@ class HomeController extends Controller
 
     private function dashboard(User $user): View
     {
+        // All courses, ordered by newest first (created_at DESC). The
+        // "Recently accessed" strip above this section handles per-user
+        // recency separately.
         $allCourses = Cache::remember(
             CacheKeys::userEnrolled($user->id),
             CacheKeys::TTL_ENROLLED,
             fn () => Course::query()
                 ->visibleTo($user)
-                ->orderBy('name')
+                ->orderByDesc('created_at')
                 ->get()
         );
+
+        // Recently-accessed strip: the top 6 from course_views for this
+        // user, restricted to visits in the last 10 days. Courses not
+        // opened for longer than that quietly drop off the strip (the
+        // row stays in course_views — only the UI hides it).
+        $recentCutoff = now()->subDays(10);
 
         $recentCourses = Cache::remember(
             CacheKeys::userRecent($user->id),
             CacheKeys::TTL_RECENT,
             fn () => Course::query()
                 ->select('courses.*')
-                ->join('enrollments', function ($j) use ($user) {
-                    $j->on('enrollments.course_id', '=', 'courses.id')
-                        ->where('enrollments.user_id', $user->id)
-                        ->whereNotNull('enrollments.last_accessed_at');
+                ->join('course_views', function ($j) use ($user, $recentCutoff) {
+                    $j->on('course_views.course_id', '=', 'courses.id')
+                        ->where('course_views.user_id', $user->id)
+                        ->where('course_views.accessed_at', '>=', $recentCutoff);
                 })
                 ->visibleTo($user)
-                ->orderByDesc('enrollments.last_accessed_at')
+                ->orderByDesc('course_views.accessed_at')
                 ->limit(6)
                 ->get()
         );

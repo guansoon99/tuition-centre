@@ -28,6 +28,7 @@
                         <th class="px-4 py-3 text-right">Permissions</th>
                         <th class="px-4 py-3 text-right">Users</th>
                         <th class="px-4 py-3">Type</th>
+                        <th class="px-4 py-3">Created</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -49,6 +50,9 @@
                                     </span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3 font-mono text-sm">
+                                {{ $role->created_at->format('Y-m-d H:i') }}
+                            </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex justify-end gap-2">
                                     <a href="{{ route('roles.edit', $role) }}"
@@ -69,7 +73,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-400">No roles.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-sm text-slate-400">No roles.</td></tr>
                     @endforelse
                 </tbody>
             </table>

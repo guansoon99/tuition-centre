@@ -32,7 +32,7 @@ class CourseController extends Controller
             $query->where('is_active', $request->boolean('active'));
         }
 
-        $courses = $query->orderBy('name')->paginate(25)->withQueryString();
+        $courses = $query->orderByDesc('created_at')->paginate(25)->withQueryString();
 
         return view('admin.courses.index', [
             'courses' => $courses,

@@ -6,6 +6,26 @@
         @method($method)
     @endif
 
+    @php
+        $currentRole = old('role', $user?->roles->first()?->name ?? 'student');
+        $allRoles = \Spatie\Permission\Models\Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name');
+    @endphp
+
+    <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Role</label>
+        <div class="flex flex-wrap gap-2">
+            @foreach ($allRoles as $r)
+                <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
+                    <input type="radio" name="role" value="{{ $r }}" required
+                           @checked($currentRole === $r)
+                           class="h-4 w-4 accent-slate-900">
+                    {{ ucfirst($r) }}
+                </label>
+            @endforeach
+        </div>
+        @error('role') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+    </div>
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Username</label>
@@ -36,19 +56,6 @@
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
             @error('candidate_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
-        <div class="sm:col-span-2">
-            <label class="mb-1 block text-sm font-medium text-slate-700">Role</label>
-            @php
-                $currentRole = old('role', $user?->roles->first()?->name ?? 'student');
-                $allRoles = \Spatie\Permission\Models\Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name');
-            @endphp
-            <select name="role" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                @foreach ($allRoles as $r)
-                    <option value="{{ $r }}" @selected($currentRole === $r)>{{ ucfirst($r) }}</option>
-                @endforeach
-            </select>
-            @error('role') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-        </div>
     </div>
 
     <fieldset class="rounded-md border border-slate-200 p-4">
@@ -73,7 +80,7 @@
 
     <div class="flex gap-3">
         <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-            {{ $user ? 'Save changes' : 'Create user' }}
+            {{ $user ? 'Save' : 'Create user' }}
         </button>
         <a href="{{ route('users.index') }}"
            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">

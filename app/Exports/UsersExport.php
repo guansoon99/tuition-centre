@@ -5,16 +5,17 @@ namespace App\Exports;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class UsersExport implements FromCollection, WithHeadings, WithMapping
+class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     public function __construct(private readonly Builder $query) {}
 
     public function collection(): Collection
     {
-        return $this->query->with('roles')->orderBy('name')->get();
+        return $this->query->with('roles')->orderByDesc('created_at')->get();
     }
 
     public function headings(): array

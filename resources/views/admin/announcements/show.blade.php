@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'View announcement')
+@section('title', 'View Announcement')
 
 @section('content')
     @php
@@ -23,7 +23,7 @@
         <div>
             <a href="{{ route('announcements.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All announcements</a>
             <div class="mt-2 flex items-center justify-between gap-3">
-                <h1 class="text-xl font-semibold text-slate-900">View announcement</h1>
+                <h1 class="text-xl font-semibold text-slate-900">View Announcement</h1>
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusStyles['pill'] }}">
                     <span class="mr-1.5 h-1.5 w-1.5 rounded-full {{ $statusStyles['dot'] }}"></span>
                     {{ $statusStyles['label'] }}
@@ -58,7 +58,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sent</p>
                     <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->sent_at->format('Y-m-d H:i') }}</p>
@@ -66,15 +66,6 @@
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recipients</p>
                     <p class="mt-1 text-sm text-slate-800">{{ $announcement->recipients }}</p>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Read</p>
-                    <p class="mt-1 text-sm text-slate-800">
-                        {{ $announcement->read }}
-                        @if ($announcement->recipients > 0)
-                            <span class="text-slate-500">({{ round(($announcement->read / $announcement->recipients) * 100) }}%)</span>
-                        @endif
-                    </p>
                 </div>
             </div>
         </div>

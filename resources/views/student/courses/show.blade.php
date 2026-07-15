@@ -36,43 +36,32 @@
         @else
             <div class="space-y-4">
                 @foreach ($visibleSections as $section)
-                    @if ($section->type === \App\Models\Section::TYPE_COUNTDOWN && $section->target_date)
-                        <x-countdown-section :section="$section" />
-                    @elseif ($section->type === \App\Models\Section::TYPE_IMAGE && $section->image_path)
-                        <x-image-section :section="$section" />
-                    @elseif ($section->type === \App\Models\Section::TYPE_TEXT)
-                        <x-text-section :section="$section" />
-                    @else
-                        <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                            <header class="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                                <h2 class="text-base font-medium text-slate-900">
-                                    {{ $section->title }}
-                                    @unless ($section->is_published)
-                                        <span class="ml-1 rounded bg-amber-100 px-1.5 text-xs text-amber-800">draft</span>
-                                    @endunless
-                                </h2>
-                                @if ($section->description)
-                                    <p class="mt-1 text-sm text-slate-600">{{ $section->description }}</p>
-                                @endif
-                            </header>
+                    <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <header class="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                            <h2 class="text-base font-medium text-slate-900">
+                                {{ $section->title }}
+                                @unless ($section->is_published)
+                                    <span class="ml-1 rounded bg-amber-100 px-1.5 text-xs text-amber-800">draft</span>
+                                @endunless
+                            </h2>
+                        </header>
 
-                            @php
-                                $visibleMaterials = ($canManage ?? false)
-                                    ? $section->materials
-                                    : $section->materials->where('is_published', true);
-                            @endphp
+                        @php
+                            $visibleMaterials = ($canManage ?? false)
+                                ? $section->materials
+                                : $section->materials->where('is_published', true);
+                        @endphp
 
-                            @if ($visibleMaterials->isEmpty())
-                                <p class="px-4 py-4 text-xs italic text-slate-400">No materials.</p>
-                            @else
-                                <div class="divide-y divide-slate-100">
-                                    @foreach ($visibleMaterials as $material)
-                                        <x-material-item :material="$material" />
-                                    @endforeach
-                                </div>
-                            @endif
-                        </article>
-                    @endif
+                        @if ($visibleMaterials->isEmpty())
+                            <p class="px-4 py-4 text-xs italic text-slate-400">Nothing here yet.</p>
+                        @else
+                            <div class="divide-y divide-slate-100">
+                                @foreach ($visibleMaterials as $material)
+                                    <x-material-item :material="$material" />
+                                @endforeach
+                            </div>
+                        @endif
+                    </article>
                 @endforeach
             </div>
         @endif

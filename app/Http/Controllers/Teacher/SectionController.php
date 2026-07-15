@@ -7,6 +7,8 @@ use App\Http\Requests\Teacher\StoreSectionRequest;
 use App\Http\Requests\Teacher\UpdateSectionRequest;
 use App\Models\Course;
 use App\Models\Section;
+use App\Support\HtmlSanitizer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,13 +26,6 @@ class SectionController extends Controller
 
     public function store(StoreSectionRequest $request, Course $course): RedirectResponse
     {
-        $type = $request->input('type', Section::TYPE_STANDARD);
-
-        $imagePath = null;
-        if ($type === Section::TYPE_IMAGE && $request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('sections', 'public');
-        }
-
         $isPublished = $request->boolean('is_published', true);
         // Ticking "Published" at save time means "publish now" — clears any
         // pending schedule so it doesn't keep gating the section.
@@ -39,10 +34,7 @@ class SectionController extends Controller
         $section = Section::create([
             'course_id' => $course->id,
             'title' => $request->input('title'),
-            'description' => $request->input('description'),
-            'type' => $type,
-            'target_date' => $type === Section::TYPE_COUNTDOWN ? $request->input('target_date') : null,
-            'image_path' => $imagePath,
+            'type' => Section::TYPE_STANDARD,
             'scheduled_at' => $scheduledAt,
             'sort_order' => $request->integer('sort_order') ?: ($course->sections()->max('sort_order') + 1),
             'is_published' => $isPublished,
@@ -94,8 +86,8 @@ class SectionController extends Controller
         });
 
         return redirect()
-            ->route('courses.edit', [$course, 'tab' => 'sections', 'open' => $section->id])
-            ->with('status', 'Section inserted — fill in details and save.');
+            ->route('courses.edit', [$course, 'tab' => 'sections'])
+            ->with('status', 'Section inserted — click "Add resource" to choose what goes in it.');
     }
 
     public function edit(Section $section): View
@@ -107,24 +99,6 @@ class SectionController extends Controller
 
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
-        $type = $request->input('type', Section::TYPE_STANDARD);
-
-        $imagePath = $section->image_path;
-        if ($type === Section::TYPE_IMAGE) {
-            if ($request->hasFile('image')) {
-                if ($section->image_path) {
-                    Storage::disk('public')->delete($section->image_path);
-                }
-                $imagePath = $request->file('image')->store('sections', 'public');
-            }
-        } else {
-            // Type changed away from image — clean up the file.
-            if ($section->image_path) {
-                Storage::disk('public')->delete($section->image_path);
-            }
-            $imagePath = null;
-        }
-
         $isPublished = $request->boolean('is_published', true);
         // Ticking "Published" at save time means "publish now" — clears any
         // pending schedule so it doesn't keep gating the section.
@@ -132,10 +106,6 @@ class SectionController extends Controller
 
         $section->update([
             'title' => $request->input('title'),
-            'description' => $request->input('description'),
-            'type' => $type,
-            'target_date' => $type === Section::TYPE_COUNTDOWN ? $request->input('target_date') : null,
-            'image_path' => $imagePath,
             'scheduled_at' => $scheduledAt,
             'sort_order' => $request->integer('sort_order'),
             'is_published' => $isPublished,
@@ -147,15 +117,29 @@ class SectionController extends Controller
             ->with('status', 'Section updated.');
     }
 
+    /**
+     * Image-upload endpoint for the Quill rich-text editor (used in
+     * Text-type sections). Returns JSON with the public URL so the editor
+     * can insert <img> tags inline.
+     */
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
+        $path = $request->file('image')->store('section-text-images', 'public');
+
+        return response()->json([
+            'url' => Storage::disk('public')->url($path),
+        ]);
+    }
+
     public function destroy(Section $section): RedirectResponse
     {
         $this->authorize('delete', $section);
 
         $course = $section->course;
-
-        if ($section->image_path) {
-            Storage::disk('public')->delete($section->image_path);
-        }
 
         $section->delete();
 

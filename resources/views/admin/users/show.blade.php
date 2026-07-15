@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'View user')
+@section('title', 'View User')
 
 @section('content')
     @php $role = $user->roles->first()?->name; @endphp
@@ -9,7 +9,7 @@
         <div>
             <a href="{{ route('users.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All users</a>
             <div class="mt-2 flex items-center justify-between gap-3">
-                <h1 class="text-xl font-semibold text-slate-900">View user</h1>
+                <h1 class="text-xl font-semibold text-slate-900">View User</h1>
                 @if ($user->is_active)
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         <span class="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active

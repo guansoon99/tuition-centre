@@ -127,7 +127,7 @@
 
             <div>
                 <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                    Save settings
+                    Save
                 </button>
             </div>
         </form>

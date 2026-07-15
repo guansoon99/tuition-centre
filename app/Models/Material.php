@@ -15,6 +15,8 @@ class Material extends Model
     public const TYPE_PDF = 'pdf';
     public const TYPE_EXTERNAL_LINK = 'external_link';
     public const TYPE_VIDEO_LINK = 'video_link';
+    public const TYPE_TEXT = 'text';
+    public const TYPE_COUNTDOWN = 'countdown';
 
     protected $fillable = [
         'section_id',
@@ -22,6 +24,8 @@ class Material extends Model
         'type',
         'file_path',
         'external_url',
+        'body',
+        'target_date',
         'file_size_bytes',
         'sort_order',
         'is_published',
@@ -32,6 +36,7 @@ class Material extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'published_at' => 'datetime',
+        'target_date' => 'datetime',
         'file_size_bytes' => 'integer',
     ];
 

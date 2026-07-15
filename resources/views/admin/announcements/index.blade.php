@@ -8,7 +8,7 @@
             <h1 class="text-xl font-semibold text-slate-900">Announcements</h1>
             <a href="{{ route('announcements.create') }}"
                class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                + Send announcement
+                + Send Announcement
             </a>
         </div>
 
@@ -26,6 +26,7 @@
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Start</th>
                             <th class="px-4 py-3">End</th>
+                            <th class="px-4 py-3">Created</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -66,6 +67,9 @@
                                 </td>
                                 <td class="px-4 py-3 font-mono text-sm">
                                     {{ $ends ? $ends->format('Y-m-d H:i') : '—' }}
+                                </td>
+                                <td class="px-4 py-3 font-mono text-sm">
+                                    {{ $a->sent_at?->format('Y-m-d H:i') ?? '—' }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
