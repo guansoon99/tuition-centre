@@ -15,7 +15,7 @@ class BannerController extends Controller
     public function index(): View
     {
         return view('admin.banner.index', [
-            'slides' => BannerSlide::orderBy('sort_order')->orderBy('id')->get(),
+            'slides' => BannerSlide::orderByDesc('created_at')->get(),
         ]);
     }
 

@@ -18,10 +18,6 @@ class UpdateSectionRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'type' => ['nullable', 'in:standard,countdown,image,text'],
-            'target_date' => ['nullable', 'date', 'required_if:type,countdown'],
-            'image' => ['nullable', 'image', 'max:5120'],
             'scheduled_at' => ['nullable', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['nullable', 'boolean'],

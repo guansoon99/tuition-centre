@@ -1,8 +1,4 @@
 @php
-    use App\Models\Course;
-    use App\Support\Cache\CacheKeys;
-    use Illuminate\Support\Facades\Cache;
-
     $user = auth()->user();
     $isAdmin = $user?->hasRole('admin');
     $isStudent = $user?->hasRole('student');
@@ -51,19 +47,6 @@
     }
 
     $accountActive = request()->routeIs('account.*');
-
-    // "My courses" — courses the user is staff on (course_teacher) or
-    // enrolled in. Admin sees everything via the Courses link instead.
-    $myCourses = collect();
-    if ($user && ! $isAdmin) {
-        $myCourses = Cache::remember(
-            CacheKeys::userEnrolled($user->id),
-            CacheKeys::TTL_ENROLLED,
-            fn () => Course::query()->visibleTo($user)->orderBy('name')->get()
-        );
-    }
-
-    $activeCourseSlug = request()->route('course')?->slug;
 @endphp
 
 {{-- Mobile overlay backdrop --}}
@@ -100,29 +83,6 @@
                     </div>
                 </div>
             @endforeach
-
-            @if ($myCourses->isNotEmpty())
-                <div class="mt-4 border-t border-slate-300 pt-4">
-                    <p class="mb-2 flex items-center justify-between px-3 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500">
-                        <span>My courses</span>
-                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                            {{ $myCourses->count() }}
-                        </span>
-                    </p>
-                    @foreach ($myCourses as $course)
-                        @php $isActiveCourse = $activeCourseSlug === $course->slug; @endphp
-                        <a href="{{ route('courses.show', $course) }}"
-                           @click="sidebarOpen = false"
-                           title="{{ $course->name }}"
-                           class="block truncate rounded-md px-3 py-2 text-sm font-medium
-                                  {{ $isActiveCourse
-                                     ? 'bg-slate-900 text-white'
-                                     : 'text-slate-900 hover:bg-slate-100' }}">
-                            {{ $course->name }}
-                        </a>
-                    @endforeach
-                </div>
-            @endif
         </nav>
 
         <div class="space-y-1 border-t border-slate-300 p-3">

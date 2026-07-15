@@ -38,18 +38,25 @@ class ImportStudentsTest extends TestCase
 
     public function test_credentials_export_produces_expected_rows(): void
     {
-        $rows = [
-            ['name' => 'Ali', 'username' => 'student1', 'plain_password' => 'Abc12def', 'course' => 'PA-S1', 'email' => null],
-            ['name' => 'Siti', 'username' => 'student2', 'plain_password' => 'Xyz34abc', 'course' => 'PA-S1', 'email' => 's@x.test'],
+        $okRows = [
+            ['name' => 'Ali', 'username' => 'student1', 'plain_password' => 'Abc12def', 'course' => 'PA-S1'],
+            ['name' => 'Siti', 'username' => 'student2', 'plain_password' => 'Xyz34abc', 'course' => 'PA-S1'],
+        ];
+        $skippedRows = [
+            ['name' => 'Existing Name', 'course' => 'PA-S1', 'reason' => 'A user named \'Existing Name\' already exists.'],
         ];
 
-        $export = new StudentCredentialsExport($rows);
+        $export = new StudentCredentialsExport($okRows, $skippedRows);
 
-        $this->assertSame(['Name', 'Username', 'Password', 'Course', 'Email'], $export->headings());
+        $this->assertSame(
+            ['Name', 'Username', 'Password', 'Course', 'Status', 'Reason'],
+            $export->headings()
+        );
         $this->assertSame(
             [
-                ['Ali', 'student1', 'Abc12def', 'PA-S1', ''],
-                ['Siti', 'student2', 'Xyz34abc', 'PA-S1', 's@x.test'],
+                ['Ali', 'student1', 'Abc12def', 'PA-S1', 'Created', ''],
+                ['Siti', 'student2', 'Xyz34abc', 'PA-S1', 'Created', ''],
+                ['Existing Name', '', '', 'PA-S1', 'Skipped', 'A user named \'Existing Name\' already exists.'],
             ],
             $export->array()
         );

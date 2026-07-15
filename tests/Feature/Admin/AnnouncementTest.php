@@ -45,7 +45,7 @@ class AnnouncementTest extends TestCase
 
     public function test_announcement_create_page_renders_for_admin(): void
     {
-        $this->actingAs($this->admin)->get('/announcements/create')->assertOk()->assertSee('Send announcement');
+        $this->actingAs($this->admin)->get('/announcements/create')->assertOk()->assertSee('Send Announcement');
     }
 
     public function test_non_admin_cannot_access_announcement_page(): void
@@ -56,7 +56,7 @@ class AnnouncementTest extends TestCase
         $this->actingAs($student)->get('/announcements')->assertForbidden();
     }
 
-    public function test_admin_sends_announcement_to_everyone_excluding_other_admins(): void
+    public function test_admin_sends_announcement_to_everyone_includes_admins(): void
     {
         $teacher = User::factory()->create(); $teacher->assignRole('teacher');
         $student = User::factory()->create(); $student->assignRole('student');
@@ -68,10 +68,11 @@ class AnnouncementTest extends TestCase
             'audience' => 'all',
         ]))->assertRedirect('/announcements');
 
+        // Audience="all" with no course → everyone, admins included.
         $this->assertSame(1, $teacher->notifications()->count());
         $this->assertSame(1, $student->notifications()->count());
-        $this->assertSame(0, $this->admin->notifications()->count());
-        $this->assertSame(0, $otherAdmin->notifications()->count());
+        $this->assertSame(1, $this->admin->notifications()->count());
+        $this->assertSame(1, $otherAdmin->notifications()->count());
 
         $note = $student->notifications()->first();
         $this->assertSame('Holiday on Friday', $note->data['title']);
@@ -88,7 +89,8 @@ class AnnouncementTest extends TestCase
 
         $this->assertSame(1, $student->notifications()->count());
         $this->assertSame(0, $teacher->notifications()->count());
-        $this->assertSame(0, $this->admin->notifications()->count());
+        // Admins always receive a copy on top of the targeted audience.
+        $this->assertSame(1, $this->admin->notifications()->count());
     }
 
     public function test_inactive_users_do_not_receive_announcements(): void
@@ -105,7 +107,7 @@ class AnnouncementTest extends TestCase
         $this->assertSame(1, $active->notifications()->count());
     }
 
-    public function test_topbar_bell_shows_unread_count_for_recipient(): void
+    public function test_announcement_shows_on_recipients_home_page(): void
     {
         $student = User::factory()->create(['username' => 'shopper', 'password' => 'pw']);
         $student->assignRole('student');
@@ -113,22 +115,6 @@ class AnnouncementTest extends TestCase
         $student->notify(new AdminAnnouncementNotification('Hi', 'Body'));
 
         $this->actingAs($student)->get('/')->assertOk()->assertSee('Hi');
-    }
-
-    public function test_user_can_mark_a_notification_as_read(): void
-    {
-        $student = User::factory()->create();
-        $student->assignRole('student');
-        $student->notify(new AdminAnnouncementNotification('Hi', 'Body'));
-
-        $note = $student->notifications()->first();
-        $this->assertNull($note->read_at);
-
-        $this->actingAs($student)
-            ->post('/notifications/'.$note->id.'/read')
-            ->assertRedirect();
-
-        $this->assertNotNull($note->fresh()->read_at);
     }
 
     public function test_admin_can_send_to_students_of_a_specific_course_only(): void
@@ -277,22 +263,6 @@ class AnnouncementTest extends TestCase
 
         $this->actingAs($this->admin)->post('/announcements', $payload)
             ->assertSessionHasErrors('starts_at');
-    }
-
-    public function test_user_can_mark_all_notifications_read(): void
-    {
-        $student = User::factory()->create();
-        $student->assignRole('student');
-        $student->notify(new AdminAnnouncementNotification('A', 'A'));
-        $student->notify(new AdminAnnouncementNotification('B', 'B'));
-
-        $this->assertSame(2, $student->unreadNotifications()->count());
-
-        $this->actingAs($student)
-            ->post('/notifications/read-all')
-            ->assertRedirect();
-
-        $this->assertSame(0, $student->unreadNotifications()->count());
     }
 
     public function test_admin_can_edit_an_announcement_and_all_recipients_see_the_new_title(): void

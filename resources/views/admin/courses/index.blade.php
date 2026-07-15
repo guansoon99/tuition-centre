@@ -44,6 +44,7 @@
                         <th class="px-4 py-3 text-right">Students</th>
                         <th class="px-4 py-3 text-right">Sections</th>
                         <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Created</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -65,6 +66,9 @@
                                         <span class="mr-1 h-1.5 w-1.5 rounded-full bg-red-500"></span>Inactive
                                     </span>
                                 @endif
+                            </td>
+                            <td class="px-4 py-3 font-mono text-sm">
+                                {{ $c->created_at->format('Y-m-d H:i') }}
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex justify-end gap-2">
@@ -102,7 +106,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">No courses.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-sm text-slate-400">No courses.</td></tr>
                     @endforelse
                 </tbody>
             </table>

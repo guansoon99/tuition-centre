@@ -60,13 +60,17 @@ class AnnouncementController extends Controller
         $courseId = $request->integer('course_id') ?: null;
         $course = $courseId ? Course::find($courseId) : null;
 
-        $recipients = $this->resolveRecipients($audience, $course);
+        $audienceUsers = $this->resolveAudience($audience, $course);
 
-        if ($recipients->isEmpty()) {
+        if ($audienceUsers->isEmpty()) {
             return back()
                 ->withInput()
                 ->withErrors(['audience' => 'No active users match this audience.']);
         }
+
+        // Admins always receive a copy so they have full visibility of every
+        // announcement that's been sent.
+        $recipients = $audienceUsers->merge($this->activeAdmins())->unique('id')->values();
 
         Notification::send(
             $recipients,
@@ -177,11 +181,17 @@ class AnnouncementController extends Controller
             ->values();
     }
 
-    private function resolveRecipients(string $audience, ?Course $course)
+    private function activeAdmins()
     {
-        $query = User::query()
+        return User::query()
             ->where('is_active', true)
-            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'admin'));
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->get();
+    }
+
+    private function resolveAudience(string $audience, ?Course $course)
+    {
+        $query = User::query()->where('is_active', true);
 
         if ($audience === 'students') {
             $query->whereHas('roles', fn ($q) => $q->where('name', 'student'));

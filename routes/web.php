@@ -12,7 +12,6 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\CourseController;
 use App\Http\Controllers\Student\HomeController;
 use App\Http\Controllers\Student\MaterialController;
@@ -35,12 +34,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password');
 
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
-    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
-
+    Route::get('/materials/{material}', [MaterialController::class, 'view'])->name('materials.view');
     Route::get('/materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');
     Route::get('/materials/{material}/demo', [MaterialController::class, 'demoPlaceholder'])
         ->name('materials.demo-placeholder');
+    Route::get('/materials/{material}/stream', [MaterialController::class, 'demoStream'])
+        ->name('materials.demo-stream');
 
     // -----------------------------------------------------------------
     // Courses
@@ -71,6 +70,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/courses/{course:slug}/sections', [TeacherSectionController::class, 'store'])->name('sections.store');
         Route::post('/courses/{course:slug}/sections/quick-insert', [TeacherSectionController::class, 'quickInsert'])
             ->name('sections.quick-insert');
+        Route::post('/sections/upload-image', [TeacherSectionController::class, 'uploadImage'])
+            ->name('sections.upload-image');
         Route::get('/sections/{section}/edit', [TeacherSectionController::class, 'edit'])->name('sections.edit');
         Route::patch('/sections/{section}', [TeacherSectionController::class, 'update'])->name('sections.update');
         Route::delete('/sections/{section}', [TeacherSectionController::class, 'destroy'])->name('sections.destroy');
@@ -172,6 +173,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/import-students/sample', [ImportStudentsController::class, 'downloadSample'])->name('import.sample');
         Route::post('/import-students/preview', [ImportStudentsController::class, 'preview'])->name('import.preview');
         Route::post('/import-students/run', [ImportStudentsController::class, 'run'])->name('import.run');
+        Route::post('/import-students/cancel', [ImportStudentsController::class, 'cancel'])->name('import.cancel');
         Route::get('/import-students/credentials', [ImportStudentsController::class, 'downloadCredentials'])->name('import.credentials');
     });
 });

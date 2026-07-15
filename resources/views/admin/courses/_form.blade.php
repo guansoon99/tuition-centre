@@ -57,7 +57,7 @@
 
     <div class="flex gap-3">
         <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-            {{ $course ? 'Save changes' : 'Create course' }}
+            {{ $course ? 'Save' : 'Create course' }}
         </button>
         <a href="{{ route('courses.index') }}"
            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">

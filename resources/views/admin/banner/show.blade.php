@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'View banner slide')
+@section('title', 'View Banner Slide')
 
 @section('content')
     <div class="mx-auto max-w-3xl space-y-4">
         <div>
-            <a href="{{ route('banner.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All banner slides</a>
+            <a href="{{ route('banner.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All Banner Slides</a>
             <div class="mt-2 flex items-center justify-between gap-3">
-                <h1 class="text-xl font-semibold text-slate-900">View banner slide</h1>
+                <h1 class="text-xl font-semibold text-slate-900">View Banner Slide</h1>
                 @if ($slide->is_active)
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         <span class="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active

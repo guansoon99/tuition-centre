@@ -275,47 +275,11 @@
                     </form>
 
                     @foreach ($course->sections as $section)
-                        @if ($section->type === \App\Models\Section::TYPE_COUNTDOWN && $section->target_date)
-                            {{-- Live countdown card with an overlay Edit button --}}
-                            <div class="relative">
-                                <x-countdown-section :section="$section" />
-                                <button type="button"
-                                        @click="openSection = {{ $section->id }}"
-                                        class="absolute right-3 top-3 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                    Edit
-                                </button>
-                            </div>
-                        @elseif ($section->type === \App\Models\Section::TYPE_IMAGE && $section->image_path)
-                            {{-- Image card with an overlay Edit button --}}
-                            <div class="relative">
-                                <x-image-section :section="$section" />
-                                <button type="button"
-                                        @click="openSection = {{ $section->id }}"
-                                        class="absolute right-3 top-3 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                    Edit
-                                </button>
-                            </div>
-                        @elseif ($section->type === \App\Models\Section::TYPE_TEXT)
-                            {{-- Text card with an overlay Edit button --}}
-                            <div class="relative">
-                                <x-text-section :section="$section" />
-                                <button type="button"
-                                        @click="openSection = {{ $section->id }}"
-                                        class="absolute right-3 top-3 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                    Edit
-                                </button>
-                            </div>
-                        @else
                         <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">
                             <header class="border-b border-slate-100 bg-slate-50 px-4 py-3">
                                 <div class="flex items-baseline justify-between gap-2">
                                     <h2 class="text-base font-medium text-slate-900">
                                         {{ $section->title }}
-                                        @if ($section->type === \App\Models\Section::TYPE_COUNTDOWN)
-                                            <span class="ml-1 rounded bg-indigo-100 px-1.5 text-xs font-medium text-indigo-700">timer · no date</span>
-                                        @elseif ($section->type === \App\Models\Section::TYPE_IMAGE)
-                                            <span class="ml-1 rounded bg-sky-100 px-1.5 text-xs font-medium text-sky-700">image · no file</span>
-                                        @endif
                                         @if ($section->scheduled_at && $section->scheduled_at->isFuture())
                                             <span class="ml-1 rounded bg-sky-100 px-1.5 font-mono text-xs text-sky-700"
                                                   title="Goes live at {{ $section->scheduled_at->format('Y-m-d H:i') }}">
@@ -333,17 +297,10 @@
                                         </button>
                                     </div>
                                 </div>
-                                @if ($section->description)
-                                    <p class="mt-1 text-sm text-slate-600">{{ $section->description }}</p>
-                                @endif
                             </header>
 
-                            @if ($section->type === \App\Models\Section::TYPE_COUNTDOWN)
-                                <p class="px-4 py-4 text-xs italic text-slate-400">Target date not set — open the edit panel to add one.</p>
-                            @elseif ($section->type === \App\Models\Section::TYPE_IMAGE)
-                                <p class="px-4 py-4 text-xs italic text-slate-400">No image uploaded — open the edit panel to add one.</p>
-                            @elseif ($section->materials->isEmpty())
-                                <p class="px-4 py-4 text-xs italic text-slate-400">No materials.</p>
+                            @if ($section->materials->isEmpty())
+                                <p class="px-4 py-4 text-xs italic text-slate-400">No resources yet — click "+ Add resource".</p>
                             @else
                                 <div class="divide-y divide-slate-100">
                                     @foreach ($section->materials as $material)
@@ -380,6 +337,11 @@
 
                                                 <form method="POST" action="{{ route('materials.update', $material) }}" enctype="multipart/form-data"
                                                       x-data="{ matType: '{{ $material->type }}' }"
+                                                      x-init="
+                                                          const tryInit = () => initQuillEditor($refs.matQuillContainer_{{ $material->id }}, $refs.matQuillInput_{{ $material->id }});
+                                                          if (matType === 'text') $nextTick(tryInit);
+                                                          $watch('matType', v => { if (v === 'text') $nextTick(tryInit); });
+                                                      "
                                                       class="space-y-4">
                                                     @csrf @method('PATCH')
 
@@ -396,10 +358,12 @@
                                                             <option value="pdf">PDF (uploaded)</option>
                                                             <option value="external_link">External link</option>
                                                             <option value="video_link">Video link (Google Drive)</option>
+                                                            <option value="text">Text block</option>
+                                                            <option value="countdown">Countdown timer</option>
                                                         </select>
                                                     </div>
 
-                                                    <div x-show="matType === 'pdf'" x-data="{ chosen: null }">
+                                                    <div x-show="matType === 'pdf'" x-data="{ chosen: null }" x-cloak>
                                                         <label class="mb-1 block text-sm font-medium text-slate-700">PDF file</label>
                                                         <input type="file" name="file" accept="application/pdf"
                                                                @change="chosen = $event.target.files[0] || null"
@@ -416,10 +380,31 @@
                                                         @endif
                                                     </div>
 
-                                                    <div x-show="matType !== 'pdf'">
+                                                    <div x-show="matType === 'external_link' || matType === 'video_link'" x-cloak>
                                                         <label class="mb-1 block text-sm font-medium text-slate-700">URL</label>
                                                         <input type="url" name="external_url" value="{{ $material->external_url }}"
                                                                placeholder="https://..."
+                                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                                    </div>
+
+                                                    <div x-show="matType === 'text'" x-cloak>
+                                                        <label class="mb-1 block text-sm font-medium text-slate-700">Body</label>
+                                                        <div class="overflow-hidden rounded-md border border-slate-300">
+                                                            <div x-ref="matQuillContainer_{{ $material->id }}"
+                                                                 data-initial-html="{{ $material->body }}"
+                                                                 class="min-h-[200px] bg-white"></div>
+                                                        </div>
+                                                        <textarea name="body"
+                                                                  x-ref="matQuillInput_{{ $material->id }}"
+                                                                  x-bind:disabled="matType !== 'text'"
+                                                                  class="hidden">{{ $material->body }}</textarea>
+                                                    </div>
+
+                                                    <div x-show="matType === 'countdown'" x-cloak>
+                                                        <label class="mb-1 block text-sm font-medium text-slate-700">Target date</label>
+                                                        <input type="text" name="target_date" data-flatpickr
+                                                               value="{{ $material->target_date?->format('Y-m-d H:i') }}"
+                                                               placeholder="Y-m-d H:i"
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
                                                     </div>
 
@@ -439,7 +424,7 @@
                                                     <div class="flex items-center justify-between pt-2">
                                                         <button type="submit"
                                                                 class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                                                            Save changes
+                                                            Save
                                                         </button>
                                                         <button type="button" @click="openMaterial = null"
                                                                 class="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
@@ -460,14 +445,13 @@
                                 </div>
                             @endif
 
-                            @if ($section->type === \App\Models\Section::TYPE_STANDARD)
-                                <div class="border-t border-slate-100 bg-slate-50 px-4 py-2 text-right">
-                                    <a href="{{ route('materials.create', $section) }}"
-                                       class="text-xs font-medium text-slate-700 hover:underline">+ Add material</a>
-                                </div>
-                            @endif
+                            <div class="border-t border-slate-100 bg-slate-50 px-4 py-2 text-right">
+                                <a href="{{ route('materials.create', $section) }}"
+                                   class="text-xs font-medium text-slate-700 hover:underline">
+                                    + Add resource
+                                </a>
+                            </div>
                         </article>
-                        @endif
 
                         {{-- + button below each section (insert next) --}}
                         <form method="POST" action="{{ route('sections.quick-insert', $course) }}">
@@ -499,63 +483,14 @@
                                 </div>
 
                                 <form method="POST" action="{{ route('sections.update', $section) }}"
-                                      enctype="multipart/form-data"
-                                      x-data="{ secType: '{{ $section->type }}', preview: null }"
                                       class="space-y-4">
                                     @csrf @method('PATCH')
-
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
-                                        <select name="type" x-model="secType"
-                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                                            <option value="text">Text</option>
-                                            <option value="image">Image</option>
-                                            <option value="standard">Materials</option>
-                                            <option value="countdown">Countdown Timer</option>
-                                        </select>
-                                    </div>
 
                                     <div>
                                         <label class="mb-1 block text-sm font-medium text-slate-700">Title</label>
                                         <input type="text" name="title" required
                                                value="{{ $section->title }}"
                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
-                                    </div>
-
-                                    <div x-show="secType === 'countdown'" x-cloak>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Target date</label>
-                                        <input type="text" name="target_date" data-flatpickr
-                                               value="{{ $section->target_date?->format('Y-m-d H:i') }}"
-                                               placeholder="Y-m-d H:i"
-                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                                        <p class="mt-1 text-xs text-slate-500">The countdown will tick down to this moment.</p>
-                                    </div>
-
-                                    <div x-show="secType === 'image'" x-cloak>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Image</label>
-                                        <input type="file" name="image" accept="image/*"
-                                               @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
-                                               class="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white" />
-                                        <template x-if="preview">
-                                            <img :src="preview" alt="" class="mt-2 max-h-48 rounded border border-slate-200 object-contain" />
-                                        </template>
-                                        @if ($section->image_path)
-                                            <div x-show="!preview" class="mt-2">
-                                                <p class="mb-1 text-xs text-slate-500">Current image (upload a new one to replace)</p>
-                                                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($section->image_path) }}"
-                                                     alt="" class="max-h-48 rounded border border-slate-200 object-contain" />
-                                            </div>
-                                        @endif
-                                        <p class="mt-1 text-xs text-slate-500">Recommended max 5 MB. JPG/PNG/WEBP.</p>
-                                    </div>
-
-                                    <div x-show="secType === 'standard' || secType === 'text'" x-cloak>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">
-                                            <span x-show="secType === 'standard'">Description (optional)</span>
-                                            <span x-show="secType === 'text'">Body text</span>
-                                        </label>
-                                        <textarea name="description" :rows="secType === 'text' ? 8 : 3"
-                                                  class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500">{{ $section->description }}</textarea>
                                     </div>
 
                                     <div>
@@ -589,7 +524,7 @@
                                     <div class="flex items-center justify-between pt-2">
                                         <button type="submit"
                                                 class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                                            Save changes
+                                            Save
                                         </button>
                                         <button type="button" @click="openSection = null"
                                                 class="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
@@ -617,6 +552,17 @@
 @push('head')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
+    <style>
+        /* Mirror the public renderer so image alignment is visible while
+           editing — Quill aligns the paragraph but img stays inline by
+           default, so we force block + auto margins for the alignment
+           classes. */
+        .ql-editor .ql-align-center img { display: block; margin-left: auto; margin-right: auto; }
+        .ql-editor .ql-align-right img  { display: block; margin-left: auto; margin-right: 0; }
+        .ql-editor .ql-align-justify img{ display: block; margin-left: auto; margin-right: auto; }
+        .ql-editor img { max-width: 100%; height: auto; }
+    </style>
     <style>
         .ts-wrapper { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
         .ts-wrapper.single .ts-control,
@@ -647,6 +593,79 @@
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
+    <script>
+        // Initialize a Quill rich-text editor on the given container, syncing
+        // its HTML output back into the hidden textarea so the form submits
+        // the right value. Idempotent — re-calls are safe.
+        window.initQuillEditor = function (container, mirrorInput) {
+            if (!container || container.dataset.quillReady === '1') return;
+            container.dataset.quillReady = '1';
+
+            const editor = new Quill(container, {
+                theme: 'snow',
+                placeholder: 'Write something…',
+                modules: {
+                    toolbar: {
+                        container: [
+                            [{ header: [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ list: 'ordered' }, { list: 'bullet' }],
+                            [{ align: [] }],
+                            ['blockquote'],
+                            ['link', 'image'],
+                        ],
+                        handlers: {
+                            image: function () {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.click();
+
+                                input.onchange = async () => {
+                                    const file = input.files[0];
+                                    if (!file) return;
+
+                                    const form = new FormData();
+                                    form.append('image', file);
+
+                                    try {
+                                        const res = await fetch('{{ route('sections.upload-image') }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                                'Accept': 'application/json',
+                                            },
+                                            body: form,
+                                        });
+                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
+                                        const data = await res.json();
+                                        const range = editor.getSelection(true);
+                                        editor.insertEmbed(range.index, 'image', data.url, 'user');
+                                        editor.setSelection(range.index + 1);
+                                    } catch (e) {
+                                        alert('Image upload failed: ' + e.message);
+                                    }
+                                };
+                            },
+                        },
+                    },
+                },
+            });
+
+            // Seed with the existing content stored on the container.
+            const initial = container.dataset.initialHtml || mirrorInput.value || '';
+            if (initial) {
+                editor.clipboard.dangerouslyPasteHTML(initial);
+            }
+
+            // Keep the hidden textarea in lockstep with the editor so form
+            // submits the latest HTML.
+            editor.on('text-change', () => {
+                mirrorInput.value = editor.root.innerHTML;
+            });
+        };
+    </script>
     <script>
         window.addMonths = function (dateStr, months) {
             if (!dateStr) return '';

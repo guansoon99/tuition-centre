@@ -34,14 +34,32 @@ class CourseController extends Controller
             $user->enrollments()
                 ->where('course_id', $course->id)
                 ->update(['last_accessed_at' => now()]);
-
-            Cache::forget(CacheKeys::userRecent($user->id));
         }
 
         if ($user->hasRole('teacher')) {
             $course->teachers()
                 ->updateExistingPivot($user->id, ['last_accessed_at' => now()]);
         }
+
+        // Universal "I opened this course" record — works for admins too
+        // (who have neither enrollments nor course_teacher rows) and is the
+        // single source for the Home page's Recently Accessed strip.
+        \DB::table('course_views')->upsert(
+            [[
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'accessed_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]],
+            ['user_id', 'course_id'],
+            ['accessed_at', 'updated_at']
+        );
+
+        // Recently-accessed widgets read from cache; bust both so this
+        // visit shows up immediately on the next render.
+        Cache::forget(CacheKeys::userRecent($user->id));
+        Cache::forget(CacheKeys::userEnrolled($user->id));
 
         return view('student.courses.show', [
             'course' => $cached,

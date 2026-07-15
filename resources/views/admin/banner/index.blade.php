@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Banner slides')
+@section('title', 'Banner Slides')
 
 @section('content')
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
-            <h1 class="text-xl font-semibold text-slate-900">Banner slides</h1>
+            <h1 class="text-xl font-semibold text-slate-900">Banner Slides</h1>
             <a href="{{ route('banner.create') }}"
                class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
                 + Upload
@@ -25,6 +25,7 @@
                             <th class="px-4 py-3">Title</th>
                             <th class="px-4 py-3 text-center">Order</th>
                             <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Created</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -55,6 +56,9 @@
                                             <span class="mr-1 h-1.5 w-1.5 rounded-full bg-red-500"></span>Inactive
                                         </span>
                                     @endif
+                                </td>
+                                <td class="px-4 py-3 font-mono text-sm">
+                                    {{ $slide->created_at->format('Y-m-d H:i') }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">

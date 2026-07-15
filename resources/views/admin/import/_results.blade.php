@@ -9,7 +9,7 @@
             <p class="text-2xl font-semibold text-emerald-900">{{ count($result['ok'] ?? []) }}</p>
         </div>
         <div class="rounded-md bg-amber-50 p-3">
-            <p class="text-xs uppercase text-amber-700">Skipped</p>
+            <p class="text-xs uppercase text-amber-700">{{ \Illuminate\Support\Str::plural('Duplicate', count($result['skipped'] ?? [])) }}</p>
             <p class="text-2xl font-semibold text-amber-900">{{ count($result['skipped'] ?? []) }}</p>
         </div>
         <div class="rounded-md bg-red-50 p-3">

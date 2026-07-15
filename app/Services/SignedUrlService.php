@@ -18,30 +18,39 @@ class SignedUrlService
      * Resolve a viewable/downloadable URL for the material AND log the access.
      * Returns a URL the caller should 302-redirect to.
      */
-    public function forMaterial(Material $material, User $user, Request $request): string
+    public function forMaterial(Material $material, User $user, Request $request, string $disposition = 'inline'): string
     {
         $this->logAccess($material, $user, $request);
 
         return match ($material->type) {
-            Material::TYPE_PDF => $this->urlForPdf($material),
+            Material::TYPE_PDF => $this->urlForPdf($material, $disposition),
             default => $material->external_url ?? '',
         };
     }
 
-    private function urlForPdf(Material $material): string
+    private function urlForPdf(Material $material, string $disposition): string
     {
         $disk = config('filesystems.default');
         $storage = Storage::disk($disk);
 
         if (in_array($disk, ['r2', 's3'], true)) {
-            return $storage->temporaryUrl($material->file_path, now()->addMinutes($this->ttlMinutes));
+            // R2/S3 lets the caller override Content-Disposition on a signed URL.
+            $headers = ['ResponseContentDisposition' => $disposition === 'attachment'
+                ? 'attachment; filename="'.$material->title.'.pdf"'
+                : 'inline; filename="'.$material->title.'.pdf"'];
+
+            return $storage->temporaryUrl(
+                $material->file_path,
+                now()->addMinutes($this->ttlMinutes),
+                $headers
+            );
         }
 
         if ($material->file_path && $storage->exists($material->file_path)) {
             return URL::temporarySignedRoute(
                 'materials.demo-stream',
                 now()->addMinutes($this->ttlMinutes),
-                ['material' => $material->id]
+                ['material' => $material->id, 'disposition' => $disposition]
             );
         }
 

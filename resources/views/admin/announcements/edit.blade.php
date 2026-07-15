@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Edit announcement')
+@section('title', 'Edit Announcement')
 
 @section('content')
     <div class="mx-auto max-w-3xl space-y-6">
         <div>
             <a href="{{ route('announcements.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All announcements</a>
-            <h1 class="mt-2 text-xl font-semibold text-slate-900">Edit announcement</h1>
+            <h1 class="mt-2 text-xl font-semibold text-slate-900">Edit Announcement</h1>
         </div>
 
         <form method="POST" action="{{ route('announcements.update', $announcement->id) }}"
@@ -16,7 +16,7 @@
 
             <div class="flex gap-3">
                 <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                    Save changes
+                    Save
                 </button>
                 <a href="{{ route('announcements.index') }}"
                    class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">

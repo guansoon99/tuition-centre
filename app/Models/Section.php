@@ -14,7 +14,6 @@ class Section extends Model
 
     public const TYPE_STANDARD = 'standard';
     public const TYPE_COUNTDOWN = 'countdown';
-    public const TYPE_IMAGE = 'image';
     public const TYPE_TEXT = 'text';
 
     protected $fillable = [
