@@ -201,10 +201,11 @@ class AnnouncementController extends Controller
                     ->where('is_active', true));
             }
         } elseif ($audience === 'teachers') {
-            $query->whereHas('roles', fn ($q) => $q->where('name', 'teacher'));
-            if ($course) {
-                $query->whereHas('taughtCourses', fn ($q) => $q->where('courses.id', $course->id));
-            }
+            $query->whereHas('taughtCourses', function ($q) use ($course) {
+                if ($course) {
+                    $q->where('courses.id', $course->id);
+                }
+            });
         } elseif ($course) {
             $query->where(function ($q) use ($course) {
                 $q->whereHas('enrollments', fn ($qq) => $qq

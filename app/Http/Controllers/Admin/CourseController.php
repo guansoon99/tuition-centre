@@ -80,7 +80,9 @@ class CourseController extends Controller
 
         $course->load(['teachers', 'students', 'sections.materials']);
 
-        $teacherCandidates = \App\Models\User::role('teacher')
+        // Anyone with the sections.manage permission is eligible to be a
+        // course teacher — role name doesn't matter, only what the role can do.
+        $teacherCandidates = \App\Models\User::permission('sections.manage')
             ->where('is_active', true)
             ->whereNotIn('id', $course->teachers->pluck('id'))
             ->orderBy('name')

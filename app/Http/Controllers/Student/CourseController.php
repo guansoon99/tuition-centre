@@ -36,7 +36,7 @@ class CourseController extends Controller
                 ->update(['last_accessed_at' => now()]);
         }
 
-        if ($user->hasRole('teacher')) {
+        if ($user->teaches($course)) {
             $course->teachers()
                 ->updateExistingPivot($user->id, ['last_accessed_at' => now()]);
         }
