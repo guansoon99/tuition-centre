@@ -14,7 +14,6 @@ class Material extends Model
 
     public const TYPE_PDF = 'pdf';
     public const TYPE_EXTERNAL_LINK = 'external_link';
-    public const TYPE_VIDEO_LINK = 'video_link';
     public const TYPE_TEXT = 'text';
     public const TYPE_COUNTDOWN = 'countdown';
 

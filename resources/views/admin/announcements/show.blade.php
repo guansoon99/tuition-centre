@@ -21,8 +21,7 @@
 
     <div class="mx-auto max-w-3xl space-y-6">
         <div>
-            <a href="{{ route('announcements.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All announcements</a>
-            <div class="mt-2 flex items-center justify-between gap-3">
+            <div class="flex items-center justify-between gap-3">
                 <h1 class="text-xl font-semibold text-slate-900">View Announcement</h1>
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusStyles['pill'] }}">
                     <span class="mr-1.5 h-1.5 w-1.5 rounded-full {{ $statusStyles['dot'] }}"></span>
@@ -71,10 +70,12 @@
         </div>
 
         <div class="flex gap-3">
-            <a href="{{ route('announcements.edit', $announcement->id) }}"
-               class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
-                Edit
-            </a>
+            @can('announcements.edit')
+                <a href="{{ route('announcements.edit', $announcement->id) }}"
+                   class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                    Edit
+                </a>
+            @endcan
             <a href="{{ route('announcements.index') }}"
                class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
                 Back

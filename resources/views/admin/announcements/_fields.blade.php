@@ -24,9 +24,9 @@
         <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Audience</label>
             <select name="audience" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                <option value="students" @selected(old('audience', 'students') === 'students')>Students</option>
+                <option value="all" @selected(old('audience', 'all') === 'all')>Everyone</option>
                 <option value="teachers" @selected(old('audience') === 'teachers')>Teachers</option>
-                <option value="all" @selected(old('audience') === 'all')>Everyone</option>
+                <option value="students" @selected(old('audience') === 'students')>Students</option>
             </select>
         </div>
 

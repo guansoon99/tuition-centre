@@ -123,17 +123,17 @@ class StudentSurfaceTest extends TestCase
         $this->assertSame(0, AccessLog::count());
     }
 
-    public function test_video_link_logs_view_action_and_redirects_to_external_url(): void
+    public function test_external_link_logs_view_action_and_redirects_to_external_url(): void
     {
-        $video = Material::factory()->videoLink()->create(['section_id' => $this->section->id]);
+        $link = Material::factory()->externalLink()->create(['section_id' => $this->section->id]);
 
         $response = $this->actingAs($this->student)
-            ->get('/materials/'.$video->id.'/download');
+            ->get('/materials/'.$link->id.'/download');
 
         $response->assertStatus(302);
-        $response->assertRedirect($video->external_url);
+        $response->assertRedirect($link->external_url);
 
-        $log = AccessLog::where('material_id', $video->id)->first();
+        $log = AccessLog::where('material_id', $link->id)->first();
         $this->assertSame(AccessLog::ACTION_VIEW, $log->action);
     }
 

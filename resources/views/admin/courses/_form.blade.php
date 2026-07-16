@@ -21,12 +21,6 @@
         </div>
     </div>
 
-    <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Description</label>
-        <textarea name="description" rows="3"
-                  class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">{{ old('description', $course?->description) }}</textarea>
-    </div>
-
     <div x-data="{ preview: null }">
         <label class="mb-1 block text-sm font-medium text-slate-700">Image</label>
         <input type="file" name="banner_image" accept="image/*"

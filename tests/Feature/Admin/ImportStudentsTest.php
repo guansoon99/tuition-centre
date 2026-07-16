@@ -25,7 +25,7 @@ class ImportStudentsTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $this->actingAs($admin)->get('/import-students')->assertOk()->assertSee('Import students');
+        $this->actingAs($admin)->get('/import-students')->assertOk()->assertSee('Import Students');
     }
 
     public function test_import_page_blocked_for_non_admin(): void

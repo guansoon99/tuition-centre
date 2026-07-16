@@ -10,8 +10,7 @@
 
     <div class="mx-auto max-w-3xl space-y-4">
         <div>
-            <a href="{{ route('roles.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All roles</a>
-            <h1 class="mt-2 text-xl font-semibold text-slate-900">
+            <h1 class="text-xl font-semibold text-slate-900">
                 {{ $role ? 'Edit '.ucfirst($role->name) : 'New role' }}
             </h1>
         </div>

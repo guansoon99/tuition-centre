@@ -85,21 +85,21 @@ class TeacherCrudTest extends TestCase
         Storage::assertExists($material->file_path);
     }
 
-    public function test_creating_video_link_requires_url_and_skips_file(): void
+    public function test_creating_external_link_requires_url_and_skips_file(): void
     {
         $section = Section::factory()->create(['course_id' => $this->course->id]);
 
         $this->actingAs($this->teacher)
             ->post(route('materials.store', $section), [
                 'title' => 'Recording',
-                'type' => Material::TYPE_VIDEO_LINK,
+                'type' => Material::TYPE_EXTERNAL_LINK,
                 'external_url' => 'https://drive.google.com/file/d/abc/view',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('materials', [
             'title' => 'Recording',
-            'type' => Material::TYPE_VIDEO_LINK,
+            'type' => Material::TYPE_EXTERNAL_LINK,
             'external_url' => 'https://drive.google.com/file/d/abc/view',
             'file_path' => null,
         ]);

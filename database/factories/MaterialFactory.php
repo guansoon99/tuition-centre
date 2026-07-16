@@ -38,13 +38,4 @@ class MaterialFactory extends Factory
         ]);
     }
 
-    public function videoLink(): static
-    {
-        return $this->state(fn () => [
-            'type' => Material::TYPE_VIDEO_LINK,
-            'file_path' => null,
-            'external_url' => 'https://drive.google.com/file/d/'.Str::random(28).'/view',
-            'file_size_bytes' => null,
-        ]);
-    }
 }

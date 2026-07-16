@@ -7,10 +7,12 @@
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Users</h1>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('users.export', request()->only(['q', 'role', 'active', 'course'])) }}"
-                   class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
-                    Export Excel
-                </a>
+                @can('users.export')
+                    <a href="{{ route('users.export', request()->only(['q', 'role', 'active', 'course'])) }}"
+                       class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                        Export Excel
+                    </a>
+                @endcan
                 @can('users.create')
                     <a href="{{ route('users.create') }}"
                        class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
@@ -116,6 +118,8 @@
                                            class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
                                             Edit
                                         </a>
+                                    @endcan
+                                    @can('users.deactivate')
                                         @if ($u->id !== auth()->id())
                                             @if ($u->is_active)
                                                 <form method="POST" action="{{ route('users.destroy', $u) }}"

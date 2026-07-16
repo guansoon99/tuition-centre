@@ -12,34 +12,34 @@
         ['label' => 'Home', 'route' => 'home', 'active' => request()->routeIs('home')],
     ]];
 
-    if ($user?->canAny(['courses.manage_teachers', 'courses.manage_students', 'sections.manage'])) {
+    if ($user?->can('courses.view')) {
         $sections[0]['items'][] = ['label' => 'Courses', 'route' => 'courses.index', 'active' => request()->routeIs('courses.*')];
     }
 
     // "Users" section — show whichever items the user has permission for.
     $usersItems = [];
-    if ($user?->can('roles.manage')) {
-        $usersItems[] = ['label' => 'Roles', 'route' => 'roles.index', 'active' => request()->routeIs('roles.*')];
-    }
     if ($user?->can('users.view')) {
         $usersItems[] = ['label' => 'Users', 'route' => 'users.index', 'active' => request()->routeIs('users.*')];
     }
     if ($user?->can('users.import')) {
-        $usersItems[] = ['label' => 'Import Students', 'route' => 'import.show', 'active' => request()->routeIs('import.*')];
+        $usersItems[] = ['label' => 'Import', 'route' => 'import.show', 'active' => request()->routeIs('import.*')];
+    }
+    if ($user?->can('roles.view')) {
+        $usersItems[] = ['label' => 'Roles', 'route' => 'roles.index', 'active' => request()->routeIs('roles.*')];
     }
     if (! empty($usersItems)) {
         $sections[] = ['title' => 'Users', 'items' => $usersItems];
     }
 
-    // "Settings" section — same pattern.
+    // "Settings" section — visibility gated by the .view perm of each area.
     $settingsItems = [];
-    if ($user?->can('banner.manage')) {
+    if ($user?->can('banner.view')) {
         $settingsItems[] = ['label' => 'Banner', 'route' => 'banner.index', 'active' => request()->routeIs('banner.*')];
     }
-    if ($user?->can('announcements.manage')) {
+    if ($user?->can('announcements.view')) {
         $settingsItems[] = ['label' => 'Announcement', 'route' => 'announcements.index', 'active' => request()->routeIs('announcements.*')];
     }
-    if ($user?->can('settings.manage')) {
+    if ($user?->can('settings.view')) {
         $settingsItems[] = ['label' => 'Website Settings', 'route' => 'settings.show', 'active' => request()->routeIs('settings.*')];
     }
     if (! empty($settingsItems)) {

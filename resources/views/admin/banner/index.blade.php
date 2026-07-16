@@ -6,10 +6,12 @@
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Banner Slides</h1>
-            <a href="{{ route('banner.create') }}"
-               class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                + Upload
-            </a>
+            @can('banner.create')
+                <a href="{{ route('banner.create') }}"
+                   class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                    + Upload
+                </a>
+            @endcan
         </div>
 
         @if ($slides->isEmpty())
@@ -66,18 +68,22 @@
                                            class="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
                                             View
                                         </a>
-                                        <a href="{{ route('banner.edit', $slide) }}"
-                                           class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                            Edit
-                                        </a>
-                                        <form method="POST" action="{{ route('banner.destroy', $slide) }}"
-                                              onsubmit="return confirm('Delete this slide?');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
-                                                Delete
-                                            </button>
-                                        </form>
+                                        @can('banner.edit')
+                                            <a href="{{ route('banner.edit', $slide) }}"
+                                               class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
+                                                Edit
+                                            </a>
+                                        @endcan
+                                        @can('banner.delete')
+                                            <form method="POST" action="{{ route('banner.destroy', $slide) }}"
+                                                  onsubmit="return confirm('Delete this slide?');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                        class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

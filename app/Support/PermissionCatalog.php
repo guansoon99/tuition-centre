@@ -19,22 +19,43 @@ class PermissionCatalog
      * @var array<string, array<string, string>>
      */
     public const GROUPS = [
+        'Courses' => [
+            'courses.view' => 'View',
+            'courses.manage_details' => 'Manage Details',
+            'courses.manage_teachers' => 'Manage Teachers',
+            'courses.manage_students' => 'Manage Students',
+            'sections.manage' => 'Manage Sections & Materials',
+            'courses.activate' => 'Activate / Deactivate',
+        ],
         'Users' => [
             'users.view' => 'View',
             'users.create' => 'Create',
             'users.edit' => 'Edit',
-            'users.import' => 'Import Students',
-            'roles.manage' => 'Roles',
+            'users.deactivate' => 'Activate / Deactivate',
+            'users.export' => 'Export Excel',
+            'users.import' => 'Import',
         ],
-        'Courses' => [
-            'courses.manage_teachers' => 'Manage Teachers',
-            'courses.manage_students' => 'Manage Students',
-            'sections.manage' => 'Manage Sections & Materials',
+        'Roles' => [
+            'roles.view' => 'View',
+            'roles.create' => 'Create',
+            'roles.edit' => 'Edit',
+            'roles.delete' => 'Delete',
         ],
-        'Settings' => [
-            'banner.manage' => 'Manage Banners',
-            'announcements.manage' => 'Manage Announcements',
-            'settings.manage' => 'Manage Website Settings',
+        'Banner' => [
+            'banner.view' => 'View',
+            'banner.create' => 'Create',
+            'banner.edit' => 'Edit',
+            'banner.delete' => 'Delete',
+        ],
+        'Announcement' => [
+            'announcements.view' => 'View',
+            'announcements.create' => 'Create',
+            'announcements.edit' => 'Edit',
+            'announcements.delete' => 'Delete',
+        ],
+        'Website Settings' => [
+            'settings.view' => 'View',
+            'settings.edit' => 'Edit',
         ],
     ];
 

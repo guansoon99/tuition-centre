@@ -8,7 +8,7 @@ class BannerSlideRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('admin') ?? false;
+        return $this->user()?->canAny(['banner.create', 'banner.edit']) ?? false;
     }
 
     public function rules(): array

@@ -7,8 +7,7 @@
 
     <div class="mx-auto max-w-3xl space-y-4">
         <div>
-            <a href="{{ route('users.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All users</a>
-            <div class="mt-2 flex items-center justify-between gap-3">
+            <div class="flex items-center justify-between gap-3">
                 <h1 class="text-xl font-semibold text-slate-900">View User</h1>
                 @if ($user->is_active)
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -70,30 +69,34 @@
             </div>
 
             <div class="flex gap-3 pt-2">
-                <a href="{{ route('users.edit', $user) }}"
-                   class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
-                    Edit
-                </a>
-                @if ($user->id !== auth()->id())
-                    @if ($user->is_active)
-                        <form method="POST" action="{{ route('users.destroy', $user) }}"
-                              onsubmit="return confirm('Deactivate {{ $user->username }}? They won\'t be able to log in.');">
-                            @csrf @method('DELETE')
-                            <button type="submit"
-                                    class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">
-                                Deactivate
-                            </button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('users.activate', $user) }}">
-                            @csrf
-                            <button type="submit"
-                                    class="min-w-[108px] rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-600">
-                                Activate
-                            </button>
-                        </form>
+                @can('users.edit')
+                    <a href="{{ route('users.edit', $user) }}"
+                       class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                        Edit
+                    </a>
+                @endcan
+                @can('users.deactivate')
+                    @if ($user->id !== auth()->id())
+                        @if ($user->is_active)
+                            <form method="POST" action="{{ route('users.destroy', $user) }}"
+                                  onsubmit="return confirm('Deactivate {{ $user->username }}? They won\'t be able to log in.');">
+                                @csrf @method('DELETE')
+                                <button type="submit"
+                                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">
+                                    Deactivate
+                                </button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('users.activate', $user) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="min-w-[108px] rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-600">
+                                    Activate
+                                </button>
+                            </form>
+                        @endif
                     @endif
-                @endif
+                @endcan
                 <a href="{{ route('users.index') }}"
                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
                     Back

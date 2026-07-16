@@ -5,8 +5,7 @@
 @section('content')
     <div class="mx-auto max-w-3xl space-y-4">
         <div>
-            <a href="{{ route('banner.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All Banner Slides</a>
-            <div class="mt-2 flex items-center justify-between gap-3">
+            <div class="flex items-center justify-between gap-3">
                 <h1 class="text-xl font-semibold text-slate-900">View Banner Slide</h1>
                 @if ($slide->is_active)
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -47,10 +46,12 @@
             </div>
 
             <div class="flex gap-3 pt-2">
-                <a href="{{ route('banner.edit', $slide) }}"
-                   class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
-                    Edit
-                </a>
+                @can('banner.edit')
+                    <a href="{{ route('banner.edit', $slide) }}"
+                       class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                        Edit
+                    </a>
+                @endcan
                 <a href="{{ route('banner.index') }}"
                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
                     Back

@@ -17,8 +17,10 @@ class CourseController extends Controller
 {
     public function index(Request $request): View
     {
+        // Route middleware already enforces courses.view — anyone who reaches
+        // this action is meant to see every course, active or not. (visibleTo
+        // is used by the student-facing widgets, which need is_active=true.)
         $query = Course::query()
-            ->visibleTo($request->user())
             ->withCount(['teachers', 'students', 'sections']);
 
         if ($search = $request->string('q')->trim()->value()) {
@@ -65,10 +67,12 @@ class CourseController extends Controller
 
     public function edit(Request $request, Course $course): View
     {
-        // Teachers can only edit courses they're assigned to. Admin bypasses
-        // (route middleware lets them through unconditionally).
-        if (! $request->user()->hasRole('admin')) {
-            abort_unless($request->user()->teaches($course) && $course->is_active, 403);
+        // Admins and users with the courses.view permission (course managers)
+        // can open the edit page for any course, active or not. Teachers
+        // without courses.view can only open ACTIVE courses they teach.
+        $user = $request->user();
+        if (! $user->hasRole('admin') && ! $user->can('courses.view')) {
+            abort_unless($user->teaches($course) && $course->is_active, 403);
         }
 
         // Auto-publish any sections whose scheduled release time has passed.
