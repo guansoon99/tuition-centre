@@ -9,7 +9,7 @@ class AnnouncementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('admin') ?? false;
+        return $this->user()?->canAny(['announcements.create', 'announcements.edit']) ?? false;
     }
 
     public function rules(): array

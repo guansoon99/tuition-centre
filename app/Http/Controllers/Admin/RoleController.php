@@ -48,8 +48,14 @@ class RoleController extends Controller
             ->with('status', "Role {$role->name} created.");
     }
 
-    public function edit(Role $role): View
+    public function edit(Request $request, Role $role): View|RedirectResponse
     {
+        if ($this->isOwnRole($request->user(), $role)) {
+            return redirect()
+                ->route('roles.index')
+                ->withErrors(['role' => "You can't edit a role you currently hold ('{$role->name}')."]);
+        }
+
         // Admin role visually shows every permission ticked (it has implicit
         // access to everything regardless of what's stored on the pivot).
         $selected = $role->name === 'admin'
@@ -65,6 +71,12 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        if ($this->isOwnRole($request->user(), $role)) {
+            return redirect()
+                ->route('roles.index')
+                ->withErrors(['role' => "You can't edit a role you currently hold ('{$role->name}')."]);
+        }
+
         $data = $this->validated($request, $role);
 
         $isSystem = in_array($role->name, PermissionCatalog::SYSTEM_ROLES, true);
@@ -82,8 +94,12 @@ class RoleController extends Controller
             ->with('status', "Role {$role->name} updated.");
     }
 
-    public function destroy(Role $role): RedirectResponse
+    public function destroy(Request $request, Role $role): RedirectResponse
     {
+        if ($this->isOwnRole($request->user(), $role)) {
+            return back()->withErrors(['role' => "You can't delete a role you currently hold ('{$role->name}')."]);
+        }
+
         if (in_array($role->name, PermissionCatalog::SYSTEM_ROLES, true)) {
             return back()->withErrors(['role' => "System role '{$role->name}' cannot be deleted."]);
         }
@@ -100,6 +116,19 @@ class RoleController extends Controller
         return redirect()
             ->route('roles.index')
             ->with('status', "Role {$name} deleted.");
+    }
+
+    /**
+     * True if $user currently holds $role — used to block a user from
+     * editing or deleting the role they themselves depend on. Admins are
+     * exempt (they have their own bypass and won't lock themselves out).
+     */
+    private function isOwnRole(?\App\Models\User $user, Role $role): bool
+    {
+        if (! $user || $user->hasRole('admin')) {
+            return false;
+        }
+        return $user->hasRole($role->name);
     }
 
     private function validated(Request $request, ?Role $role = null): array

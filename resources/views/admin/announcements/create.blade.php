@@ -5,8 +5,7 @@
 @section('content')
     <div class="mx-auto max-w-3xl space-y-6">
         <div>
-            <a href="{{ route('announcements.index') }}" class="text-xs text-slate-500 hover:underline">&larr; All announcements</a>
-            <h1 class="mt-2 text-xl font-semibold text-slate-900">Send Announcement</h1>
+            <h1 class="text-xl font-semibold text-slate-900">Send Announcement</h1>
         </div>
 
         <form method="POST" action="{{ route('announcements.store') }}"

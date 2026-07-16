@@ -22,12 +22,11 @@ class UpdateMaterialRequest extends FormRequest
             'type' => ['required', Rule::in([
                 Material::TYPE_PDF,
                 Material::TYPE_EXTERNAL_LINK,
-                Material::TYPE_VIDEO_LINK,
                 Material::TYPE_TEXT,
                 Material::TYPE_COUNTDOWN,
             ])],
             'file' => ['nullable', 'file', 'mimes:pdf', 'max:51200'],
-            'external_url' => ['nullable', 'required_if:type,external_link', 'required_if:type,video_link', 'url'],
+            'external_url' => ['nullable', 'required_if:type,external_link', 'url'],
             'body' => ['nullable', 'required_if:type,text', 'string'],
             'target_date' => ['nullable', 'required_if:type,countdown', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],

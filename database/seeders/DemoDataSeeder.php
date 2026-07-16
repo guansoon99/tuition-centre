@@ -7,7 +7,7 @@ use App\Models\Enrollment;
 use App\Models\Material;
 use App\Models\Section;
 use App\Models\User;
-use App\Models\UsernameCounter;
+use App\Services\UsernameGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -38,13 +38,10 @@ class DemoDataSeeder extends Seeder
             return $teacher;
         });
 
-        $year = now()->year;
-        UsernameCounter::firstOrCreate(['year' => $year], ['last_number' => 0]);
+        $generator = app(UsernameGenerator::class);
 
-        $students = collect(range(1, 20))->map(function (int $i) use ($year) {
-            $counter = UsernameCounter::lockForUpdate()->find($year);
-            $counter->increment('last_number');
-            $username = sprintf('STU%d%04d', $year, $counter->last_number);
+        $students = collect(range(1, 20))->map(function (int $i) use ($generator) {
+            $username = $generator->generateForStudent();
 
             $student = User::create([
                 'username' => $username,
@@ -126,7 +123,7 @@ class DemoDataSeeder extends Seeder
                     Material::create([
                         'section_id' => $section->id,
                         'title' => 'Video Recording',
-                        'type' => Material::TYPE_VIDEO_LINK,
+                        'type' => Material::TYPE_EXTERNAL_LINK,
                         'external_url' => 'https://drive.google.com/file/d/example/view',
                         'sort_order' => 0,
                         'is_published' => true,

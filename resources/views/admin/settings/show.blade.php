@@ -3,15 +3,23 @@
 @section('title', 'Website Settings')
 
 @section('content')
+    @php $canEdit = auth()->user()?->can('settings.edit'); @endphp
+
     <div class="mx-auto max-w-2xl space-y-6">
-        <div>
+        <div class="flex items-center justify-between gap-3">
             <h1 class="text-xl font-semibold text-slate-900">Website Settings</h1>
+            @unless ($canEdit)
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    Read-only
+                </span>
+            @endunless
         </div>
 
         <form method="POST" action="{{ route('settings.update') }}" enctype="multipart/form-data" class="space-y-6">
             @csrf @method('PATCH')
 
-            <fieldset class="space-y-4 rounded-md border border-slate-200 bg-white p-4">
+            <fieldset class="space-y-4 rounded-md border border-slate-200 bg-white p-4"
+                      @unless ($canEdit) disabled @endunless>
                 <legend class="px-2 text-sm font-medium">Branding</legend>
 
                 <div>
@@ -19,7 +27,7 @@
                     <input type="text" name="name" required
                            value="{{ old('name', $settings->name) }}"
                            placeholder="{{ config('app.name') }}"
-                           class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                           class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" />
                     @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
@@ -27,7 +35,7 @@
                     <label class="mb-1 block text-sm font-medium text-slate-700">Centre description</label>
                     <textarea name="description" rows="2" maxlength="500"
                               placeholder="STPM, SPM and pre-university tuition."
-                              class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">{{ old('description', $settings->description) }}</textarea>
+                              class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100">{{ old('description', $settings->description) }}</textarea>
                     <p class="mt-1 text-xs text-slate-500">Used as the public homepage meta description for SEO. 500 characters max.</p>
                     @error('description') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
@@ -40,11 +48,13 @@
                         <div x-show="!markedForRemoval && !preview"
                              class="mb-3 flex items-center justify-between gap-4 rounded border border-slate-200 bg-slate-50 p-3">
                             <img src="{{ $settings->logoUrl() }}" alt="" class="h-12" />
-                            <button type="button"
-                                    @click="markedForRemoval = true"
-                                    class="text-xs font-medium text-red-600 hover:text-red-700">
-                                Remove
-                            </button>
+                            @if ($canEdit)
+                                <button type="button"
+                                        @click="markedForRemoval = true"
+                                        class="text-xs font-medium text-red-600 hover:text-red-700">
+                                    Remove
+                                </button>
+                            @endif
                         </div>
 
                         {{-- Pending-removal banner (only shows once Remove was clicked, no new file yet) --}}
@@ -64,7 +74,7 @@
 
                     <input type="file" name="logo" accept="image/*"
                            @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
-                           class="mt-2 block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white" />
+                           class="mt-2 block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white disabled:cursor-not-allowed disabled:opacity-60" />
 
                     <template x-if="preview">
                         <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
@@ -78,19 +88,15 @@
                 </div>
             </fieldset>
 
-            <fieldset class="space-y-4 rounded-md border border-slate-200 bg-white p-4">
+            <fieldset class="space-y-4 rounded-md border border-slate-200 bg-white p-4"
+                      @unless ($canEdit) disabled @endunless>
                 <legend class="px-2 text-sm font-medium">Student access</legend>
 
-                <label class="flex items-start gap-3 text-sm">
+                <label class="flex items-center gap-3 text-sm">
                     <input type="checkbox" name="students_can_change_password" value="1"
-                           @checked(old('students_can_change_password', $settings->students_can_change_password))
-                           class="mt-0.5">
+                           @checked(old('students_can_change_password', $settings->students_can_change_password))>
                     <span>
                         Allow students to change their own password
-                        <span class="mt-0.5 block text-xs text-slate-500">
-                            When off, students can still view their account page but the password change form is hidden.
-                            Teachers and admins are not affected.
-                        </span>
                     </span>
                 </label>
             </fieldset>
@@ -125,11 +131,13 @@
                 </fieldset>
             --}}
 
-            <div>
-                <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                    Save
-                </button>
-            </div>
+            @if ($canEdit)
+                <div>
+                    <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                        Save
+                    </button>
+                </div>
+            @endif
         </form>
 
     </div>

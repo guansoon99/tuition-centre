@@ -8,7 +8,10 @@ use App\Http\Requests\Teacher\UpdateMaterialRequest;
 use App\Models\Material;
 use App\Models\Section;
 use App\Support\HtmlSanitizer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -125,6 +128,42 @@ class MaterialController extends Controller
         return redirect()
             ->route('courses.edit', [$material->section->course, 'tab' => 'sections'])
             ->with('status', 'Material updated.');
+    }
+
+    /**
+     * Persist a new drag-and-drop order for the materials in a section.
+     * Expects `ids` = the material IDs in their new visual order.
+     */
+    public function reorder(Request $request, Section $section): JsonResponse
+    {
+        $this->authorize('create', [Material::class, $section]);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        // Only reorder rows that actually belong to this section — guards
+        // against a crafted payload with material IDs from a different
+        // section (or non-existent ones).
+        $valid = Material::whereIn('id', $data['ids'])
+            ->where('section_id', $section->id)
+            ->pluck('id')
+            ->all();
+
+        DB::transaction(function () use ($data, $valid, $section) {
+            $order = 1;
+            foreach ($data['ids'] as $id) {
+                if (! in_array((int) $id, $valid, true)) {
+                    continue;
+                }
+                Material::where('id', $id)
+                    ->where('section_id', $section->id)
+                    ->update(['sort_order' => $order++]);
+            }
+        });
+
+        return response()->json(['ok' => true, 'count' => count($valid)]);
     }
 
     public function destroy(Material $material): RedirectResponse

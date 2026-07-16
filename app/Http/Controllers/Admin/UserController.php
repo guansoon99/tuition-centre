@@ -103,7 +103,6 @@ class UserController extends Controller
     public function update(UserRequest $request, User $user): RedirectResponse
     {
         $data = $request->validated();
-        $role = $data['role'];
 
         $user->fill([
             'username' => $data['username'],
@@ -118,7 +117,12 @@ class UserController extends Controller
         }
 
         $user->save();
-        $user->syncRoles([$role]);
+
+        // Role changes are admin-only. Non-admins who craft a POST with a
+        // different role are silently ignored — we keep the existing one.
+        if ($request->user()?->hasRole('admin')) {
+            $user->syncRoles([$data['role']]);
+        }
 
         return redirect()
             ->route('users.index')

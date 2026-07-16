@@ -6,10 +6,12 @@
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Roles</h1>
-            <a href="{{ route('roles.create') }}"
-               class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                + New role
-            </a>
+            @can('roles.create')
+                <a href="{{ route('roles.create') }}"
+                   class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                    + New role
+                </a>
+            @endcan
         </div>
 
         @if ($errors->any())
@@ -19,6 +21,8 @@
                 @endforeach
             </div>
         @endif
+
+        @php $totalPermissions = count(\App\Support\PermissionCatalog::allPermissionNames()); @endphp
 
         <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table class="w-full min-w-[700px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
@@ -34,10 +38,18 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($roles as $role)
-                        @php $isSystem = in_array($role->name, $systemRoles, true); @endphp
+                        @php
+                            $isSystem = in_array($role->name, $systemRoles, true);
+                            // Admin bypasses every permission check via Gate::before —
+                            // effective count is the total catalog size.
+                            $effectiveCount = $role->name === 'admin' ? $totalPermissions : $role->permissions_count;
+                            // Non-admins can't edit/delete the role they themselves hold.
+                            $isOwnRole = auth()->user() && ! auth()->user()->hasRole('admin')
+                                && auth()->user()->hasRole($role->name);
+                        @endphp
                         <tr>
                             <td class="px-4 py-3 text-slate-800">{{ ucfirst($role->name) }}</td>
-                            <td class="px-4 py-3 text-right font-mono text-sm text-slate-800">{{ $role->permissions_count }}</td>
+                            <td class="px-4 py-3 text-right font-mono text-sm text-slate-800">{{ $effectiveCount }}</td>
                             <td class="px-4 py-3 text-right font-mono text-sm text-slate-800">{{ $role->users_count }}</td>
                             <td class="px-4 py-3">
                                 @if ($isSystem)
@@ -55,20 +67,26 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <a href="{{ route('roles.edit', $role) }}"
-                                       class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                        Edit
-                                    </a>
-                                    @unless ($isSystem)
-                                        <form method="POST" action="{{ route('roles.destroy', $role) }}"
-                                              onsubmit="return confirm('Delete role {{ $role->name }}? This cannot be undone.');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
-                                                Delete
-                                            </button>
-                                        </form>
-                                    @endunless
+                                    @can('roles.edit')
+                                        @unless ($isOwnRole || $isSystem)
+                                            <a href="{{ route('roles.edit', $role) }}"
+                                               class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
+                                                Edit
+                                            </a>
+                                        @endunless
+                                    @endcan
+                                    @can('roles.delete')
+                                        @unless ($isSystem || $isOwnRole)
+                                            <form method="POST" action="{{ route('roles.destroy', $role) }}"
+                                                  onsubmit="return confirm('Delete role {{ $role->name }}? This cannot be undone.');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                        class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @endunless
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

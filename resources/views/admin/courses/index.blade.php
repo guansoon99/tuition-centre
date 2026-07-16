@@ -5,7 +5,12 @@
 @section('content')
     @php
         $isAdmin = auth()->user()->hasRole('admin');
-        $canEditCourse = auth()->user()->canAny(['courses.manage_teachers', 'courses.manage_students', 'sections.manage']);
+        // Anyone with any course-management perm can open the edit page.
+        $canEditCourse = auth()->user()->canAny([
+            'courses.manage_teachers',
+            'courses.manage_students',
+            'sections.manage',
+        ]);
     @endphp
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
@@ -19,18 +24,30 @@
         </div>
 
         <form method="GET" action="{{ route('courses.index') }}"
+              x-data
+              x-init="
+                  if (sessionStorage.getItem('courses-q-focus') === '1') {
+                      sessionStorage.removeItem('courses-q-focus');
+                      const input = $el.querySelector('input[name=q]');
+                      if (input) {
+                          input.focus();
+                          input.setSelectionRange(input.value.length, input.value.length);
+                      }
+                  }
+              "
               class="flex flex-wrap gap-3 rounded-md border border-slate-200 bg-white p-3">
             <input type="text" name="q" placeholder="Search code or name"
                    value="{{ $filters['q'] ?? '' }}"
+                   @input.debounce.500ms="sessionStorage.setItem('courses-q-focus', '1'); $el.form.submit()"
                    class="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
 
-            <select name="active" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
-                <option value="">All</option>
+            <select name="active" onchange="this.form.submit()"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                <option value="">All Status</option>
                 <option value="1" @selected(($filters['active'] ?? '') === '1')>Active</option>
                 <option value="0" @selected(($filters['active'] ?? '') === '0')>Inactive</option>
             </select>
 
-            <button type="submit" class="rounded-md bg-slate-700 px-3 py-1.5 text-sm text-white">Filter</button>
             <a href="{{ route('courses.index') }}" class="rounded-md bg-red-500 px-3 py-1.5 text-sm text-white hover:bg-red-600">Clear</a>
         </form>
 
@@ -82,7 +99,7 @@
                                             Edit
                                         </a>
                                     @endif
-                                    @if ($isAdmin)
+                                    @can('courses.activate')
                                         @if ($c->is_active)
                                             <form method="POST" action="{{ route('courses.destroy', $c) }}"
                                                   onsubmit="return confirm('Deactivate {{ $c->code }}?');">
@@ -101,7 +118,7 @@
                                                 </button>
                                             </form>
                                         @endif
-                                    @endif
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

@@ -1,7 +1,7 @@
 @props(['material' => null, 'action', 'method' => 'POST'])
 
 <form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="space-y-4"
-      x-data="{ type: '{{ old('type', $material?->type ?? 'pdf') }}' }"
+      x-data="{ type: '{{ old('type', $material?->type ?? 'text') }}' }"
       x-init="
           const tryInit = () => initQuillEditor($refs.quillContainer, $refs.quillInput);
           if (type === 'text') $nextTick(tryInit);
@@ -22,14 +22,16 @@
 
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
-        <select name="type" x-model="type"
-                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500">
-            <option value="pdf">PDF (uploaded)</option>
-            <option value="external_link">External link</option>
-            <option value="video_link">Video link (Google Drive)</option>
-            <option value="text">Text block</option>
-            <option value="countdown">Countdown timer</option>
-        </select>
+        <div class="flex flex-wrap gap-2">
+            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
+                <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
+                    <input type="radio" name="type" value="{{ $val }}"
+                           x-model="type"
+                           class="h-4 w-4 accent-slate-900">
+                    {{ $lbl }}
+                </label>
+            @endforeach
+        </div>
     </div>
 
     {{-- PDF --}}
@@ -54,8 +56,8 @@
         @error('file')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    {{-- External / Video link --}}
-    <div x-show="type === 'external_link' || type === 'video_link'" x-cloak>
+    {{-- External link --}}
+    <div x-show="type === 'external_link'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">URL</label>
         <input type="url" name="external_url"
                value="{{ old('external_url', $material?->external_url) }}"
@@ -89,13 +91,6 @@
         @error('target_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-        <input type="number" name="sort_order" min="0"
-               value="{{ old('sort_order', $material?->sort_order) }}"
-               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
-    </div>
-
     <label class="flex items-center gap-2 text-sm text-slate-700">
         <input type="hidden" name="is_published" value="0">
         <input type="checkbox" name="is_published" value="1"
@@ -105,13 +100,13 @@
     </label>
 
     <div class="flex gap-3">
-        <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-            {{ $material ? 'Save' : 'Add resource' }}
-        </button>
         <a href="{{ url()->previous() }}"
            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">
             Cancel
         </a>
+        <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+            {{ $material ? 'Save' : 'Add resource' }}
+        </button>
     </div>
 </form>
 

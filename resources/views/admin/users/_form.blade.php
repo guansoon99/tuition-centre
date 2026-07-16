@@ -9,20 +9,35 @@
     @php
         $currentRole = old('role', $user?->roles->first()?->name ?? 'student');
         $allRoles = \Spatie\Permission\Models\Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name');
+        // Only admins can change a user's role. Others see the pills read-only.
+        $canAssignRole = auth()->user()?->hasRole('admin') ?? false;
     @endphp
 
     <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Role</label>
+        <label class="mb-1 block text-sm font-medium text-slate-700">
+            Role
+            @unless ($canAssignRole)
+                <span class="ml-1 text-xs font-normal text-slate-500">(admin only)</span>
+            @endunless
+        </label>
         <div class="flex flex-wrap gap-2">
             @foreach ($allRoles as $r)
-                <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
-                    <input type="radio" name="role" value="{{ $r }}" required
+                <label class="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white
+                              {{ $canAssignRole ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-70' }}">
+                    <input type="radio" name="role" value="{{ $r }}"
+                           @if ($canAssignRole) required @endif
                            @checked($currentRole === $r)
+                           @unless ($canAssignRole) disabled @endunless
                            class="h-4 w-4 accent-slate-900">
                     {{ ucfirst($r) }}
                 </label>
             @endforeach
         </div>
+        {{-- Disabled radios don't submit — carry the existing role in a
+             hidden field so the required-role validation still passes. --}}
+        @unless ($canAssignRole)
+            <input type="hidden" name="role" value="{{ $currentRole }}">
+        @endunless
         @error('role') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 

@@ -6,10 +6,12 @@
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Announcements</h1>
-            <a href="{{ route('announcements.create') }}"
-               class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                + Send Announcement
-            </a>
+            @can('announcements.create')
+                <a href="{{ route('announcements.create') }}"
+                   class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                    + Send Announcement
+                </a>
+            @endcan
         </div>
 
         @if ($announcements->isEmpty())
@@ -77,18 +79,22 @@
                                            class="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
                                             View
                                         </a>
-                                        <a href="{{ route('announcements.edit', $a->id) }}"
-                                           class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
-                                            Edit
-                                        </a>
-                                        <form method="POST" action="{{ route('announcements.destroy', $a->id) }}"
-                                              onsubmit="return confirm('Delete this announcement? It will disappear from all recipients.');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
-                                                Delete
-                                            </button>
-                                        </form>
+                                        @can('announcements.edit')
+                                            <a href="{{ route('announcements.edit', $a->id) }}"
+                                               class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
+                                                Edit
+                                            </a>
+                                        @endcan
+                                        @can('announcements.delete')
+                                            <form method="POST" action="{{ route('announcements.destroy', $a->id) }}"
+                                                  onsubmit="return confirm('Delete this announcement? It will disappear from all recipients.');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                        class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

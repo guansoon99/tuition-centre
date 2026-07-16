@@ -8,8 +8,8 @@
         ->join('');
 @endphp
 
-<header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
-    <div class="flex h-14 items-center justify-between gap-3 px-3 sm:px-6">
+<header class="sticky top-0 z-30 bg-white">
+    <div class="flex h-14 items-center justify-between gap-3 border-b border-slate-200 px-3 sm:px-6">
         {{-- Left: hamburger + brand --}}
         <div class="flex items-center gap-3">
             <button type="button"

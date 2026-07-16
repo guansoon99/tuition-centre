@@ -12,6 +12,5 @@
         <p class="mt-2 text-xs text-amber-700">
             file_path: <span class="font-mono">{{ $material->file_path }}</span>
         </p>
-        <a href="{{ url()->previous() }}" class="mt-4 inline-block text-sm text-amber-900 underline">&larr; Back</a>
     </div>
 @endsection

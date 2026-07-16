@@ -23,6 +23,12 @@ class CoursePolicy
 
     public function view(User $user, Course $course): bool
     {
+        // Course managers (courses.view) can open any course including
+        // inactive ones — same visibility admins have.
+        if ($user->can('courses.view')) {
+            return true;
+        }
+
         if (! $course->is_active) {
             return false;
         }

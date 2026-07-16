@@ -5,22 +5,15 @@
 @section('content')
     <div class="space-y-6">
         <div>
-            <a href="{{ url('/') }}" class="text-xs text-slate-500 hover:text-slate-700">&larr; All courses</a>
-            <div class="mt-2 flex items-baseline gap-3">
-                <span class="font-mono text-xs text-slate-500">{{ $course->code }}</span>
-                <h1 class="text-2xl font-semibold text-slate-900">{{ $course->name }}</h1>
-            </div>
-            @if ($course->description)
-                <p class="mt-1 text-sm text-slate-600">{{ $course->description }}</p>
-            @endif
-            @can('manageContent', $course)
+            <h1 class="text-2xl font-semibold text-slate-900">{{ $course->name }}</h1>
+            @if (auth()->user()?->canAny(['courses.manage_teachers', 'courses.manage_students', 'sections.manage']))
                 <div class="mt-3">
-                    <a href="{{ route('courses.edit', [$course, 'tab' => 'sections']) }}"
+                    <a href="{{ route('courses.edit', $course) }}"
                        class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
-                        + Add section
+                        Manage course
                     </a>
                 </div>
-            @endcan
+            @endif
         </div>
 
         @php

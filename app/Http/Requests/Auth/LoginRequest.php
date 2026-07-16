@@ -21,7 +21,6 @@ class LoginRequest extends FormRequest
         return [
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
-            'remember' => ['nullable', 'boolean'],
         ];
     }
 
@@ -35,7 +34,7 @@ class LoginRequest extends FormRequest
             'is_active' => true,
         ];
 
-        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
+        if (! Auth::attempt($credentials)) {
             RateLimiter::hit($this->throttleKey(), 60 * 15);
 
             throw ValidationException::withMessages([

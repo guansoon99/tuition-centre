@@ -12,14 +12,7 @@
         {{-- Header bar --}}
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0">
-                @if ($course)
-                    <a href="{{ route('courses.show', $course) }}"
-                       class="text-xs text-slate-500 hover:underline">
-                        &larr; {{ $course->name }}
-                        @if ($section) · {{ $section->title }} @endif
-                    </a>
-                @endif
-                <h1 class="mt-1 truncate text-base font-semibold text-slate-900">
+                <h1 class="truncate text-base font-semibold text-slate-900">
                     {{ $material->title }}
                 </h1>
             </div>

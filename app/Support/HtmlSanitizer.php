@@ -29,7 +29,8 @@ class HtmlSanitizer
             // below for the whitelist.
             $config->set(
                 'HTML.Allowed',
-                'p[class],br,strong,em,u,s,h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel],img[src|alt|width|height],blockquote[class],code,pre,hr'
+                'p[class],br,strong,em,u,s,h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel],img[src|alt|width|height],blockquote[class],code,pre,hr,'
+                .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col'
             );
             $config->set('Attr.AllowedClasses', [
                 'ql-align-center',

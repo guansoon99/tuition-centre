@@ -33,11 +33,6 @@
             @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" name="remember" value="1" class="rounded border-slate-300">
-            Remember me
-        </label>
-
         <button type="submit"
                 class="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
             Sign in
