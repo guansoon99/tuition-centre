@@ -19,21 +19,14 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        // Seed the baseline roles (system + teacher).
-        foreach (['admin', 'teacher', 'student'] as $name) {
+        // Seed only the system roles. `teacher` is created by an admin via
+        // the roles UI after install so they control its name + permissions.
+        foreach (['admin', 'student'] as $name) {
             Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
         // Admin gets nothing assigned — `Gate::before` in AuthServiceProvider
         // makes admin auto-pass any can() check.
-
-        // Teacher: can edit content + enroll students in their assigned courses.
-        // Per-course scoping is enforced inside the policies/controllers.
-        Role::findByName('teacher', 'web')->syncPermissions([
-            'sections.manage',
-            'courses.manage_students',
-        ]);
-
         // Student: no permissions; access is via enrollments.
         Role::findByName('student', 'web')->syncPermissions([]);
     }

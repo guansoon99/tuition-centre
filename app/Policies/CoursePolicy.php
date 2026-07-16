@@ -18,7 +18,9 @@ class CoursePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['teacher', 'student']);
+        // Any authenticated user can hit /courses; the controller filters the
+        // visible list (students see enrollments, teachers see assignments).
+        return true;
     }
 
     public function view(User $user, Course $course): bool
