@@ -49,23 +49,17 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Start</p>
-                    <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->starts_at ?: '—' }}</p>
+                    <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->starts_at?->format('Y-m-d H:i') ?: '—' }}</p>
                 </div>
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">End</p>
-                    <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->ends_at ?: '—' }}</p>
+                    <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->ends_at?->format('Y-m-d H:i') ?: '—' }}</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sent</p>
-                    <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->sent_at->format('Y-m-d H:i') }}</p>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recipients</p>
-                    <p class="mt-1 text-sm text-slate-800">{{ $announcement->recipients }}</p>
-                </div>
+            <div class="border-t border-slate-100 pt-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Published</p>
+                <p class="mt-1 font-mono text-sm text-slate-800">{{ $announcement->created_at->format('Y-m-d H:i') }}</p>
             </div>
         </div>
 
