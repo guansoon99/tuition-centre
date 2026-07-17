@@ -83,16 +83,22 @@ class Course extends Model
             return $query->whereRaw('1 = 0');
         }
 
+        // Home-page visibility is relationship-based, not permission-based.
+        // Admin sees every active course; everyone else sees only courses
+        // they teach or are enrolled in. The courses.view permission is for
+        // the admin /courses management page — it does NOT widen the home
+        // page listing.
+        $query = $query->where('courses.is_active', true);
+
         if ($user->hasRole('admin')) {
             return $query;
         }
 
-        return $query->where('courses.is_active', true)
-            ->where(function (Builder $outer) use ($user) {
-                $outer->whereHas('teachers', fn (Builder $q) => $q->where('users.id', $user->id))
-                    ->orWhereHas('enrollments', function (Builder $q) use ($user) {
-                        $q->where('user_id', $user->id)->where('is_active', true);
-                    });
-            });
+        return $query->where(function (Builder $outer) use ($user) {
+            $outer->whereHas('teachers', fn (Builder $q) => $q->where('users.id', $user->id))
+                ->orWhereHas('enrollments', function (Builder $q) use ($user) {
+                    $q->where('user_id', $user->id)->where('is_active', true);
+                });
+        });
     }
 }
