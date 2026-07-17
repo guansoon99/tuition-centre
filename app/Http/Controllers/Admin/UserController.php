@@ -19,6 +19,7 @@ class UserController extends Controller
         $users = $this->buildIndexQuery($request)
             ->with('roles')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString();
 
