@@ -70,8 +70,7 @@ class HomeController extends Controller
                 ->get()
         );
 
-        $notifications = $user->visibleNotifications()
-            ->orderByDesc('created_at')
+        $announcements = $user->visibleAnnouncements()
             ->limit(10)
             ->get();
 
@@ -79,7 +78,7 @@ class HomeController extends Controller
             'user' => $user,
             'recentCourses' => $recentCourses,
             'allCourses' => $allCourses,
-            'notifications' => $notifications,
+            'announcements' => $announcements,
         ]);
     }
 }

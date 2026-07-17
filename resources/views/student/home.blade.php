@@ -4,26 +4,26 @@
 
 @section('content')
     <div class="space-y-8">
-        @if ($notifications->isNotEmpty())
+        @if ($announcements->isNotEmpty())
             <section>
                 <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
                     Announcements
                 </h2>
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    @foreach ($notifications as $note)
+                    @foreach ($announcements as $a)
                         <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                             <div class="flex items-baseline justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-slate-900">
-                                    {{ $note->data['title'] ?? 'Announcement' }}
+                                    {{ $a->title }}
                                 </h3>
                                 <span class="shrink-0 text-xs text-slate-600">
-                                    {{ $note->created_at->format('Y-m-d H:i') }}
+                                    {{ $a->created_at->format('Y-m-d H:i') }}
                                 </span>
                             </div>
 
-                            @if (! empty($note->data['body']))
-                                <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ $note->data['body'] }}</p>
+                            @if (trim($a->body) !== '')
+                                <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ $a->body }}</p>
                             @endif
                         </article>
                     @endforeach

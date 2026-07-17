@@ -71,19 +71,71 @@ class User extends Authenticatable
      * Notifications query filtered by the announcement visibility window
      * stored in `data->starts_at` and `data->ends_at` (nullable both sides).
      */
-    public function visibleNotifications()
+    public function visibleAnnouncements()
     {
-        $now = now()->format('Y-m-d H:i:s');
+        $now = now();
 
-        return $this->notifications()
+        $q = \App\Models\Announcement::query()
             ->where(function ($q) use ($now) {
-                $q->whereNull('data->starts_at')
-                  ->orWhere('data->starts_at', '<=', $now);
+                $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
             })
             ->where(function ($q) use ($now) {
-                $q->whereNull('data->ends_at')
-                  ->orWhere('data->ends_at', '>=', $now);
+                $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
             });
+
+        // Admin sees every announcement (matches the current send-a-copy-
+        // to-admins behavior).
+        if ($this->hasRole('admin')) {
+            return $q->orderByDesc('created_at');
+        }
+
+        $enrolledIds = $this->enrollments()->where('is_active', true)->pluck('course_id')->all();
+        $taughtIds = $this->taughtCourses()->pluck('courses.id')->all();
+        $relatedIds = array_values(array_unique(array_merge($enrolledIds, $taughtIds)));
+        $isStudent = $this->hasRole('student');
+        $isTeacher = ! empty($taughtIds);
+
+        return $q->where(function ($sub) use ($enrolledIds, $taughtIds, $relatedIds, $isStudent, $isTeacher) {
+            // audience='all', no course scope → everyone sees
+            $sub->orWhere(function ($qq) {
+                $qq->where('audience', 'all')->whereNull('course_id');
+            });
+
+            // audience='all', course-scoped → user is enrolled in OR teaches that course
+            if (! empty($relatedIds)) {
+                $sub->orWhere(function ($qq) use ($relatedIds) {
+                    $qq->where('audience', 'all')->whereIn('course_id', $relatedIds);
+                });
+            }
+
+            // audience='students', no course → any student
+            if ($isStudent) {
+                $sub->orWhere(function ($qq) {
+                    $qq->where('audience', 'students')->whereNull('course_id');
+                });
+            }
+
+            // audience='students', course-scoped → user is enrolled in that course
+            if (! empty($enrolledIds)) {
+                $sub->orWhere(function ($qq) use ($enrolledIds) {
+                    $qq->where('audience', 'students')->whereIn('course_id', $enrolledIds);
+                });
+            }
+
+            // audience='teachers', no course → user teaches any course
+            if ($isTeacher) {
+                $sub->orWhere(function ($qq) {
+                    $qq->where('audience', 'teachers')->whereNull('course_id');
+                });
+            }
+
+            // audience='teachers', course-scoped → user teaches that course
+            if (! empty($taughtIds)) {
+                $sub->orWhere(function ($qq) use ($taughtIds) {
+                    $qq->where('audience', 'teachers')->whereIn('course_id', $taughtIds);
+                });
+            }
+        })->orderByDesc('created_at');
     }
 
     public function teaches(Course $course): bool
