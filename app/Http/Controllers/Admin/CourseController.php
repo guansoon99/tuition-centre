@@ -80,12 +80,16 @@ class CourseController extends Controller
 
         $course->load(['teachers', 'students', 'sections.materials']);
 
-        // Anyone with the sections.manage permission is eligible to be a
-        // course teacher — role name doesn't matter, only what the role can do.
-        $teacherCandidates = \App\Models\User::permission('sections.manage')
+        // Anyone who isn't a student or admin (system roles) can be assigned
+        // as a course teacher. Their ability to actually edit content
+        // afterwards depends on whatever permissions their role has —
+        // assignment is just the pivot record; sections.manage gates editing.
+        $teacherCandidates = \App\Models\User::query()
             ->where('is_active', true)
+            ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'student']))
             ->whereNotIn('id', $course->teachers->pluck('id'))
             ->orderBy('name')
+            ->limit(200)
             ->get(['id', 'username', 'name']);
 
         $studentCandidates = \App\Models\User::role('student')
