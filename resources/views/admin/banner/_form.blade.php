@@ -41,12 +41,6 @@
         @error('title') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
-    <label class="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="is_active" value="1"
-               @checked(old('is_active', $slide?->is_active ?? true))>
-        Active
-    </label>
-
     <div class="flex gap-3">
         <a href="{{ route('banner.index') }}"
            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">

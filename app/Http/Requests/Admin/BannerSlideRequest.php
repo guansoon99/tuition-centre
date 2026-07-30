@@ -19,7 +19,6 @@ class BannerSlideRequest extends FormRequest
             'image' => [$isCreate ? 'required' : 'nullable', 'image', 'max:5120'],
             'title' => ['required', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:500'],
-            'is_active' => ['nullable', 'boolean'],
         ];
     }
 }

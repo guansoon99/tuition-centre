@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\AccessLogController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
+use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\CourseTeacherController;
 use App\Http\Controllers\Admin\EnrollmentController;
@@ -148,7 +149,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:banner.view')->group(function () {
         Route::get('/banner', [BannerController::class, 'index'])->name('banner.index');
-        Route::get('/banner/{slide}', [BannerController::class, 'show'])->name('banner.show');
     });
     Route::middleware('permission:banner.edit')->group(function () {
         // Static /banner/reorder MUST come before /{slide} to avoid collision.
@@ -168,6 +168,21 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
     });
 
+    // Contacts — sits under the Settings umbrella; uses settings.view / .edit
+    // permissions so admins with Settings access can manage contacts too.
+    Route::middleware('permission:settings.view')->group(function () {
+        Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
+    });
+    Route::middleware('permission:settings.edit')->group(function () {
+        // Static routes MUST come before /{contact} to avoid parameter collision.
+        Route::get('/contacts/create', [ContactController::class, 'create'])->name('contacts.create');
+        Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
+        Route::patch('/contacts/reorder', [ContactController::class, 'reorder'])->name('contacts.reorder');
+        Route::get('/contacts/{contact}/edit', [ContactController::class, 'edit'])->name('contacts.edit');
+        Route::patch('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+        Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+    });
+
     // Announcements — split per-action.
     // Static /announcements/create MUST come before the /{announcement} show
     // route to avoid being caught by the parameterised route.
@@ -177,9 +192,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:announcements.view')->group(function () {
         Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
-        Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
     });
     Route::middleware('permission:announcements.edit')->group(function () {
+        // Static /announcements/reorder MUST come before /{announcement} to avoid collision.
+        Route::patch('/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('announcements.reorder');
         Route::get('/announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
         Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
     });

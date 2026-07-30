@@ -84,9 +84,9 @@ class User extends Authenticatable
             });
 
         // Admin sees every announcement (matches the current send-a-copy-
-        // to-admins behavior).
+        // to-admins behavior). Ordered by admin-controlled drag position.
         if ($this->hasRole('admin')) {
-            return $q->orderByDesc('created_at');
+            return $q->orderBy('sort_order')->orderBy('id');
         }
 
         $enrolledIds = $this->enrollments()->where('is_active', true)->pluck('course_id')->all();
@@ -120,7 +120,7 @@ class User extends Authenticatable
                     $qq->whereIn('audience', $userRoles)->whereIn('course_id', $relatedIds);
                 });
             }
-        })->orderByDesc('created_at');
+        })->orderBy('sort_order')->orderBy('id');
     }
 
     public function teaches(Course $course): bool

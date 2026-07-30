@@ -33,6 +33,9 @@
 
     // "Settings" section — visibility gated by the .view perm of each area.
     $settingsItems = [];
+    if ($user?->can('settings.view')) {
+        $settingsItems[] = ['label' => 'Contact', 'route' => 'contacts.index', 'active' => request()->routeIs('contacts.*')];
+    }
     if ($user?->can('banner.view')) {
         $settingsItems[] = ['label' => 'Banner', 'route' => 'banner.index', 'active' => request()->routeIs('banner.*')];
     }

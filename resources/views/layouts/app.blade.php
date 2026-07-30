@@ -50,6 +50,8 @@
                 </main>
             </div>
         </div>
+
+        <x-contact-floater />
     @else
         <main class="mx-auto max-w-6xl px-4 py-6">
             @yield('content')

@@ -69,6 +69,10 @@
             </div>
 
             <div class="flex gap-3 pt-2">
+                <a href="{{ route('users.index') }}"
+                   class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                    Back
+                </a>
                 @can('users.edit')
                     <a href="{{ route('users.edit', $user) }}"
                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
@@ -97,10 +101,6 @@
                         @endif
                     @endif
                 @endcan
-                <a href="{{ route('users.index') }}"
-                   class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-                    Back
-                </a>
             </div>
         </div>
     </div>

@@ -70,15 +70,16 @@ class HomeController extends Controller
                 ->get()
         );
 
-        $announcements = $user->visibleAnnouncements()
-            ->limit(10)
-            ->get();
+        $announcements = $user->visibleAnnouncements()->limit(20)->get();
+        $imageAnnouncements = $announcements->where('type', \App\Models\Announcement::TYPE_IMAGE)->values();
+        $textAnnouncements = $announcements->where('type', \App\Models\Announcement::TYPE_TEXT)->values();
 
         return view('student.home', [
             'user' => $user,
             'recentCourses' => $recentCourses,
             'allCourses' => $allCourses,
-            'announcements' => $announcements,
+            'imageAnnouncements' => $imageAnnouncements,
+            'textAnnouncements' => $textAnnouncements,
         ]);
     }
 }
