@@ -92,12 +92,11 @@ class User extends Authenticatable
         $enrolledIds = $this->enrollments()->where('is_active', true)->pluck('course_id')->all();
         $taughtIds = $this->taughtCourses()->pluck('courses.id')->all();
         $relatedIds = array_values(array_unique(array_merge($enrolledIds, $taughtIds)));
-        $isStudent = $this->hasRole('student');
-        $isTeacher = ! empty($taughtIds);
+        $userRoles = $this->getRoleNames()->all();
 
-        return $q->where(function ($sub) use ($enrolledIds, $taughtIds, $relatedIds, $isStudent, $isTeacher) {
+        return $q->where(function ($sub) use ($relatedIds, $userRoles) {
             // audience='all', no course scope → everyone sees
-            $sub->orWhere(function ($qq) {
+            $sub->where(function ($qq) {
                 $qq->where('audience', 'all')->whereNull('course_id');
             });
 
@@ -108,31 +107,17 @@ class User extends Authenticatable
                 });
             }
 
-            // audience='students', no course → any student
-            if ($isStudent) {
-                $sub->orWhere(function ($qq) {
-                    $qq->where('audience', 'students')->whereNull('course_id');
+            // audience=<role>, no course scope → user has that role
+            if (! empty($userRoles)) {
+                $sub->orWhere(function ($qq) use ($userRoles) {
+                    $qq->whereIn('audience', $userRoles)->whereNull('course_id');
                 });
             }
 
-            // audience='students', course-scoped → user is enrolled in that course
-            if (! empty($enrolledIds)) {
-                $sub->orWhere(function ($qq) use ($enrolledIds) {
-                    $qq->where('audience', 'students')->whereIn('course_id', $enrolledIds);
-                });
-            }
-
-            // audience='teachers', no course → user teaches any course
-            if ($isTeacher) {
-                $sub->orWhere(function ($qq) {
-                    $qq->where('audience', 'teachers')->whereNull('course_id');
-                });
-            }
-
-            // audience='teachers', course-scoped → user teaches that course
-            if (! empty($taughtIds)) {
-                $sub->orWhere(function ($qq) use ($taughtIds) {
-                    $qq->where('audience', 'teachers')->whereIn('course_id', $taughtIds);
+            // audience=<role>, course-scoped → user has that role AND related to that course
+            if (! empty($userRoles) && ! empty($relatedIds)) {
+                $sub->orWhere(function ($qq) use ($userRoles, $relatedIds) {
+                    $qq->whereIn('audience', $userRoles)->whereIn('course_id', $relatedIds);
                 });
             }
         })->orderByDesc('created_at');

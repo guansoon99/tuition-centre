@@ -18,7 +18,8 @@ class RoleController extends Controller
     {
         $roles = Role::query()
             ->withCount(['permissions', 'users'])
-            ->orderByDesc('created_at')
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         return view('admin.roles.index', [

@@ -127,7 +127,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             flatpickr('[data-flatpickr]', {
                 enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i',
-                minuteIncrement: 5, allowInput: false,
+                minuteIncrement: 5, allowInput: false, disableMobile: true,
             });
         });
 

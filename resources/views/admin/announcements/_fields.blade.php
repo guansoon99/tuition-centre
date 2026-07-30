@@ -24,9 +24,12 @@
         <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Audience</label>
             <select name="audience" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                <option value="all" @selected(old('audience', 'all') === 'all')>Everyone</option>
-                <option value="teachers" @selected(old('audience') === 'teachers')>Teachers</option>
-                <option value="students" @selected(old('audience') === 'students')>Students</option>
+                <option value="all" @selected(old('audience', 'all') === 'all')>All</option>
+                @foreach ($roles as $role)
+                    <option value="{{ $role->name }}" @selected(old('audience') === $role->name)>
+                        {{ ucwords(strtolower(str_replace(['_', '-'], ' ', $role->name))) }}
+                    </option>
+                @endforeach
             </select>
         </div>
 
@@ -52,22 +55,22 @@
 @endif
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-    <div>
+    <div class="min-w-0">
         <label class="mb-1 block text-sm font-medium text-slate-700">Start</label>
-        <input type="text" name="starts_at" required readonly
+        <input type="text" name="starts_at" required readonly size="1"
                placeholder="2026-05-21 09:00"
                value="{{ old('starts_at', $announcement?->starts_at?->format('Y-m-d H:i')) }}"
                data-flatpickr
-               class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
+               class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
         @error('starts_at') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
-    <div>
+    <div class="min-w-0">
         <label class="mb-1 block text-sm font-medium text-slate-700">End</label>
-        <input type="text" name="ends_at" required readonly
+        <input type="text" name="ends_at" required readonly size="1"
                placeholder="2026-05-21 17:00"
                value="{{ old('ends_at', $announcement?->ends_at?->format('Y-m-d H:i')) }}"
                data-flatpickr
-               class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
+               class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
         @error('ends_at') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 </div>

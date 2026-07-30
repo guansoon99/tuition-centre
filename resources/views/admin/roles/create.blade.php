@@ -64,16 +64,16 @@
             </div>
 
             <div class="flex gap-3">
+                <a href="{{ route('roles.index') }}"
+                   class="rounded-md @if ($isSystem) border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 @else bg-red-600 text-white hover:bg-red-700 @endif px-4 py-2 text-sm font-medium shadow-sm">
+                    @if ($isSystem) Back @else Cancel @endif
+                </a>
                 @unless ($isSystem)
                     <button type="submit"
                             class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
                         {{ $role ? 'Save' : 'Create role' }}
                     </button>
                 @endunless
-                <a href="{{ route('roles.index') }}"
-                   class="rounded-md @if ($isSystem) border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 @else bg-red-600 text-white hover:bg-red-700 @endif px-4 py-2 text-sm font-medium shadow-sm">
-                    @if ($isSystem) Back @else Cancel @endif
-                </a>
             </div>
         </form>
     </div>

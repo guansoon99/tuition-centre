@@ -39,12 +39,9 @@ class Announcement extends Model
     protected function audienceLabel(): Attribute
     {
         return Attribute::get(function () {
-            $base = match ($this->audience) {
-                'all' => 'Everyone',
-                'students' => 'Students',
-                'teachers' => 'Teachers',
-                default => ucfirst($this->audience),
-            };
+            $base = $this->audience === 'all'
+                ? 'All'
+                : ucwords(strtolower(str_replace(['_', '-'], ' ', $this->audience)));
             $scope = $this->course_id ? ' — '.($this->course?->code ?? "Course #{$this->course_id}") : '';
             return $base.$scope;
         });

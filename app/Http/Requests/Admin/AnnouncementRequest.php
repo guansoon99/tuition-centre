@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
 
 class AnnouncementRequest extends FormRequest
 {
@@ -24,9 +25,10 @@ class AnnouncementRequest extends FormRequest
         ];
 
         if (! $isUpdate) {
-            // Audience + course only apply on first send; can't be changed afterwards
-            // because recipient rows have already been fanned out.
-            $rules['audience'] = ['required', Rule::in(['all', 'students', 'teachers'])];
+            // Audience is 'all' (everyone) or any role name currently in the
+            // system. Course scoping is optional and orthogonal.
+            $allowed = array_merge(['all'], Role::pluck('name')->all());
+            $rules['audience'] = ['required', Rule::in($allowed)];
             $rules['course_id'] = ['nullable', 'integer', 'exists:courses,id'];
         }
 
