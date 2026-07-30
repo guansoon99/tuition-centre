@@ -11,13 +11,24 @@ class Announcement extends Model
 {
     use HasFactory;
 
+    public const TYPE_TEXT = 'text';
+    public const TYPE_IMAGE = 'image';
+
+    public const TYPES = [
+        self::TYPE_TEXT => 'Text',
+        self::TYPE_IMAGE => 'Image',
+    ];
+
     protected $fillable = [
         'title',
         'body',
+        'type',
+        'image_path',
         'audience',
         'course_id',
         'starts_at',
         'ends_at',
+        'sort_order',
         'created_by_user_id',
     ];
 
@@ -25,6 +36,15 @@ class Announcement extends Model
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
     ];
+
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::get(function () {
+            return $this->image_path
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path)
+                : null;
+        });
+    }
 
     public function course(): BelongsTo
     {
@@ -39,11 +59,9 @@ class Announcement extends Model
     protected function audienceLabel(): Attribute
     {
         return Attribute::get(function () {
-            $base = $this->audience === 'all'
+            return $this->audience === 'all'
                 ? 'All'
                 : ucwords(strtolower(str_replace(['_', '-'], ' ', $this->audience)));
-            $scope = $this->course_id ? ' — '.($this->course?->code ?? "Course #{$this->course_id}") : '';
-            return $base.$scope;
         });
     }
 

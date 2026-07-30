@@ -384,10 +384,10 @@
                                                         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
                                                         <div class="flex flex-wrap gap-2">
                                                             @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
-                                                                <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
+                                                                <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                                                                     <input type="radio" name="type" value="{{ $val }}"
                                                                            x-model="matType"
-                                                                           class="h-4 w-4 accent-slate-900">
+                                                                           class="sr-only">
                                                                     {{ $lbl }}
                                                                 </label>
                                                             @endforeach

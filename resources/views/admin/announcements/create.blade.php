@@ -9,6 +9,7 @@
         </div>
 
         <form method="POST" action="{{ route('announcements.store') }}"
+              enctype="multipart/form-data"
               class="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
             @csrf
             @include('admin.announcements._fields', ['mode' => 'create'])

@@ -9,6 +9,7 @@
         </div>
 
         <form method="POST" action="{{ route('announcements.update', $announcement->id) }}"
+              enctype="multipart/form-data"
               class="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
             @csrf @method('PATCH')
             @include('admin.announcements._fields', ['mode' => 'edit', 'announcement' => $announcement])

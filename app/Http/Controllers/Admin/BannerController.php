@@ -31,7 +31,7 @@ class BannerController extends Controller
     {
         $data = $request->validated();
         $data['image_path'] = $request->file('image')->store('banner-slides', 'public');
-        $data['is_active'] = $request->boolean('is_active', true);
+        $data['is_active'] = true; // Slides are always active — no toggle in the UI; use Delete to hide.
         // Auto-append to the end of the existing order.
         $data['sort_order'] = (int) BannerSlide::max('sort_order') + 1;
 
@@ -44,11 +44,6 @@ class BannerController extends Controller
         return redirect()
             ->route('banner.index')
             ->with('status', 'Slide added.');
-    }
-
-    public function show(BannerSlide $slide): View
-    {
-        return view('admin.banner.show', ['slide' => $slide]);
     }
 
     public function edit(BannerSlide $slide): View
@@ -67,7 +62,7 @@ class BannerController extends Controller
             $data['image_path'] = $request->file('image')->store('banner-slides', 'public');
         }
 
-        $data['is_active'] = $request->boolean('is_active');
+        $data['is_active'] = true;
 
         unset($data['image']);
 

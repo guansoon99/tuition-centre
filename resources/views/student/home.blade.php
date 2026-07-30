@@ -4,31 +4,85 @@
 
 @section('content')
     <div class="space-y-8">
-        @if ($announcements->isNotEmpty())
-            <section>
-                <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">
-                    Announcements
-                </h2>
+        @if ($imageAnnouncements->isNotEmpty() || $textAnnouncements->isNotEmpty())
+        <div class="space-y-0">
+        {{-- Image announcements → banner-style slideshow at the top of the home page. --}}
+        @if ($imageAnnouncements->isNotEmpty())
+            <section class="relative bg-slate-900"
+                     x-data="{
+                        current: 0,
+                        total: {{ $imageAnnouncements->count() }},
+                        paused: false,
+                        next() { this.current = (this.current + 1) % this.total },
+                        prev() { this.current = (this.current - 1 + this.total) % this.total },
+                     }"
+                     x-init="setInterval(() => { if (! paused && total > 1) next() }, 5000)"
+                     @mouseenter="paused = true"
+                     @mouseleave="paused = false">
+                <div class="relative mx-auto w-full max-w-5xl overflow-hidden">
+                    {{-- Invisible sizer: first image sets the container height. --}}
+                    <img src="{{ $imageAnnouncements->first()->image_url }}"
+                         alt="" aria-hidden="true"
+                         class="invisible block h-auto w-full" />
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    @foreach ($announcements as $a)
-                        <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="flex items-baseline justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-slate-900">
-                                    {{ $a->title }}
-                                </h3>
-                                <span class="shrink-0 text-xs text-slate-600">
-                                    {{ $a->created_at->format('Y-m-d H:i') }}
-                                </span>
-                            </div>
+                    @foreach ($imageAnnouncements as $i => $a)
+                        <img src="{{ $a->image_url }}"
+                             alt="{{ $a->title }}"
+                             x-show="current === {{ $i }}"
+                             x-transition:enter="transition-opacity duration-700"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition-opacity duration-700"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             @if ($i > 0) style="display:none;" @endif
+                             class="absolute inset-0 h-full w-full object-contain" />
+                    @endforeach
 
-                            @if (trim($a->body) !== '')
-                                <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ $a->body }}</p>
-                            @endif
-                        </article>
+                    @if ($imageAnnouncements->count() > 1)
+                        <button @click="prev()"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 sm:left-6"
+                                aria-label="Previous announcement">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                        <button @click="next()"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 sm:right-6"
+                                aria-label="Next announcement">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    @endif
+                </div>
+            </section>
+        @endif
+
+        {{-- Text announcements → horizontal scrolling marquee ribbon. --}}
+        @if ($textAnnouncements->isNotEmpty())
+            <section class="overflow-hidden bg-amber-50 border-y border-amber-200 py-2">
+                <div class="marquee-track whitespace-nowrap text-sm text-amber-900">
+                    @foreach ($textAnnouncements as $a)
+                        <span class="mx-8 inline-block">
+                            <span class="mr-2">📢</span>
+                            <strong>{{ $a->title }}</strong>@if (trim($a->body) !== ''): {{ $a->body }}@endif
+                        </span>
                     @endforeach
                 </div>
             </section>
+            @push('head')
+                <style>
+                    .marquee-track {
+                        display: inline-block;
+                        padding-left: 100%;
+                        animation: marquee-scroll 40s linear infinite;
+                    }
+                    .marquee-track:hover { animation-play-state: paused; }
+                    @keyframes marquee-scroll {
+                        0%   { transform: translateX(0); }
+                        100% { transform: translateX(-100%); }
+                    }
+                </style>
+            @endpush
+        @endif
+        </div>
         @endif
 
         @if ($recentCourses->isNotEmpty() && ! $user->hasRole('student'))

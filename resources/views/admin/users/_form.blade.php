@@ -22,13 +22,13 @@
         </label>
         <div class="flex flex-wrap gap-2">
             @foreach ($allRoles as $r)
-                <label class="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white
+                <label class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white
                               {{ $canAssignRole ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-70' }}">
                     <input type="radio" name="role" value="{{ $r }}"
                            @if ($canAssignRole) required @endif
                            @checked($currentRole === $r)
                            @unless ($canAssignRole) disabled @endunless
-                           class="h-4 w-4 accent-slate-900">
+                           class="sr-only">
                     {{ ucfirst($r) }}
                 </label>
             @endforeach
