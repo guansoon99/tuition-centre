@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\CourseTeacherController;
 use App\Http\Controllers\Admin\EnrollmentController;
 use App\Http\Controllers\Admin\ImportStudentsController;
@@ -185,6 +186,20 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
     Route::middleware('permission:contact.delete')->group(function () {
         Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+    });
+
+    // Calendar — viewing is open to any authenticated user. CUD is gated
+    // per-action via calendar.create / .edit / .delete.
+    Route::get('/calendar', [EventController::class, 'index'])->name('calendar.index');
+    Route::get('/calendar/events', [EventController::class, 'events'])->name('calendar.events');
+    Route::middleware('permission:calendar.create')->group(function () {
+        Route::post('/calendar/events', [EventController::class, 'store'])->name('calendar.events.store');
+    });
+    Route::middleware('permission:calendar.edit')->group(function () {
+        Route::patch('/calendar/events/{event}', [EventController::class, 'update'])->name('calendar.events.update');
+    });
+    Route::middleware('permission:calendar.delete')->group(function () {
+        Route::delete('/calendar/events/{event}', [EventController::class, 'destroy'])->name('calendar.events.destroy');
     });
 
     // Announcements — split per-action.

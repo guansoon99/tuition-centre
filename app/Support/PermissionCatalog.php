@@ -19,6 +19,11 @@ class PermissionCatalog
      * @var array<string, array<string, string>>
      */
     public const GROUPS = [
+        'Calendar' => [
+            'calendar.create' => 'Create',
+            'calendar.edit' => 'Edit',
+            'calendar.delete' => 'Delete',
+        ],
         'Courses' => [
             'courses.view' => 'View',
             'courses.manage_details' => 'Manage Details',
