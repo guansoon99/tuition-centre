@@ -12,13 +12,13 @@
         ['label' => 'Home', 'route' => 'home', 'active' => request()->routeIs('home')],
     ]];
 
+    if ($user?->can('courses.view')) {
+        $sections[0]['items'][] = ['label' => 'Courses', 'route' => 'courses.index', 'active' => request()->routeIs('courses.*')];
+    }
+
     // Calendar is visible to any authenticated user — no permission gate.
     if ($user) {
         $sections[0]['items'][] = ['label' => 'Calendar', 'route' => 'calendar.index', 'active' => request()->routeIs('calendar.*')];
-    }
-
-    if ($user?->can('courses.view')) {
-        $sections[0]['items'][] = ['label' => 'Courses', 'route' => 'courses.index', 'active' => request()->routeIs('courses.*')];
     }
 
     // "Users" section — show whichever items the user has permission for.

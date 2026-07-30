@@ -19,11 +19,6 @@ class PermissionCatalog
      * @var array<string, array<string, string>>
      */
     public const GROUPS = [
-        'Calendar' => [
-            'calendar.create' => 'Create',
-            'calendar.edit' => 'Edit',
-            'calendar.delete' => 'Delete',
-        ],
         'Courses' => [
             'courses.view' => 'View',
             'courses.manage_details' => 'Manage Details',
@@ -31,6 +26,11 @@ class PermissionCatalog
             'courses.manage_students' => 'Manage Students',
             'sections.manage' => 'Manage Sections & Materials',
             'courses.activate' => 'Activate / Deactivate',
+        ],
+        'Calendar' => [
+            'calendar.create' => 'Create',
+            'calendar.edit' => 'Edit',
+            'calendar.delete' => 'Delete',
         ],
         'Users' => [
             'users.view' => 'View',
