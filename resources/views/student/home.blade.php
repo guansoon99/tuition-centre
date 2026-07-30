@@ -31,7 +31,7 @@
             </section>
         @endif
 
-        @if ($recentCourses->isNotEmpty())
+        @if ($recentCourses->isNotEmpty() && ! $user->hasRole('student'))
             <section>
                 <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Recently accessed</h2>
                 <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">

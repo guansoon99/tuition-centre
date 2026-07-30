@@ -9,6 +9,7 @@ use App\Models\Course;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Spatie\Permission\Models\Role;
 
 class AnnouncementController extends Controller
 {
@@ -25,6 +26,7 @@ class AnnouncementController extends Controller
     {
         return view('admin.announcements.create', [
             'courses' => $this->coursesForSelect(),
+            'roles' => Role::orderBy('name')->get(['id', 'name']),
         ]);
     }
 

@@ -14,13 +14,13 @@
             @include('admin.announcements._fields', ['mode' => 'create'])
 
             <div class="flex gap-3">
-                <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                    Send Announcement
-                </button>
                 <a href="{{ route('announcements.index') }}"
                    class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">
                     Cancel
                 </a>
+                <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                    Send Announcement
+                </button>
             </div>
         </form>
     </div>
@@ -61,6 +61,7 @@
                 dateFormat: 'Y-m-d H:i',
                 minuteIncrement: 5,
                 allowInput: false,
+                disableMobile: true,
             });
             document.querySelectorAll('[data-search-select]').forEach(el => {
                 new TomSelect(el, { create: false, allowEmptyOption: true });
