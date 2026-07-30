@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BannerSlideRequest;
 use App\Models\BannerSlide;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class BannerController extends Controller
@@ -15,7 +18,7 @@ class BannerController extends Controller
     public function index(): View
     {
         return view('admin.banner.index', [
-            'slides' => BannerSlide::orderByDesc('created_at')->get(),
+            'slides' => BannerSlide::orderBy('sort_order')->orderBy('id')->get(),
         ]);
     }
 
@@ -29,6 +32,8 @@ class BannerController extends Controller
         $data = $request->validated();
         $data['image_path'] = $request->file('image')->store('banner-slides', 'public');
         $data['is_active'] = $request->boolean('is_active', true);
+        // Auto-append to the end of the existing order.
+        $data['sort_order'] = (int) BannerSlide::max('sort_order') + 1;
 
         unset($data['image']);
 
@@ -73,6 +78,32 @@ class BannerController extends Controller
         return redirect()
             ->route('banner.index')
             ->with('status', 'Slide updated.');
+    }
+
+    public function reorder(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        // Only reorder rows that actually exist — guards against a crafted
+        // payload with non-existent IDs.
+        $valid = BannerSlide::whereIn('id', $data['ids'])->pluck('id')->all();
+
+        DB::transaction(function () use ($data, $valid) {
+            $order = 1;
+            foreach ($data['ids'] as $id) {
+                if (! in_array((int) $id, $valid, true)) {
+                    continue;
+                }
+                BannerSlide::where('id', $id)->update(['sort_order' => $order++]);
+            }
+        });
+
+        $this->forgetCache();
+
+        return response()->json(['ok' => true, 'count' => count($valid)]);
     }
 
     public function destroy(BannerSlide $slide): RedirectResponse

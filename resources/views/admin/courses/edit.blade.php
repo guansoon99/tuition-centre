@@ -627,16 +627,21 @@
         .ql-editor img { max-width: 100%; height: auto; }
     </style>
     <style>
-        .ts-wrapper { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+        .ts-wrapper { padding: 0 !important; border: 0 !important; box-shadow: none !important; background: transparent !important; }
         .ts-wrapper.single .ts-control,
         .ts-wrapper.single.input-active .ts-control {
             border: 1px solid rgb(203 213 225) !important;
             border-radius: 0.375rem;
-            padding: 0.375rem 0.75rem;
+            padding: 0.375rem 2rem 0.375rem 0.75rem;
             min-height: 2.25rem;
             font-size: 0.875rem;
             background: #fff;
             box-shadow: none;
+            /* Native-select-style chevron */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 18px;
         }
         .ts-wrapper.single.focus .ts-control {
             border-color: rgb(100 116 139) !important;
