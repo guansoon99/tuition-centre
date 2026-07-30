@@ -151,6 +151,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/banner/{slide}', [BannerController::class, 'show'])->name('banner.show');
     });
     Route::middleware('permission:banner.edit')->group(function () {
+        // Static /banner/reorder MUST come before /{slide} to avoid collision.
+        Route::patch('/banner/reorder', [BannerController::class, 'reorder'])->name('banner.reorder');
         Route::get('/banner/{slide}/edit', [BannerController::class, 'edit'])->name('banner.edit');
         Route::patch('/banner/{slide}', [BannerController::class, 'update'])->name('banner.update');
     });

@@ -27,7 +27,9 @@
             </div>
         @endif
 
-        <p class="mt-1 text-xs text-slate-500">Recommended: 1600×900 (or any 16:9 ratio), under 5 MB. JPG/PNG/WEBP.</p>
+        <p class="mt-1 text-xs text-slate-500">
+            Recommended: <strong>1600×500</strong> (or your preferred wide ratio), under 5 MB. JPG/PNG/WEBP.
+        </p>
         @error('image') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
@@ -39,24 +41,11 @@
         @error('title') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-        <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Order</label>
-            <input type="number" name="sort_order" required min="0"
-                   value="{{ old('sort_order', $slide?->sort_order ?? 0) }}"
-                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-            @error('sort_order') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            {{-- Invisible spacer matching the "Order" label height so the row below aligns with the input. --}}
-            <span aria-hidden="true" class="mb-1 block text-sm font-medium text-transparent select-none">.</span>
-            <label class="flex h-[42px] items-center gap-2 text-sm">
-                <input type="checkbox" name="is_active" value="1"
-                       @checked(old('is_active', $slide?->is_active ?? true))>
-                Active
-            </label>
-        </div>
-    </div>
+    <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="is_active" value="1"
+               @checked(old('is_active', $slide?->is_active ?? true))>
+        Active
+    </label>
 
     <div class="flex gap-3">
         <a href="{{ route('banner.index') }}"

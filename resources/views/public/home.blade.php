@@ -13,27 +13,48 @@
                     next() { this.current = (this.current + 1) % this.total },
                     prev() { this.current = (this.current - 1 + this.total) % this.total },
                  }"
-                 x-init="setInterval(() => { if (! paused && total > 1) next() }, 5000)">
-            <div class="relative mx-auto w-full max-w-5xl overflow-hidden" style="aspect-ratio: 4/3;">
+                 x-init="setInterval(() => { if (! paused && total > 1) next() }, 5000)"
+                 @mouseenter="paused = true"
+                 @mouseleave="paused = false">
+            {{--
+                Adaptive banner: the first slide is always in normal flow and
+                sizes the container to its natural aspect ratio. Slides 2+ are
+                overlaid absolutely on top, so switching between them fades in
+                place without changing the container height. Works cleanly when
+                all uploaded banners share the same dimensions (recommended:
+                1600×500) — see the banner upload form's hint.
+            --}}
+            <div class="relative mx-auto w-full max-w-5xl overflow-hidden">
+                {{-- Invisible sizer: reserves space based on first slide's
+                     natural dimensions so the container never collapses.
+                     Not shown to screen readers or visible on screen. --}}
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slides->first()->image_path) }}"
+                     alt="" aria-hidden="true"
+                     class="invisible block h-auto w-full" />
+
+                {{-- Every slide is an absolute overlay so cross-fades work
+                     without any slide "leaking" through underneath. --}}
                 @foreach ($slides as $i => $slide)
-                    <div x-show="current === {{ $i }}"
+                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slide->image_path) }}"
+                         alt="{{ $slide->title }}"
+                         x-show="current === {{ $i }}"
                          x-transition:enter="transition-opacity duration-700"
                          x-transition:enter-start="opacity-0"
                          x-transition:enter-end="opacity-100"
-                         class="absolute inset-0">
-                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slide->image_path) }}"
-                             alt="{{ $slide->title }}"
-                             class="h-full w-full object-contain" />
-                    </div>
+                         x-transition:leave="transition-opacity duration-700"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         @if ($i > 0) style="display:none;" @endif
+                         class="absolute inset-0 h-full w-full object-contain" />
                 @endforeach
 
                 @if ($slides->count() > 1)
-                    <button @click="prev(); paused = true"
+                    <button @click="prev()"
                             class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 sm:left-6"
                             aria-label="Previous slide">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <button @click="next(); paused = true"
+                    <button @click="next()"
                             class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 sm:right-6"
                             aria-label="Next slide">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -41,16 +62,6 @@
                 @endif
             </div>
 
-            @if ($slides->count() > 1)
-                <div class="flex justify-center gap-2 py-4">
-                    @foreach ($slides as $i => $_)
-                        <button @click="current = {{ $i }}; paused = true"
-                                :class="current === {{ $i }} ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'"
-                                class="h-2 rounded-full transition-all"
-                                aria-label="Go to slide {{ $i + 1 }}"></button>
-                    @endforeach
-                </div>
-            @endif
         </section>
     @else
         {{-- Fallback: gradient hero when no slides uploaded --}}
