@@ -7,8 +7,8 @@
     @endif
 
     <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Label <span class="text-xs font-normal text-slate-500">(optional)</span></label>
-        <input type="text" name="label" maxlength="100"
+        <label class="mb-1 block text-sm font-medium text-slate-700">Label</label>
+        <input type="text" name="label" required maxlength="100"
                placeholder="e.g. Main office, STPM inquiries"
                value="{{ old('label', $contact?->label) }}"
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />

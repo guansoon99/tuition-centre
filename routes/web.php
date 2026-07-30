@@ -168,18 +168,22 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
     });
 
-    // Contacts — sits under the Settings umbrella; uses settings.view / .edit
-    // permissions so admins with Settings access can manage contacts too.
-    Route::middleware('permission:settings.view')->group(function () {
+    // Contacts — per-action permissions (contact.view / .create / .edit / .delete).
+    Route::middleware('permission:contact.view')->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
     });
-    Route::middleware('permission:settings.edit')->group(function () {
-        // Static routes MUST come before /{contact} to avoid parameter collision.
+    Route::middleware('permission:contact.create')->group(function () {
+        // Static /contacts/create MUST come before /{contact} to avoid parameter collision.
         Route::get('/contacts/create', [ContactController::class, 'create'])->name('contacts.create');
         Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
+    });
+    Route::middleware('permission:contact.edit')->group(function () {
+        // Static /contacts/reorder before /{contact} for the same reason.
         Route::patch('/contacts/reorder', [ContactController::class, 'reorder'])->name('contacts.reorder');
         Route::get('/contacts/{contact}/edit', [ContactController::class, 'edit'])->name('contacts.edit');
         Route::patch('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+    });
+    Route::middleware('permission:contact.delete')->group(function () {
         Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
     });
 
