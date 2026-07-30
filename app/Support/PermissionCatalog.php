@@ -41,6 +41,12 @@ class PermissionCatalog
             'roles.edit' => 'Edit',
             'roles.delete' => 'Delete',
         ],
+        'Contact' => [
+            'contact.view' => 'View',
+            'contact.create' => 'Create',
+            'contact.edit' => 'Edit',
+            'contact.delete' => 'Delete',
+        ],
         'Banner' => [
             'banner.view' => 'View',
             'banner.create' => 'Create',

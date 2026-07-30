@@ -6,7 +6,7 @@
     <div class="space-y-6">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Contacts</h1>
-            @can('settings.edit')
+            @can('contact.create')
                 <a href="{{ route('contacts.create') }}"
                    class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
                     + Add Contact
@@ -52,11 +52,13 @@
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
-                                        @can('settings.edit')
+                                        @can('contact.edit')
                                             <a href="{{ route('contacts.edit', $contact) }}"
                                                class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
                                                 Edit
                                             </a>
+                                        @endcan
+                                        @can('contact.delete')
                                             <form method="POST" action="{{ route('contacts.destroy', $contact) }}"
                                                   onsubmit="return confirm('Delete this contact?');">
                                                 @csrf @method('DELETE')
