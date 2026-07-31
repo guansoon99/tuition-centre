@@ -22,7 +22,13 @@ class AccountController extends Controller
             abort(403, 'Password changes are disabled for students.');
         }
 
-        $user->forceFill(['password' => $request->input('password')])->save();
+        // Self-service password change. Also update plain_password for
+        // student users so the admin always has the current value on hand
+        // (avoids a reset cycle when a student forgets it).
+        $user->forceFill([
+            'password' => $request->input('password'),
+            'plain_password' => $user->hasRole('student') ? $request->input('password') : null,
+        ])->save();
 
         return redirect()->route('account.show')->with('status', 'Password updated.');
     }

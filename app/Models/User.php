@@ -22,6 +22,7 @@ class User extends Authenticatable
         'ic_number',
         'candidate_number',
         'password',
+        'plain_password',
         'is_active',
         'last_login_at',
         'notes',
@@ -29,6 +30,7 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
+        'plain_password',
         'remember_token',
     ];
 
