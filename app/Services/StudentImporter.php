@@ -232,6 +232,7 @@ class StudentImporter
                 'ic_number' => $icNumber !== '' ? $icNumber : null,
                 'candidate_number' => $candidateNumber !== '' ? $candidateNumber : null,
                 'password' => $password,
+                'plain_password' => $password, // students only — this is the student import path.
                 'is_active' => true,
             ]);
             $user->assignRole('student');

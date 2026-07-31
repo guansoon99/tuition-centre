@@ -27,6 +27,7 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
             'IC Number',
             'Candidate Number',
             'Role',
+            'Plain Password',
             'Active',
             'Last Login',
             'Created',
@@ -35,13 +36,18 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
 
     public function map($user): array
     {
+        $roleName = $user->roles->first()?->name;
+
         return [
             $user->username,
             $user->name,
             $user->phone,
             $user->ic_number,
             $user->candidate_number,
-            ucfirst($user->roles->first()?->name ?? ''),
+            ucfirst($roleName ?? ''),
+            // Plain password is only tracked for student users; other roles
+            // show blank so admin passwords etc. never leak into the export.
+            $roleName === 'student' ? $user->plain_password : null,
             $user->is_active ? 'Yes' : 'No',
             $user->last_login_at?->format('Y-m-d H:i'),
             $user->created_at->format('Y-m-d H:i'),

@@ -88,6 +88,9 @@ class UserController extends Controller
             ...$data,
             'is_active' => true,
             'password' => $password,
+            // Track plaintext only for students so the admin can re-hand out
+            // credentials. See UsersExport.
+            'plain_password' => $role === 'student' ? $password : null,
         ]);
         $user->assignRole($role);
 
@@ -115,6 +118,9 @@ class UserController extends Controller
 
         if (! empty($data['password'])) {
             $user->password = $data['password'];
+            // Only track plaintext for student users. If the user is a
+            // student (post-role-sync below) and admin set a new password,
+            // we'll set it after syncRoles.
         }
 
         $user->save();
@@ -123,6 +129,18 @@ class UserController extends Controller
         // different role are silently ignored — we keep the existing one.
         if ($request->user()?->hasRole('admin')) {
             $user->syncRoles([$data['role']]);
+        }
+
+        // After roles are synced: keep plain_password aligned. Track for
+        // students on any admin-triggered password change; clear if the
+        // user is no longer a student.
+        $isStudentNow = $user->hasRole('student');
+        if (! $isStudentNow && $user->plain_password !== null) {
+            $user->plain_password = null;
+            $user->save();
+        } elseif ($isStudentNow && ! empty($data['password'])) {
+            $user->plain_password = $data['password'];
+            $user->save();
         }
 
         return redirect()
