@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use App\Support\StoredFile;
 use Illuminate\View\View;
 
 class SectionController extends Controller
@@ -128,10 +128,25 @@ class SectionController extends Controller
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
-        $path = $request->file('image')->store('section-text-images', 'public');
+        $path = StoredFile::store($request->file('image'), 'section-text-images');
 
         return response()->json([
-            'url' => Storage::disk('public')->url($path),
+            'url' => StoredFile::url($path),
+        ]);
+    }
+
+    public function uploadVideo(Request $request): JsonResponse
+    {
+        // No app-level size cap — deliberately unbounded. The effective ceiling
+        // is whatever the PHP upload_max_filesize / post_max_size settings allow.
+        $request->validate([
+            'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime'],
+        ]);
+
+        $path = StoredFile::store($request->file('video'), 'section-text-videos');
+
+        return response()->json([
+            'url' => StoredFile::url($path),
         ]);
     }
 

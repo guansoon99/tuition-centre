@@ -28,14 +28,14 @@
                 {{-- Invisible sizer: reserves space based on first slide's
                      natural dimensions so the container never collapses.
                      Not shown to screen readers or visible on screen. --}}
-                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slides->first()->image_path) }}"
+                <img src="{{ $slides->first()->image_url }}"
                      alt="" aria-hidden="true"
                      class="invisible block h-auto w-full" />
 
                 {{-- Every slide is an absolute overlay so cross-fades work
                      without any slide "leaking" through underneath. --}}
                 @foreach ($slides as $i => $slide)
-                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slide->image_path) }}"
+                    <img src="{{ $slide->image_url }}"
                          alt="{{ $slide->title }}"
                          x-show="current === {{ $i }}"
                          x-transition:enter="transition-opacity duration-700"

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\StoredFile;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,6 +27,11 @@ class Course extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected function bannerImageUrl(): Attribute
+    {
+        return Attribute::get(fn () => StoredFile::url($this->banner_image));
+    }
 
     public function getRouteKeyName(): string
     {

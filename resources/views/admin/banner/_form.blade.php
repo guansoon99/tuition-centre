@@ -22,7 +22,7 @@
         @if ($slide?->image_path)
             <div class="mt-3" x-show="!preview">
                 <p class="mb-1 text-xs text-slate-500">Current image (upload a new one to replace)</p>
-                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slide->image_path) }}"
+                <img src="{{ $slide->image_url }}"
                      alt="" class="h-40 rounded border border-slate-200 object-contain" />
             </div>
         @endif

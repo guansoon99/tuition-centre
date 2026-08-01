@@ -41,7 +41,7 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="aspect-video w-32 overflow-hidden rounded bg-slate-100">
-                                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($slide->image_path) }}"
+                                        <img src="{{ $slide->image_url }}"
                                              alt="" class="h-full w-full object-cover" />
                                     </div>
                                 </td>

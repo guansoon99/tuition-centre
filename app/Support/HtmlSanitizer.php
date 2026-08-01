@@ -30,7 +30,8 @@ class HtmlSanitizer
             $config->set(
                 'HTML.Allowed',
                 'p[class],br,strong,em,u,s,h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel],img[src|alt|width|height],blockquote[class],code,pre,hr,'
-                .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col'
+                .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col,'
+                .'video[src|controls|width|height|preload|poster],source[src|type]'
             );
             $config->set('Attr.AllowedClasses', [
                 'ql-align-center',
@@ -42,6 +43,27 @@ class HtmlSanitizer
             $config->set('AutoFormat.RemoveEmpty', true);
             // Don't cache to disk — keeps the local-dev experience portable.
             $config->set('Cache.DefinitionImpl', null);
+
+            // HTMLPurifier defaults to HTML 4 which doesn't know about <video>
+            // and <source>. Register them manually so the whitelist above is
+            // actually recognized. Bumping DefinitionRev when this changes
+            // invalidates any in-memory cache from an earlier request.
+            $config->set('HTML.DefinitionID', 'tuition-html5-media');
+            $config->set('HTML.DefinitionRev', 1);
+            if ($def = $config->maybeGetRawHTMLDefinition()) {
+                $def->addElement('video', 'Block', 'Optional: (source, Flow) | (Flow)', 'Common', [
+                    'src' => 'URI',
+                    'controls' => 'Bool',
+                    'width' => 'Length',
+                    'height' => 'Length',
+                    'preload' => 'Enum#auto,metadata,none',
+                    'poster' => 'URI',
+                ]);
+                $def->addElement('source', 'Block', 'Empty', 'Common', [
+                    'src' => 'URI',
+                    'type' => 'Text',
+                ]);
+            }
 
             $purifier = new HTMLPurifier($config);
         }

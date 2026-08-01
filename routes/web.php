@@ -74,6 +74,8 @@ Route::middleware(['auth', 'active'])->group(function () {
             ->name('sections.quick-insert');
         Route::post('/sections/upload-image', [TeacherSectionController::class, 'uploadImage'])
             ->name('sections.upload-image');
+        Route::post('/sections/upload-video', [TeacherSectionController::class, 'uploadVideo'])
+            ->name('sections.upload-video');
         Route::get('/sections/{section}/edit', [TeacherSectionController::class, 'edit'])->name('sections.edit');
         Route::patch('/sections/{section}', [TeacherSectionController::class, 'update'])->name('sections.update');
         Route::delete('/sections/{section}', [TeacherSectionController::class, 'destroy'])->name('sections.destroy');
@@ -98,6 +100,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('permission:courses.manage_students')->group(function () {
         Route::post('/courses/{course:slug}/enrollments', [EnrollmentController::class, 'store'])
             ->name('courses.enrollments.store');
+        Route::post('/courses/{course:slug}/enrollments/import', [EnrollmentController::class, 'bulkImport'])
+            ->name('courses.enrollments.import');
+        Route::get('/courses/{course:slug}/enrollments/import/template', [EnrollmentController::class, 'importTemplate'])
+            ->name('courses.enrollments.import.template');
         Route::patch('/courses/{course:slug}/enrollments/{enrollment}', [EnrollmentController::class, 'update'])
             ->name('courses.enrollments.update');
         Route::delete('/courses/{course:slug}/enrollments/{enrollment}', [EnrollmentController::class, 'destroy'])

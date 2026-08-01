@@ -39,11 +39,7 @@ class Announcement extends Model
 
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(function () {
-            return $this->image_path
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path)
-                : null;
-        });
+        return Attribute::get(fn () => \App\Support\StoredFile::url($this->image_path));
     }
 
     public function course(): BelongsTo

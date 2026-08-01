@@ -117,6 +117,10 @@
         .ql-editor img { max-width: 100%; height: auto; }
         .ql-editor .ql-align-center img { display: block; margin-left: auto; margin-right: auto; }
         .ql-editor .ql-align-right img  { display: block; margin-left: auto; margin-right: 0; }
+        /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
+           no vertical gap between wrapped rows. */
+        .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
+        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 8px 0 0; }
     </style>
 @endpush
 
@@ -146,7 +150,7 @@
                             [{ list: 'ordered' }, { list: 'bullet' }],
                             [{ align: [] }],
                             ['blockquote'],
-                            ['link', 'image'],
+                            ['link', 'image', 'video'],
                         ],
                         handlers: {
                             image: function () {
@@ -175,6 +179,35 @@
                                         editor.setSelection(range.index + 1);
                                     } catch (e) {
                                         alert('Image upload failed: ' + e.message);
+                                    }
+                                };
+                            },
+                            video: function () {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'video/mp4,video/webm,video/quicktime';
+                                input.click();
+                                input.onchange = async () => {
+                                    const file = input.files[0];
+                                    if (!file) return;
+                                    const form = new FormData();
+                                    form.append('video', file);
+                                    try {
+                                        const res = await fetch('{{ route('sections.upload-video') }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                                'Accept': 'application/json',
+                                            },
+                                            body: form,
+                                        });
+                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
+                                        const data = await res.json();
+                                        const range = editor.getSelection(true);
+                                        const html = '<p><video controls src="' + data.url + '" style="max-width:100%;"></video></p>';
+                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+                                    } catch (e) {
+                                        alert('Video upload failed: ' + e.message);
                                     }
                                 };
                             },
