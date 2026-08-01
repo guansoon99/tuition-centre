@@ -35,12 +35,15 @@
 
 {{-- TEXT BLOCK — render the rich HTML inline. --}}
 @if ($type === \App\Models\Material::TYPE_TEXT)
-    <div class="flex gap-3 px-4 py-3">
+    <div class="flex gap-3 px-3 py-3">
         <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
-            {{-- Document with lines icon --}}
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {{-- Text: same document outline as the PDF icon, with lines inside --}}
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M8 14h8M8 18h5"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
         </span>
         <div class="min-w-0 flex-1">
@@ -85,9 +88,9 @@
                 {{-- PDF: document outline with "PDF" text inside --}}
                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-                          stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M14 2v6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                    <text x="12" y="18" text-anchor="middle" font-size="6.5" font-weight="800"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <text x="12" y="18.5" text-anchor="middle" font-size="7" font-weight="800"
                           font-family="Arial, sans-serif" fill="currentColor">PDF</text>
                 </svg>
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
