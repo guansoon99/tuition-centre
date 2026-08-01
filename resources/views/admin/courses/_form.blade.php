@@ -37,7 +37,7 @@
         @if ($course?->banner_image)
             <div class="mt-3" x-show="!preview">
                 <p class="mb-1 text-xs text-slate-500">Current banner</p>
-                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($course->banner_image) }}"
+                <img src="{{ $course->banner_image_url }}"
                      alt="" class="h-32 rounded border border-slate-200 object-cover" />
             </div>
         @endif

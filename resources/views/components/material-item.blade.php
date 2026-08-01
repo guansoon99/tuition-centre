@@ -16,6 +16,7 @@
             .prose-section ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
             .prose-section blockquote { border-left: 3px solid rgb(203 213 225); padding-left: 0.75rem; color: rgb(71 85 105); margin: 0.5rem 0; }
             .prose-section img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; }
+            .prose-section video { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; display: block; }
             .prose-section pre, .prose-section code { background: rgb(241 245 249); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
             .prose-section pre { padding: 0.75rem; overflow-x: auto; }
             .prose-section hr { border-top: 1px solid rgb(203 213 225); margin: 0.75rem 0; }

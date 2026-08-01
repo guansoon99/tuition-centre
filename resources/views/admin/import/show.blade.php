@@ -51,19 +51,19 @@
                     <button type="submit" formaction="{{ route('import.run') }}"
                             onclick="return confirm('Run the import now? Users and enrollments will be created.');"
                             class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        Import &amp; generate credentials
+                        Import &amp; Generate Credentials
                     </button>
                 @elseif (! $hasPreview)
                     <button type="submit" disabled
                             class="rounded-md bg-slate-300 px-4 py-2 text-sm font-medium text-white cursor-not-allowed">
-                        Import &amp; generate credentials
+                        Import &amp; Generate Credentials
                     </button>
                 @endif
 
                 @if ($credentialsFile)
                     <a href="{{ route('import.credentials') }}"
                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-                        Download last credentials
+                        Download Last Credentials
                     </a>
                 @endif
             </div>

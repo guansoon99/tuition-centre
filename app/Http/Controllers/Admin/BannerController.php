@@ -9,9 +9,9 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Support\StoredFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class BannerController extends Controller
 {
@@ -30,7 +30,7 @@ class BannerController extends Controller
     public function store(BannerSlideRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $data['image_path'] = $request->file('image')->store('banner-slides', 'public');
+        $data['image_path'] = StoredFile::store($request->file('image'), 'banner-slides');
         $data['is_active'] = true; // Slides are always active — no toggle in the UI; use Delete to hide.
         // Auto-append to the end of the existing order.
         $data['sort_order'] = (int) BannerSlide::max('sort_order') + 1;
@@ -57,9 +57,9 @@ class BannerController extends Controller
 
         if ($request->hasFile('image')) {
             if ($slide->image_path) {
-                Storage::disk('public')->delete($slide->image_path);
+                StoredFile::forget($slide->image_path);
             }
-            $data['image_path'] = $request->file('image')->store('banner-slides', 'public');
+            $data['image_path'] = StoredFile::store($request->file('image'), 'banner-slides');
         }
 
         $data['is_active'] = true;
@@ -104,7 +104,7 @@ class BannerController extends Controller
     public function destroy(BannerSlide $slide): RedirectResponse
     {
         if ($slide->image_path) {
-            Storage::disk('public')->delete($slide->image_path);
+            StoredFile::forget($slide->image_path);
         }
         $slide->delete();
 

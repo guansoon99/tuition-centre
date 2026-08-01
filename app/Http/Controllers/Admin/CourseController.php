@@ -10,7 +10,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
+use App\Support\StoredFile;
 use Illuminate\Support\Str;
 
 class CourseController extends Controller
@@ -52,7 +52,7 @@ class CourseController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('banner_image')) {
-            $data['banner_image'] = $request->file('banner_image')->store('course-banners', 'public');
+            $data['banner_image'] = StoredFile::store($request->file('banner_image'), 'course-banners');
         }
 
         $data['is_active'] = $request->boolean('is_active', true);
@@ -112,9 +112,9 @@ class CourseController extends Controller
 
         if ($request->hasFile('banner_image')) {
             if ($course->banner_image) {
-                Storage::disk('public')->delete($course->banner_image);
+                StoredFile::forget($course->banner_image);
             }
-            $data['banner_image'] = $request->file('banner_image')->store('course-banners', 'public');
+            $data['banner_image'] = StoredFile::store($request->file('banner_image'), 'course-banners');
         } else {
             unset($data['banner_image']);
         }

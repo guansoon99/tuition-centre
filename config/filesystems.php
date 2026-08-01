@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | User-Uploads Disk
+    |--------------------------------------------------------------------------
+    |
+    | Disk name used by \App\Support\StoredFile — the abstraction all user
+    | uploads (banners, announcement images, course banners, site logo,
+    | Quill inline images) flow through. Defaults to 'public' (local
+    | filesystem, served via /storage symlink). Set UPLOADS_DISK=r2 in .env
+    | to flip everything to Cloudflare R2 without changing any code.
+    |
+    */
+
+    'uploads_disk' => env('UPLOADS_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

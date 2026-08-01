@@ -173,7 +173,29 @@
         @endif
 
         @if ($canManageStudents)
-        <section x-show="tab === 'students'" x-cloak class="space-y-4">
+        <section x-show="tab === 'students'" x-cloak class="space-y-4" x-data="{ importOpen: false }">
+            {{-- Import result banner --}}
+            @if (session('enrollment_import_result'))
+                @php $r = session('enrollment_import_result'); @endphp
+                @if (! empty($r['skipped']))
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p class="font-medium">{{ count($r['skipped']) }} row(s) skipped:</p>
+                        <ul class="mt-1 list-inside list-disc text-xs">
+                            @foreach ($r['skipped'] as $s)
+                                <li>Line {{ $s['line'] }} — <code>{{ $s['username'] ?: '(blank)' }}</code>: {{ $s['reason'] }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            @endif
+
+            <div class="flex justify-end">
+                <button type="button" @click="importOpen = true"
+                        class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    + Import from Excel
+                </button>
+            </div>
+
             <form method="POST" action="{{ route('courses.enrollments.store', $course) }}"
                   x-data="{}"
                   class="space-y-3 rounded-md border border-slate-200 bg-white p-3">
@@ -255,6 +277,54 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Import modal (teleported to body so backdrop covers viewport) --}}
+            <template x-teleport="body">
+                <div x-show="importOpen" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+                     @click.self="importOpen = false">
+                    <form method="POST" action="{{ route('courses.enrollments.import', $course) }}"
+                          enctype="multipart/form-data"
+                          class="w-full max-w-md rounded-lg bg-white shadow-lg">
+                        @csrf
+                        <div class="border-b border-slate-200 px-5 py-3">
+                            <h2 class="text-base font-semibold text-slate-900">Bulk Enroll</h2>
+                        </div>
+
+                        <div class="space-y-3 px-5 py-4 text-sm">
+                            <div>
+                                <div class="mb-1 flex items-center justify-between">
+                                    <label class="block text-xs font-medium text-slate-700">File (.xlsx, .xls, .csv)</label>
+                                    <a href="{{ route('courses.enrollments.import.template', $course) }}"
+                                       class="inline-flex items-center rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
+                                        Download Sample Excel
+                                    </a>
+                                </div>
+                                <input type="file" name="file" required accept=".xlsx,.xls,.csv"
+                                       class="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white" />
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700">Expires on <span class="font-normal text-slate-500">(optional — leave blank for no expiry)</span></label>
+                                <input type="text" name="expires_at" readonly placeholder="YYYY-MM-DD"
+                                       x-init="flatpickr($el, { dateFormat: 'Y-m-d', disableMobile: true, allowInput: false })"
+                                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm" />
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                            <button type="button" @click="importOpen = false"
+                                    class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+                                Import
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </template>
         </section>
         @endif
 
@@ -612,6 +682,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
     <style>
+        /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
+           no vertical gap between wrapped rows. */
+        .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
+        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 8px 0 0; }
         .ql-editor table { border-collapse: collapse; margin: 0.75rem 0; width: 100%; }
         .ql-editor th, .ql-editor td { border: 1px solid #000; padding: 0.375rem 0.5rem; text-align: left; vertical-align: top; }
         .ql-editor th { background: rgb(241 245 249); font-weight: 600; }
@@ -682,7 +756,7 @@
                             [{ list: 'ordered' }, { list: 'bullet' }],
                             [{ align: [] }],
                             ['blockquote'],
-                            ['link', 'image'],
+                            ['link', 'image', 'video'],
                         ],
                         handlers: {
                             image: function () {
@@ -714,6 +788,42 @@
                                         editor.setSelection(range.index + 1);
                                     } catch (e) {
                                         alert('Image upload failed: ' + e.message);
+                                    }
+                                };
+                            },
+                            video: function () {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'video/mp4,video/webm,video/quicktime';
+                                input.click();
+
+                                input.onchange = async () => {
+                                    const file = input.files[0];
+                                    if (!file) return;
+
+                                    const form = new FormData();
+                                    form.append('video', file);
+
+                                    try {
+                                        const res = await fetch('{{ route('sections.upload-video') }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                                'Accept': 'application/json',
+                                            },
+                                            body: form,
+                                        });
+                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
+                                        const data = await res.json();
+
+                                        // Insert an HTML5 <video> tag at the cursor. Quill's built-in
+                                        // video embed uses <iframe> (for YouTube-style URLs) — we want
+                                        // native playback for uploaded files.
+                                        const range = editor.getSelection(true);
+                                        const html = '<p><video controls src="' + data.url + '" style="max-width:100%;"></video></p>';
+                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+                                    } catch (e) {
+                                        alert('Video upload failed: ' + e.message);
                                     }
                                 };
                             },
