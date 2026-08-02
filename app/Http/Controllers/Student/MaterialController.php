@@ -30,6 +30,10 @@ class MaterialController extends Controller
     {
         $this->authorize('download', $material);
 
+        if ($material->type === Material::TYPE_PAGE) {
+            return view('student.materials.page', ['material' => $material]);
+        }
+
         if ($material->type !== Material::TYPE_PDF) {
             return redirect()->away($material->external_url ?? url('/'));
         }

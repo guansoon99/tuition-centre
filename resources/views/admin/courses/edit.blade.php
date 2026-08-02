@@ -434,8 +434,12 @@
                                                     </button>
                                                 </div>
 
+                                                @php
+                                                    $matDisplayType = $material->type === 'page' ? 'text' : $material->type;
+                                                    $matAsPage = $material->type === 'page';
+                                                @endphp
                                                 <form method="POST" action="{{ route('materials.update', $material) }}" enctype="multipart/form-data"
-                                                      x-data="{ matType: '{{ $material->type }}' }"
+                                                      x-data="{ matType: '{{ $matDisplayType }}', matAsPage: {{ $matAsPage ? 'true' : 'false' }} }"
                                                       x-init="
                                                           const tryInit = () => initQuillEditor($refs.matQuillContainer_{{ $material->id }}, $refs.matQuillInput_{{ $material->id }});
                                                           if (matType === 'text') $nextTick(tryInit);
@@ -455,13 +459,18 @@
                                                         <div class="flex flex-wrap gap-2">
                                                             @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
                                                                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
-                                                                    <input type="radio" name="type" value="{{ $val }}"
-                                                                           x-model="matType"
-                                                                           class="sr-only">
+                                                                    <input type="radio" x-model="matType" value="{{ $val }}" class="sr-only">
                                                                     {{ $lbl }}
                                                                 </label>
                                                             @endforeach
                                                         </div>
+                                                        <input type="hidden" name="type"
+                                                               x-bind:value="matType === 'text' && matAsPage ? 'page' : matType">
+
+                                                        <label x-show="matType === 'text'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
+                                                            <input type="checkbox" x-model="matAsPage" class="rounded border-slate-300">
+                                                            Open on a separate page
+                                                        </label>
                                                     </div>
 
                                                     <div x-show="matType === 'pdf'" x-data="{ chosen: null }" x-cloak>
@@ -506,12 +515,6 @@
                                                         <input type="text" name="target_date" data-flatpickr
                                                                value="{{ $material->target_date?->format('Y-m-d H:i') }}"
                                                                placeholder="Y-m-d H:i"
-                                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                                                    </div>
-
-                                                    <div>
-                                                        <label class="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-                                                        <input type="number" name="sort_order" min="0" value="{{ $material->sort_order }}"
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
                                                     </div>
 
@@ -689,6 +692,53 @@
         .ql-editor table { border-collapse: collapse; margin: 0.75rem 0; width: 100%; }
         .ql-editor th, .ql-editor td { border: 1px solid #000; padding: 0.375rem 0.5rem; text-align: left; vertical-align: top; }
         .ql-editor th { background: rgb(241 245 249); font-weight: 600; }
+
+        /* Link tooltip — pin to top of editor and restore input styling that
+           Tailwind's preflight strips. Without this the popup lands near the
+           cursor (can fall outside the modal) and the input reads as a black bar. */
+        .ql-snow .ql-tooltip {
+            left: 12px !important;
+            top: 8px !important;
+            transform: none !important;
+            z-index: 50;
+            background: #fff;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 6px 10px;
+            font-size: 13px;
+            color: rgb(51 65 85);
+        }
+        .ql-snow .ql-tooltip input[type=text] {
+            display: inline-block;
+            width: 220px;
+            padding: 4px 8px;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 4px;
+            background: #fff;
+            color: rgb(15 23 42);
+            font-size: 13px;
+            margin: 0 6px;
+        }
+        .ql-snow .ql-tooltip a { color: rgb(37 99 235); padding: 0 6px; cursor: pointer; font-weight: 500; }
+
+        /* Header picker dropdown — restore line-height that our toolbar's
+           `line-height: 0` (used for wrapping) strips out. */
+        .ql-snow .ql-picker-options {
+            line-height: 1.4;
+            padding: 4px 0;
+            background: #fff;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .ql-snow .ql-picker-options .ql-picker-item {
+            display: block;
+            padding: 4px 12px;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+        .ql-snow .ql-picker-options .ql-picker-item:hover { color: rgb(37 99 235); }
     </style>
     <style>
         /* Mirror the public renderer so image alignment is visible while
