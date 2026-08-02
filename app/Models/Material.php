@@ -15,6 +15,7 @@ class Material extends Model
     public const TYPE_PDF = 'pdf';
     public const TYPE_EXTERNAL_LINK = 'external_link';
     public const TYPE_TEXT = 'text';
+    public const TYPE_PAGE = 'page';
     public const TYPE_COUNTDOWN = 'countdown';
 
     protected $fillable = [

@@ -29,13 +29,21 @@
             .prose-section table { border-collapse: collapse; margin: 0.75rem 0; width: 100%; color: #000; }
             .prose-section th, .prose-section td { border: 1px solid #000; padding: 0.375rem 0.5rem; text-align: left; vertical-align: top; color: #000; }
             .prose-section th { background: rgb(241 245 249); font-weight: 600; }
+            /* Zero the outer margins so the body sits flush with the row's padding. */
+            .prose-section > *:first-child { margin-top: 0; }
+            .prose-section > *:last-child  { margin-bottom: 0; }
         </style>
     @endpush
 @endonce
 
 {{-- TEXT BLOCK — render the rich HTML inline. --}}
 @if ($type === \App\Models\Material::TYPE_TEXT)
-    <div class="flex gap-3 px-3 py-3">
+    @php
+        // Quill leaves `<p><br></p>` or `<p>&nbsp;</p>` behind when the editor is
+        // emptied — treat any tag/entity-only shell as empty for rendering purposes.
+        $bodyText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($material->body ?? '', ENT_QUOTES | ENT_HTML5)));
+    @endphp
+    <div class="flex gap-3 px-3 py-2">
         <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
             {{-- Text: same document outline as the PDF icon, with lines inside --}}
             <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,7 +58,7 @@
             @if (trim($material->title) !== '' && $material->title !== 'Text')
                 <p class="truncate text-sm text-black">{{ $material->title }}</p>
             @endif
-            @if (trim($material->body ?? '') !== '')
+            @if ($bodyText !== '')
                 <div class="prose-section mt-1 text-sm leading-relaxed text-black">
                     {!! $material->body !!}
                 </div>
@@ -71,10 +79,12 @@
         @endif
     </div>
 
-{{-- PDF / EXTERNAL LINK — clickable row. --}}
+{{-- PDF / PAGE / EXTERNAL LINK — clickable row. --}}
 @else
     @php
-        $isExternal = $type !== \App\Models\Material::TYPE_PDF;
+        $isPdf   = $type === \App\Models\Material::TYPE_PDF;
+        $isPage  = $type === \App\Models\Material::TYPE_PAGE;
+        $isExternal = ! $isPdf && ! $isPage;
         $href = $isExternal
             ? $material->external_url
             : route('materials.view', $material);
@@ -92,6 +102,15 @@
                     <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     <text x="12" y="18.5" text-anchor="middle" font-size="7" font-weight="800"
                           font-family="Arial, sans-serif" fill="currentColor">PDF</text>
+                </svg>
+            @elseif ($type === \App\Models\Material::TYPE_PAGE)
+                {{-- Page: same icon as Text (they're the same underlying "type" in the UI) --}}
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M8 14h8M8 18h5"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
                 {{-- External link: chain icon --}}

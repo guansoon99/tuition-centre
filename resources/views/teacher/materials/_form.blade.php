@@ -1,7 +1,15 @@
 @props(['material' => null, 'action', 'method' => 'POST'])
 
+@php
+    // The stored type may be 'page', but in the UI we present that as
+    // "Text" + a checkbox — so split the persisted type into a display type
+    // and an asPage flag.
+    $storedType = old('type', $material?->type ?? 'text');
+    $displayType = $storedType === 'page' ? 'text' : $storedType;
+    $asPage = $storedType === 'page';
+@endphp
 <form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="space-y-4"
-      x-data="{ type: '{{ old('type', $material?->type ?? 'text') }}' }"
+      x-data="{ type: '{{ $displayType }}', asPage: {{ $asPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.quillContainer, $refs.quillInput);
           if (type === 'text') $nextTick(tryInit);
@@ -25,13 +33,20 @@
         <div class="flex flex-wrap gap-2">
             @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
-                    <input type="radio" name="type" value="{{ $val }}"
-                           x-model="type"
-                           class="sr-only">
+                    <input type="radio" x-model="type" value="{{ $val }}" class="sr-only">
                     {{ $lbl }}
                 </label>
             @endforeach
         </div>
+        {{-- Hidden input carries the actual submitted type. When Text + "Open on
+             a separate page" is checked, we submit 'page' instead of 'text'. --}}
+        <input type="hidden" name="type"
+               x-bind:value="type === 'text' && asPage ? 'page' : type">
+
+        <label x-show="type === 'text'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" x-model="asPage" class="rounded border-slate-300">
+            Open on a separate page
+        </label>
     </div>
 
     {{-- PDF --}}
@@ -121,6 +136,53 @@
            no vertical gap between wrapped rows. */
         .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
         .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 8px 0 0; }
+
+        /* Link tooltip — pin to top of editor and restore input styling that
+           Tailwind's preflight strips. Without this the popup lands near the
+           cursor (can fall outside the modal) and the input reads as a black bar. */
+        .ql-snow .ql-tooltip {
+            left: 12px !important;
+            top: 8px !important;
+            transform: none !important;
+            z-index: 50;
+            background: #fff;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 6px 10px;
+            font-size: 13px;
+            color: rgb(51 65 85);
+        }
+        .ql-snow .ql-tooltip input[type=text] {
+            display: inline-block;
+            width: 220px;
+            padding: 4px 8px;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 4px;
+            background: #fff;
+            color: rgb(15 23 42);
+            font-size: 13px;
+            margin: 0 6px;
+        }
+        .ql-snow .ql-tooltip a { color: rgb(37 99 235); padding: 0 6px; cursor: pointer; font-weight: 500; }
+
+        /* Header picker dropdown — restore line-height that our toolbar's
+           `line-height: 0` (used for wrapping) strips out. */
+        .ql-snow .ql-picker-options {
+            line-height: 1.4;
+            padding: 4px 0;
+            background: #fff;
+            border: 1px solid rgb(203 213 225);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .ql-snow .ql-picker-options .ql-picker-item {
+            display: block;
+            padding: 4px 12px;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+        .ql-snow .ql-picker-options .ql-picker-item:hover { color: rgb(37 99 235); }
     </style>
 @endpush
 

@@ -52,7 +52,7 @@ class MaterialController extends Controller
 
             $data['file_path'] = $path;
             $data['file_size_bytes'] = $upload->getSize();
-        } elseif ($type === Material::TYPE_TEXT) {
+        } elseif ($type === Material::TYPE_TEXT || $type === Material::TYPE_PAGE) {
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } elseif ($type === Material::TYPE_COUNTDOWN) {
             $data['target_date'] = $request->input('target_date');
@@ -84,7 +84,11 @@ class MaterialController extends Controller
         $data = [
             'title' => $request->input('title'),
             'type' => $type,
-            'sort_order' => $request->integer('sort_order'),
+            // sort_order is managed exclusively via drag-and-drop; only accept
+            // an explicit value if one was posted, otherwise preserve the row.
+            'sort_order' => $request->has('sort_order')
+                ? $request->integer('sort_order')
+                : $material->sort_order,
             'is_published' => $request->boolean('is_published', true),
             'file_path' => null,
             'file_size_bytes' => null,
@@ -114,7 +118,7 @@ class MaterialController extends Controller
                 Storage::delete($material->file_path);
             }
 
-            if ($type === Material::TYPE_TEXT) {
+            if ($type === Material::TYPE_TEXT || $type === Material::TYPE_PAGE) {
                 $data['body'] = HtmlSanitizer::clean($request->input('body'));
             } elseif ($type === Material::TYPE_COUNTDOWN) {
                 $data['target_date'] = $request->input('target_date');
