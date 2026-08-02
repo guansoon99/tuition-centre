@@ -225,10 +225,19 @@
                         views: {
                             listUpcoming: {
                                 type: 'list',
-                                duration: { years: 5 },
                                 buttonText: 'Upcoming',
                                 listDayFormat: { weekday: 'long', month: 'long', day: 'numeric' },
                                 noEventsText: 'No upcoming events.',
+                                // Hard-anchor to today. Using `duration` alone causes FullCalendar
+                                // to snap the start to Jan 1 of the current year (for year-length
+                                // durations), which would leak past events.
+                                visibleRange: function () {
+                                    const start = new Date();
+                                    start.setHours(0, 0, 0, 0);
+                                    const end = new Date(start);
+                                    end.setFullYear(end.getFullYear() + 5);
+                                    return { start: start, end: end };
+                                },
                             },
                         },
                         events: this.feedUrl,
