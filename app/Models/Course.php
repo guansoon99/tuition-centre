@@ -40,8 +40,12 @@ class Course extends Model
 
     public function teachers(): BelongsToMany
     {
+        // wherePivotNull('deleted_at') is essential: belongsToMany doesn't
+        // apply the Enrollment model's SoftDeletes scope, so without it any
+        // soft-deleted teacher row would still show up in $course->teachers.
         return $this->belongsToMany(User::class, 'enrollments')
             ->wherePivot('role_on_course', Enrollment::ROLE_TEACHER)
+            ->wherePivotNull('deleted_at')
             // enrolled_at/expires_at are the merged column names —
             // migration mapped course_teacher.assigned_at → enrolled_at
             // and course_teacher.ends_at → expires_at.
@@ -70,8 +74,11 @@ class Course extends Model
 
     public function students(): BelongsToMany
     {
+        // See teachers() — wherePivotNull('deleted_at') keeps soft-deleted
+        // student rows out of the visible/counted list.
         return $this->belongsToMany(User::class, 'enrollments')
             ->wherePivot('role_on_course', Enrollment::ROLE_STUDENT)
+            ->wherePivotNull('deleted_at')
             ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }

@@ -59,12 +59,17 @@ class UserController extends Controller
         // Course + Enrollment filters. Uses courseMemberships (all roles)
         // so teacher assignments count as being "linked" to a course.
         //
-        //   Course=X alone       → anyone linked to X (any state)
-        //   Course=X + Enrolled  → users currently active in X
-        //   Course=X + Unenrolled → users NOT currently active in X
-        //                          (never had a row OR had one but inactive)
-        //   Enrolled alone       → users with ≥1 active membership anywhere
-        //   Unenrolled alone     → users with 0 active memberships
+        // The Course dropdown means "users linked to this course" and the
+        // Enrollment dropdown slices that scope by row state — Enrolled =
+        // active row, Unenrolled = inactive/expired row. This keeps the
+        // union invariant: All Enrollment = Enrolled ∪ Unenrolled.
+        //
+        //   Enrolled (any course)       → users with ≥1 active membership
+        //   Unenrolled (any course)     → users with 0 active memberships
+        //   Course=X + Enrolled         → users active in X
+        //   Course=X + Unenrolled       → users with an inactive row for X
+        //                                (ex-members of the course)
+        //   Course=X + All Enrollment   → users linked to X in any state
         $courseId = $request->integer('course') ?: null;
         $enrollment = $request->string('enrollment')->value() ?: null;
 
@@ -73,8 +78,8 @@ class UserController extends Controller
                 $q->where('course_id', $courseId)->where('is_active', true);
             });
         } elseif ($courseId && $enrollment === 'unenrolled') {
-            $query->whereDoesntHave('courseMemberships', function ($q) use ($courseId) {
-                $q->where('course_id', $courseId)->where('is_active', true);
+            $query->whereHas('courseMemberships', function ($q) use ($courseId) {
+                $q->where('course_id', $courseId)->where('is_active', false);
             });
         } elseif ($courseId) {
             $query->whereHas('courseMemberships', fn ($q) => $q->where('course_id', $courseId));

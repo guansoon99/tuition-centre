@@ -75,6 +75,20 @@ class CourseController extends Controller
             abort_unless($user->teaches($course) && $course->is_active, 403);
         }
 
+        // If a specific tab was requested via ?tab=X, verify the user has the
+        // matching permission — otherwise 403 (instead of loading the page
+        // and rendering nothing because the tab's section is @if-guarded).
+        $requestedTab = $request->string('tab')->value();
+        $tabPermissions = [
+            'details' => 'courses.manage_details',
+            'teachers' => 'courses.manage_teachers',
+            'students' => 'courses.manage_students',
+            'sections' => 'sections.manage',
+        ];
+        if ($requestedTab && isset($tabPermissions[$requestedTab])) {
+            abort_unless($user->can($tabPermissions[$requestedTab]), 403);
+        }
+
         // Auto-publish any sections whose scheduled release time has passed.
         $course->releaseScheduledSections();
 

@@ -17,7 +17,9 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/home';
+    // Post-login landing route. This app's home page is served at `/`
+    // (see routes/web.php:26, named `home`), not the Laravel default `/home`.
+    public const HOME = '/';
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
