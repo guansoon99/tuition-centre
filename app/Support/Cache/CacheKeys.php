@@ -7,6 +7,7 @@ class CacheKeys
     public const TTL_COURSE_DETAIL = 600;
     public const TTL_ENROLLED = 300;
     public const TTL_RECENT = 60;
+    public const TTL_COURSE_MEMBERSHIPS = 3600;
 
     public static function courseDetail(int $courseId): string
     {
@@ -27,5 +28,16 @@ class CacheKeys
     public static function userRecent(int $userId): string
     {
         return "user:{$userId}:recently_accessed";
+    }
+
+    /**
+     * Per-user course membership set — a compact array of the course IDs
+     * this user teaches / is enrolled in (active rows only). Powers
+     * teaches(), isEnrolledIn(), and visibleAnnouncements() so those
+     * methods don't each hit the DB. See User::courseMembershipIds().
+     */
+    public static function userCourseMemberships(int $userId): string
+    {
+        return "user:{$userId}:course_memberships";
     }
 }

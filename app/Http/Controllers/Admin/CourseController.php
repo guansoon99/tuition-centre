@@ -173,6 +173,7 @@ class CourseController extends Controller
         foreach ($course->courseMemberships()->pluck('user_id')->unique() as $userId) {
             Cache::forget(CacheKeys::userEnrolled($userId));
             Cache::forget(CacheKeys::userRecent($userId));
+            Cache::forget(CacheKeys::userCourseMemberships($userId));
         }
     }
 }
