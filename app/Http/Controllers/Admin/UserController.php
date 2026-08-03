@@ -25,7 +25,7 @@ class UserController extends Controller
 
         return view('admin.users.index', [
             'users' => $users,
-            'filters' => $request->only(['q', 'role', 'active', 'course']),
+            'filters' => $request->only(['q', 'role', 'active', 'course', 'enrollment']),
         ]);
     }
 
@@ -61,6 +61,18 @@ class UserController extends Controller
                 $q->whereHas('enrollments', fn ($e) => $e->where('course_id', $courseId))
                     ->orWhereHas('taughtCourses', fn ($t) => $t->where('courses.id', $courseId));
             });
+        }
+
+        // Enrollment status: 'enrolled' = at least one active enrollment,
+        // 'unenrolled' = zero active enrollments. Applies to any user, but
+        // only meaningful when combined with role=student (teachers never
+        // have enrollments so they always appear as 'unenrolled').
+        if ($enrollment = $request->string('enrollment')->value()) {
+            if ($enrollment === 'enrolled') {
+                $query->whereHas('enrollments', fn ($e) => $e->where('is_active', true));
+            } elseif ($enrollment === 'unenrolled') {
+                $query->whereDoesntHave('enrollments', fn ($e) => $e->where('is_active', true));
+            }
         }
 
         return $query;

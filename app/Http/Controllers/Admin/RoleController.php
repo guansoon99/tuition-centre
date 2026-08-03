@@ -41,7 +41,7 @@ class RoleController extends Controller
     {
         $data = $this->validated($request);
 
-        $role = Role::create(['name' => $data['name'], 'guard_name' => 'web']);
+        $role = Role::create(['name' => trim($data['name']), 'guard_name' => 'web']);
         $this->syncPermissions($role, $data['permissions'] ?? []);
 
         return redirect()
@@ -86,7 +86,7 @@ class RoleController extends Controller
         // be changed from the UI. Updates to system roles are no-ops aside
         // from triggering the success message.
         if (! $isSystem) {
-            $role->update(['name' => $data['name']]);
+            $role->update(['name' => trim($data['name'])]);
             $this->syncPermissions($role, $data['permissions'] ?? []);
         }
 
@@ -134,13 +134,28 @@ class RoleController extends Controller
 
     private function validated(Request $request, ?Role $role = null): array
     {
+        // Normalize before validating so trailing/leading spaces can't sneak
+        // a "duplicate" past the unique check.
+        $request->merge(['name' => trim((string) $request->input('name'))]);
+
         return $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:64',
                 'regex:/^[a-zA-Z0-9_\- ]+$/',
-                Rule::unique('roles', 'name')->ignore($role?->id),
+                // Case-insensitive uniqueness. Laravel's built-in `unique` rule
+                // relies on the DB's collation (case-sensitive on SQLite,
+                // case-insensitive on MySQL) — this makes both behave the same
+                // so "Admin" always collides with "admin".
+                function ($attribute, $value, $fail) use ($role) {
+                    $exists = Role::whereRaw('LOWER(name) = ?', [mb_strtolower($value)])
+                        ->when($role, fn ($q) => $q->where('id', '!=', $role->id))
+                        ->exists();
+                    if ($exists) {
+                        $fail('A role with that name already exists.');
+                    }
+                },
             ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in(PermissionCatalog::allPermissionNames())],

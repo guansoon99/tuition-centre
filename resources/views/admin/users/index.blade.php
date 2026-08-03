@@ -56,6 +56,13 @@
                 @endforeach
             </select>
 
+            <select name="enrollment" onchange="this.form.submit()"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                <option value="">All Enrollment</option>
+                <option value="enrolled" @selected(($filters['enrollment'] ?? '') === 'enrolled')>Enrolled</option>
+                <option value="unenrolled" @selected(($filters['enrollment'] ?? '') === 'unenrolled')>Unenrolled</option>
+            </select>
+
             <select name="active" onchange="this.form.submit()"
                     class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Status</option>
