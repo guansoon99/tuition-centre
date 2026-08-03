@@ -116,8 +116,11 @@ class User extends Authenticatable
             return $q->orderBy('sort_order')->orderBy('id');
         }
 
-        $enrolledIds = $this->enrollments()->where('is_active', true)->pluck('course_id')->all();
-        $taughtIds = $this->taughtCourses()->pluck('courses.id')->all();
+        // Reuse the cached membership set — same data teaches()/isEnrolledIn()
+        // hit, so this call is free after the first authenticated request.
+        $membership = $this->courseMembershipIds();
+        $enrolledIds = array_keys($membership['enrolled']);
+        $taughtIds = $membership['taught'];
         $relatedIds = array_values(array_unique(array_merge($enrolledIds, $taughtIds)));
         $userRoles = $this->getRoleNames()->all();
 
@@ -152,18 +155,62 @@ class User extends Authenticatable
 
     public function teaches(Course $course): bool
     {
-        return $this->taughtCourses()->whereKey($course->id)->exists();
+        return in_array($course->id, $this->courseMembershipIds()['taught'], true);
     }
 
     public function isEnrolledIn(Course $course, bool $activeOnly = true): bool
     {
-        $query = $this->enrollments()->where('course_id', $course->id);
-
+        // Fast path: cached active memberships.
         if ($activeOnly) {
-            $query->where('is_active', true)
-                ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+            $enrolled = $this->courseMembershipIds()['enrolled'];
+            if (! array_key_exists($course->id, $enrolled)) {
+                return false;
+            }
+            $expiresAt = $enrolled[$course->id];
+            return $expiresAt === null || \Carbon\Carbon::parse($expiresAt)->isFuture();
         }
 
-        return $query->exists();
+        // Rare path — inactive rows aren't in the cache, fall back to DB.
+        return $this->enrollments()->where('course_id', $course->id)->exists();
+    }
+
+    /**
+     * Cached lookup of this user's course memberships. Returns:
+     *
+     *   [
+     *     'taught'   => [1, 5, 8],                  // course IDs, role=teacher, active
+     *     'enrolled' => [3 => null, 7 => '2027-01-01'],
+     *                                               // course_id => expires_at ISO string
+     *                                               // (or null for no expiry), role=student, active
+     *   ]
+     *
+     * Consumed by teaches(), isEnrolledIn(), and visibleAnnouncements() —
+     * turns 3-5 per-request queries into one on cache miss, zero on hit.
+     * Busted by EnrollmentObserver whenever a membership changes.
+     */
+    public function courseMembershipIds(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            \App\Support\Cache\CacheKeys::userCourseMemberships($this->id),
+            \App\Support\Cache\CacheKeys::TTL_COURSE_MEMBERSHIPS,
+            function () {
+                $rows = \App\Models\Enrollment::query()
+                    ->where('user_id', $this->id)
+                    ->where('is_active', true)
+                    ->get(['course_id', 'role_on_course', 'expires_at']);
+
+                $taught = [];
+                $enrolled = [];
+                foreach ($rows as $r) {
+                    if ($r->role_on_course === \App\Models\Enrollment::ROLE_TEACHER) {
+                        $taught[] = $r->course_id;
+                    } elseif ($r->role_on_course === \App\Models\Enrollment::ROLE_STUDENT) {
+                        $enrolled[$r->course_id] = $r->expires_at?->toIso8601String();
+                    }
+                }
+
+                return ['taught' => $taught, 'enrolled' => $enrolled];
+            }
+        );
     }
 }

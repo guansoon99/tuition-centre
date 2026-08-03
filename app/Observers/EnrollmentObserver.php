@@ -12,6 +12,7 @@ class EnrollmentObserver
     {
         Cache::forget(CacheKeys::userEnrolled($enrollment->user_id));
         Cache::forget(CacheKeys::userRecent($enrollment->user_id));
+        Cache::forget(CacheKeys::userCourseMemberships($enrollment->user_id));
     }
 
     public function deleted(Enrollment $enrollment): void
