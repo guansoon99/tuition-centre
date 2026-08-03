@@ -58,6 +58,16 @@ class Course extends Model
         return $this->hasMany(Enrollment::class)->where('role_on_course', Enrollment::ROLE_STUDENT);
     }
 
+    /**
+     * All memberships regardless of role — student + teacher rows. Use when
+     * you need to touch every user linked to this course (e.g. cache
+     * invalidation on course update/delete).
+     */
+    public function courseMemberships(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'enrollments')
