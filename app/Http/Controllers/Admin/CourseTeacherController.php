@@ -47,10 +47,9 @@ class CourseTeacherController extends Controller
         );
 
         // updateOrCreate fires EnrollmentObserver which busts userEnrolled,
-        // but bust here too for safety (and userAssigned for legacy callers).
+        // but bust here too for safety.
         Cache::forget(CacheKeys::userEnrolled($teacher->id));
         Cache::forget(CacheKeys::userRecent($teacher->id));
-        Cache::forget(CacheKeys::userAssigned($teacher->id));
 
         return back()->with('status', "Assigned {$teacher->name} to {$course->code}.");
     }
@@ -80,7 +79,6 @@ class CourseTeacherController extends Controller
         // was found because the assignment was already gone).
         Cache::forget(CacheKeys::userEnrolled($user->id));
         Cache::forget(CacheKeys::userRecent($user->id));
-        Cache::forget(CacheKeys::userAssigned($user->id));
 
         return back()->with('status', "Removed {$user->name} from {$course->code}.");
     }

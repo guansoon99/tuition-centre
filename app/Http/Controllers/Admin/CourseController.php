@@ -153,14 +153,12 @@ class CourseController extends Controller
     {
         Cache::forget(CacheKeys::courseDetail($course->id));
 
-        foreach ($course->teachers()->pluck('users.id') as $teacherId) {
-            Cache::forget(CacheKeys::userAssigned($teacherId));
-            Cache::forget(CacheKeys::userRecent($teacherId));
-        }
-
-        foreach ($course->enrollments()->pluck('user_id') as $studentId) {
-            Cache::forget(CacheKeys::userEnrolled($studentId));
-            Cache::forget(CacheKeys::userRecent($studentId));
+        // Every user linked to this course (student OR teacher) sees it
+        // through Course::visibleTo(), which is cached under userEnrolled
+        // on the Home page. One pass over all memberships covers both.
+        foreach ($course->courseMemberships()->pluck('user_id')->unique() as $userId) {
+            Cache::forget(CacheKeys::userEnrolled($userId));
+            Cache::forget(CacheKeys::userRecent($userId));
         }
     }
 }
