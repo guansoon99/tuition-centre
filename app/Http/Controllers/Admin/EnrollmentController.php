@@ -31,18 +31,33 @@ class EnrollmentController extends Controller
         // Match on role too — the same (user, course) pair can now hold
         // both a student and a teacher row, and we only want to reuse the
         // student one when re-enrolling.
-        Enrollment::firstOrCreate(
-            [
-                'user_id' => $student->id,
-                'course_id' => $course->id,
-                'role_on_course' => Enrollment::ROLE_STUDENT,
-            ],
-            [
+        //
+        // Use withTrashed so a previously soft-deleted row is restored
+        // instead of triggering a UNIQUE constraint violation on INSERT
+        // (the soft-deleted row still occupies the composite key slot).
+        $existing = Enrollment::withTrashed()
+            ->where('user_id', $student->id)
+            ->where('course_id', $course->id)
+            ->where('role_on_course', Enrollment::ROLE_STUDENT)
+            ->first();
+
+        if ($existing) {
+            $existing->fill([
                 'enrolled_at' => $data['enrolled_at'] ?? now(),
                 'expires_at' => $data['expires_at'] ?? null,
                 'is_active' => true,
-            ]
-        );
+                'deleted_at' => null,
+            ])->save();
+        } else {
+            Enrollment::create([
+                'user_id' => $student->id,
+                'course_id' => $course->id,
+                'role_on_course' => Enrollment::ROLE_STUDENT,
+                'enrolled_at' => $data['enrolled_at'] ?? now(),
+                'expires_at' => $data['expires_at'] ?? null,
+                'is_active' => true,
+            ]);
+        }
 
         return back()->with('status', "Enrolled {$student->username}.");
     }
@@ -70,7 +85,12 @@ class EnrollmentController extends Controller
         $this->authorizeCourseAccess($request->user(), $course);
         abort_unless($enrollment->course_id === $course->id, 404);
 
-        $enrollment->delete();
+        // Hard delete: soft-deleting leaves the row in place and it still
+        // counts toward the (user, course, role) UNIQUE constraint, so a
+        // later re-enroll would fail with "UNIQUE constraint failed". Use
+        // is_active=false via the Edit form if you want to keep a history
+        // of the enrollment.
+        $enrollment->forceDelete();
 
         return back()->with('status', 'Enrollment removed.');
     }
@@ -117,18 +137,22 @@ class EnrollmentController extends Controller
 
             // Only look at the student membership row — a user could also
             // be a teacher of the same course in a separate enrollments row.
-            $existing = Enrollment::where('user_id', $user->id)
+            // withTrashed so a soft-deleted row is restored instead of
+            // triggering a UNIQUE constraint violation on INSERT below.
+            $existing = Enrollment::withTrashed()
+                ->where('user_id', $user->id)
                 ->where('course_id', $course->id)
                 ->where('role_on_course', Enrollment::ROLE_STUDENT)
                 ->first();
             if ($existing) {
-                if ($existing->is_active) {
+                if ($existing->is_active && $existing->deleted_at === null) {
                     $results['already']++;
                 } else {
-                    $existing->update([
+                    $existing->fill([
                         'is_active' => true,
                         'expires_at' => $expiresAt,
-                    ]);
+                        'deleted_at' => null,
+                    ])->save();
                     $results['reactivated']++;
                 }
                 continue;

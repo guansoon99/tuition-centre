@@ -55,12 +55,18 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/courses', [AdminCourseController::class, 'store'])->name('courses.store');
     });
 
-    // Course list and edit page — anyone with courses.view can open both.
-    // Per-tab actions inside are gated by the finer perms further below.
+    // Full course list (admin dashboard) — needs courses.view to see every
+    // course including inactive ones. Teachers without this permission
+    // reach their own courses via the Home page instead.
     Route::middleware('permission:courses.view')->group(function () {
         Route::get('/courses', [AdminCourseController::class, 'index'])->name('courses.index');
-        Route::get('/courses/{course:slug}/edit', [AdminCourseController::class, 'edit'])->name('courses.edit');
     });
+
+    // Course edit page — auth only at the route layer so the controller can
+    // apply the per-course policy: admin OR courses.view users open any
+    // course; teachers can open active courses they teach. Per-tab actions
+    // inside are still gated by the finer perms further below.
+    Route::get('/courses/{course:slug}/edit', [AdminCourseController::class, 'edit'])->name('courses.edit');
 
     // Course content view — auth only; CoursePolicy@view decides who passes.
     Route::get('/courses/{course:slug}', [CourseController::class, 'show'])->name('courses.show');

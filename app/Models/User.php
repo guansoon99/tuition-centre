@@ -65,8 +65,12 @@ class User extends Authenticatable
 
     public function enrolledCourses(): BelongsToMany
     {
+        // wherePivotNull('deleted_at') hides soft-deleted enrollment rows —
+        // belongsToMany doesn't apply the Enrollment SoftDeletes scope on
+        // its own so we have to filter the pivot explicitly.
         return $this->belongsToMany(Course::class, 'enrollments')
             ->wherePivot('role_on_course', Enrollment::ROLE_STUDENT)
+            ->wherePivotNull('deleted_at')
             ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
@@ -75,6 +79,7 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Course::class, 'enrollments')
             ->wherePivot('role_on_course', Enrollment::ROLE_TEACHER)
+            ->wherePivotNull('deleted_at')
             ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
