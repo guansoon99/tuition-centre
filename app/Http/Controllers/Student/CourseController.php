@@ -37,13 +37,17 @@ class CourseController extends Controller
         }
 
         if ($user->teaches($course)) {
+            // Teachers now live in the same enrollments table (role='teacher').
+            // updateExistingPivot respects the wherePivot('role_on_course','teacher')
+            // constraint we set on Course::teachers(), so this only touches the
+            // teacher row even if the user also has a student row for this course.
             $course->teachers()
                 ->updateExistingPivot($user->id, ['last_accessed_at' => now()]);
         }
 
         // Universal "I opened this course" record — works for admins too
-        // (who have neither enrollments nor course_teacher rows) and is the
-        // single source for the Home page's Recently Accessed strip.
+        // (who have no enrollments row of either role) and is the single
+        // source for the Home page's Recently Accessed strip.
         \DB::table('course_views')->upsert(
             [[
                 'user_id' => $user->id,

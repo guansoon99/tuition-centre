@@ -35,8 +35,8 @@ class CoursePolicy
             return false;
         }
 
-        // Course staff (anyone in the course_teacher pivot) — teachers,
-        // custom managers, etc.
+        // Course staff (anyone with a teacher-role enrollments row on this
+        // course) — teachers, custom managers, etc.
         if ($user->teaches($course)) {
             return true;
         }

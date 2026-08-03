@@ -40,20 +40,29 @@ class Course extends Model
 
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'course_teacher')
-            ->withPivot('assigned_at', 'ends_at', 'last_accessed_at')
+        return $this->belongsToMany(User::class, 'enrollments')
+            ->wherePivot('role_on_course', Enrollment::ROLE_TEACHER)
+            // enrolled_at/expires_at are the merged column names —
+            // migration mapped course_teacher.assigned_at → enrolled_at
+            // and course_teacher.ends_at → expires_at.
+            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
 
+    /**
+     * Student memberships only. See User::enrollments() for the same
+     * rationale — the column is shared with teachers now, so we scope.
+     */
     public function enrollments(): HasMany
     {
-        return $this->hasMany(Enrollment::class);
+        return $this->hasMany(Enrollment::class)->where('role_on_course', Enrollment::ROLE_STUDENT);
     }
 
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'enrollments')
-            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at'])
+            ->wherePivot('role_on_course', Enrollment::ROLE_STUDENT)
+            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
 
@@ -82,7 +91,8 @@ class Course extends Model
     /**
      * Restrict to courses the given user is allowed to see.
      * Admin: all. Anyone else: courses they're assigned as staff
-     * (course_teacher pivot) OR enrolled in as a student.
+     * (enrollments.role_on_course='teacher') OR enrolled in as a student
+     * (enrollments.role_on_course='student', active).
      */
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {

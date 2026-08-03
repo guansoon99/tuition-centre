@@ -40,7 +40,25 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    /**
+     * Student-side memberships. Named `enrollments` for backwards compat —
+     * the underlying `enrollments` table now also holds teacher rows
+     * (`role_on_course='teacher'`), so this relationship scopes to students.
+     * For teacher memberships use taughtCourses(); for a generic "any
+     * membership regardless of role" use courseMemberships().
+     */
     public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class)->where('role_on_course', Enrollment::ROLE_STUDENT);
+    }
+
+    /**
+     * All course memberships regardless of role — student rows AND teacher
+     * rows. Use when you want to answer "is this user linked to any course?"
+     * (e.g. the /users enrollment filter, where 'unenrolled' should mean
+     * "not linked to any course as either student or teacher").
+     */
+    public function courseMemberships(): HasMany
     {
         return $this->hasMany(Enrollment::class);
     }
@@ -48,14 +66,16 @@ class User extends Authenticatable
     public function enrolledCourses(): BelongsToMany
     {
         return $this->belongsToMany(Course::class, 'enrollments')
-            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at'])
+            ->wherePivot('role_on_course', Enrollment::ROLE_STUDENT)
+            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
 
     public function taughtCourses(): BelongsToMany
     {
-        return $this->belongsToMany(Course::class, 'course_teacher')
-            ->withPivot('assigned_at')
+        return $this->belongsToMany(Course::class, 'enrollments')
+            ->wherePivot('role_on_course', Enrollment::ROLE_TEACHER)
+            ->withPivot(['is_active', 'enrolled_at', 'expires_at', 'last_accessed_at', 'role_on_course'])
             ->withTimestamps();
     }
 
