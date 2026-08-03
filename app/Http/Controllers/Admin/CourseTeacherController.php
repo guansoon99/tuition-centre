@@ -46,6 +46,10 @@ class CourseTeacherController extends Controller
             ]
         );
 
+        // updateOrCreate fires EnrollmentObserver which busts userEnrolled,
+        // but bust here too for safety (and userAssigned for legacy callers).
+        Cache::forget(CacheKeys::userEnrolled($teacher->id));
+        Cache::forget(CacheKeys::userRecent($teacher->id));
         Cache::forget(CacheKeys::userAssigned($teacher->id));
 
         return back()->with('status', "Assigned {$teacher->name} to {$course->code}.");
@@ -54,16 +58,28 @@ class CourseTeacherController extends Controller
     public function destroy(Course $course, User $user): RedirectResponse
     {
         // Only remove the teacher row — leave any student enrollment alone.
-        // Uses forceDelete because Course::teachers() is a belongsToMany that
-        // reads the pivot table directly and doesn't apply Enrollment's soft-
-        // delete global scope — a soft-deleted row would still show up in the
-        // list. This also matches pre-merge behavior where `->detach()` was
-        // a hard delete on the (never soft-deleted) course_teacher table.
-        Enrollment::where('user_id', $user->id)
+        // Uses forceDelete (not delete) because Course::teachers() reads the
+        // pivot table directly and doesn't apply Enrollment's soft-delete
+        // scope — a soft-deleted row would still show up in the list. Also
+        // matches pre-merge behavior where detach() was a hard delete.
+        //
+        // Fetch and delete via the model instance (not the query builder)
+        // so the EnrollmentObserver fires and busts userEnrolled/userRecent,
+        // which is what the Home page's course list actually reads.
+        $enrollment = Enrollment::where('user_id', $user->id)
             ->where('course_id', $course->id)
             ->where('role_on_course', Enrollment::ROLE_TEACHER)
-            ->forceDelete();
+            ->first();
 
+        if ($enrollment) {
+            $enrollment->forceDelete();
+        }
+
+        // Defence in depth: bust the course-list cache the teacher will hit
+        // on the Home page even if the observer didn't fire (e.g. no row
+        // was found because the assignment was already gone).
+        Cache::forget(CacheKeys::userEnrolled($user->id));
+        Cache::forget(CacheKeys::userRecent($user->id));
         Cache::forget(CacheKeys::userAssigned($user->id));
 
         return back()->with('status', "Removed {$user->name} from {$course->code}.");
