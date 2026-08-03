@@ -54,10 +54,15 @@ class CourseTeacherController extends Controller
     public function destroy(Course $course, User $user): RedirectResponse
     {
         // Only remove the teacher row — leave any student enrollment alone.
+        // Uses forceDelete because Course::teachers() is a belongsToMany that
+        // reads the pivot table directly and doesn't apply Enrollment's soft-
+        // delete global scope — a soft-deleted row would still show up in the
+        // list. This also matches pre-merge behavior where `->detach()` was
+        // a hard delete on the (never soft-deleted) course_teacher table.
         Enrollment::where('user_id', $user->id)
             ->where('course_id', $course->id)
             ->where('role_on_course', Enrollment::ROLE_TEACHER)
-            ->delete();
+            ->forceDelete();
 
         Cache::forget(CacheKeys::userAssigned($user->id));
 
