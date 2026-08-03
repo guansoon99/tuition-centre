@@ -3,6 +3,7 @@
 namespace Tests\Feature\Teacher;
 
 use App\Models\Course;
+use App\Models\Enrollment;
 use App\Models\Material;
 use App\Models\Section;
 use App\Models\User;
@@ -32,7 +33,15 @@ class TeacherCrudTest extends TestCase
         $this->otherTeacher->assignRole('teacher');
 
         $this->course = Course::factory()->create();
-        $this->course->teachers()->attach($this->teacher, ['assigned_at' => now()]);
+        // Direct insert — attach() on the belongsToMany wouldn't set
+        // role_on_course, which is required now that the pivot is merged.
+        Enrollment::create([
+            'user_id' => $this->teacher->id,
+            'course_id' => $this->course->id,
+            'role_on_course' => Enrollment::ROLE_TEACHER,
+            'enrolled_at' => now(),
+            'is_active' => true,
+        ]);
     }
 
     public function test_assigned_teacher_can_create_section(): void

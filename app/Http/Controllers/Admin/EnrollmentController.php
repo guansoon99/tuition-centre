@@ -28,8 +28,15 @@ class EnrollmentController extends Controller
         $student = User::findOrFail($data['user_id']);
         abort_unless($student->hasRole('student'), 422, 'User is not a student.');
 
+        // Match on role too — the same (user, course) pair can now hold
+        // both a student and a teacher row, and we only want to reuse the
+        // student one when re-enrolling.
         Enrollment::firstOrCreate(
-            ['user_id' => $student->id, 'course_id' => $course->id],
+            [
+                'user_id' => $student->id,
+                'course_id' => $course->id,
+                'role_on_course' => Enrollment::ROLE_STUDENT,
+            ],
             [
                 'enrolled_at' => $data['enrolled_at'] ?? now(),
                 'expires_at' => $data['expires_at'] ?? null,
@@ -108,7 +115,12 @@ class EnrollmentController extends Controller
                 continue;
             }
 
-            $existing = Enrollment::where('user_id', $user->id)->where('course_id', $course->id)->first();
+            // Only look at the student membership row — a user could also
+            // be a teacher of the same course in a separate enrollments row.
+            $existing = Enrollment::where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->where('role_on_course', Enrollment::ROLE_STUDENT)
+                ->first();
             if ($existing) {
                 if ($existing->is_active) {
                     $results['already']++;
@@ -125,6 +137,7 @@ class EnrollmentController extends Controller
             Enrollment::create([
                 'user_id' => $user->id,
                 'course_id' => $course->id,
+                'role_on_course' => Enrollment::ROLE_STUDENT,
                 'enrolled_at' => $now,
                 'expires_at' => $expiresAt,
                 'is_active' => true,
