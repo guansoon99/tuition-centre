@@ -133,7 +133,7 @@
                                                       onsubmit="return confirm('Deactivate {{ $u->username }}? They won\'t be able to log in.');">
                                                     @csrf @method('DELETE')
                                                     <button type="submit"
-                                                            class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                                                            class="min-w-[96px] rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
                                                         Deactivate
                                                     </button>
                                                 </form>
@@ -141,7 +141,7 @@
                                                 <form method="POST" action="{{ route('users.activate', $u) }}">
                                                     @csrf
                                                     <button type="submit"
-                                                            class="min-w-[88px] rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-amber-600">
+                                                            class="min-w-[96px] rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-amber-600">
                                                         Activate
                                                     </button>
                                                 </form>
