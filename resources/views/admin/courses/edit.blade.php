@@ -129,14 +129,16 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($course->teachers as $t)
                             @php
-                                // "Active" for a teacher = no ends_at OR ends_at is in the future.
-                                $tEnds = $t->pivot->ends_at ? \Carbon\Carbon::parse($t->pivot->ends_at) : null;
+                                // "Active" for a teacher = no end date OR end date is in the future.
+                                // Since course_teacher merged into enrollments, the pivot columns
+                                // are enrolled_at (was assigned_at) and expires_at (was ends_at).
+                                $tEnds = $t->pivot->expires_at ? \Carbon\Carbon::parse($t->pivot->expires_at) : null;
                                 $tActive = $tEnds === null || $tEnds->isFuture();
                             @endphp
                             <tr>
                                 <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->username }}</td>
                                 <td class="px-4 py-3 text-slate-800">{{ $t->name }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->assigned_at ? \Carbon\Carbon::parse($t->pivot->assigned_at)->format('Y-m-d H:i') : '—'}}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->enrolled_at ? \Carbon\Carbon::parse($t->pivot->enrolled_at)->format('Y-m-d H:i') : '—'}}</td>
                                 <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $tEnds?->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->last_accessed_at ? \Carbon\Carbon::parse($t->pivot->last_accessed_at)->format('Y-m-d H:i') : '—' }}</td>
                                 <td class="px-4 py-3">
