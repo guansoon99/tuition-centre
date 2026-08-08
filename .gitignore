@@ -8,6 +8,15 @@
 /public/build
 /public/hot
 /public/storage
+
+# User-uploaded media that ended up in public/images/ (StoredFile puts them
+# on the `public` disk which is really storage/app/public/, but a few
+# manual uploads landed here). Ignore all video files and any GUID-braced
+# filename; the two intentional static assets are already tracked.
+/public/images/*.mp4
+/public/images/*.mov
+/public/images/*.webm
+/public/images/{*
 /storage/*.key
 /vendor
 .env
