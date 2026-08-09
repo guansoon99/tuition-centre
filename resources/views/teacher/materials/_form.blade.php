@@ -167,8 +167,11 @@
         .ql-snow .ql-tooltip a { color: rgb(37 99 235); padding: 0 6px; cursor: pointer; font-weight: 500; }
 
         /* Header picker dropdown — restore line-height that our toolbar's
-           `line-height: 0` (used for wrapping) strips out. */
-        .ql-snow .ql-picker-options {
+           `line-height: 0` (used for wrapping) strips out. Scoped to
+           text-based pickers (:not(.ql-icon-picker)) so we don't stomp
+           on icon pickers like Align, which need Quill's default 24×24
+           dimensions for their SVG icons to render. */
+        .ql-snow .ql-picker:not(.ql-icon-picker) .ql-picker-options {
             line-height: 1.4;
             padding: 4px 0;
             background: #fff;
@@ -176,13 +179,13 @@
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
-        .ql-snow .ql-picker-options .ql-picker-item {
+        .ql-snow .ql-picker:not(.ql-icon-picker) .ql-picker-options .ql-picker-item {
             display: block;
             padding: 4px 12px;
             line-height: 1.4;
             cursor: pointer;
         }
-        .ql-snow .ql-picker-options .ql-picker-item:hover { color: rgb(37 99 235); }
+        .ql-snow .ql-picker:not(.ql-icon-picker) .ql-picker-options .ql-picker-item:hover { color: rgb(37 99 235); }
     </style>
 @endpush
 
