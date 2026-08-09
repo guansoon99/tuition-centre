@@ -36,24 +36,39 @@ class EventController extends Controller
             $q->where('date', '<=', substr($end, 0, 10));
         }
 
-        $userEvents = $q->get()->map(fn (Event $e) => [
-            'id' => $e->id,
-            'title' => $e->title,
-            'start' => $e->date->format('Y-m-d'),
-            'allDay' => true,
-            // FullCalendar reads these per-event and applies them directly
-            // to the rendered pill. Slug lives on the row; hex is resolved
-            // here so palette tweaks are one-file changes.
-            'backgroundColor' => $e->colorHex(),
-            'borderColor' => $e->colorHex(),
-            'extendedProps' => ['color' => $e->color],
-        ])->all();
+        $userEvents = $q->get()->map(function (Event $e) {
+            $isBackground = $e->display_style === Event::STYLE_BACKGROUND;
+            return [
+                'id' => $e->id,
+                'title' => $e->title,
+                'start' => $e->date->format('Y-m-d'),
+                'allDay' => true,
+                // 'background' tints the whole day cell (like the holidays);
+                // omitted → normal pill.
+                'display' => $isBackground ? 'background' : 'auto',
+                // For pills we use the full color; for backgrounds we send
+                // the light tint so the cell stays readable underneath.
+                'backgroundColor' => $isBackground ? $e->colorTintHex() : $e->colorHex(),
+                'borderColor' => $isBackground ? $e->colorTintHex() : $e->colorHex(),
+                'extendedProps' => [
+                    'color' => $e->color,
+                    'displayStyle' => $e->display_style,
+                    'textHex' => $e->colorTextHex(),
+                ],
+            ];
+        })->all();
 
-        // Malaysia public holidays from the Google iCal feed. Only include
-        // those in the visible range so we don't ship the whole feed on
-        // every calendar hit. `id` gets a prefix so it can't collide with
-        // numeric event IDs and the frontend can distinguish read-only
-        // holidays from admin-editable events.
+        // Malaysia public holidays from the Google iCal feed. Rendered as
+        // background events so the whole day cell is tinted (matches printed
+        // Malaysian calendars). The frontend's eventDidMount hook also
+        // writes the holiday name directly into the cell as a small red
+        // label — no pill, no click target.
+        //
+        // Uses the same 'red' palette entries as user events, so a user who
+        // creates their own red+highlight event gets a visually identical
+        // result.
+        $holidayTint = Event::COLOR_TINTS['red'];
+        $holidayText = Event::COLOR_TEXTS['red'];
         $holidayEvents = [];
         if ($start && $end) {
             foreach ($holidays->forRange(substr($start, 0, 10), substr($end, 0, 10)) as $h) {
@@ -62,10 +77,13 @@ class EventController extends Controller
                     'title' => $h['name'],
                     'start' => $h['date'],
                     'allDay' => true,
-                    'backgroundColor' => '#ef4444', // red
-                    'borderColor' => '#ef4444',
-                    'editable' => false,
-                    'extendedProps' => ['isHoliday' => true, 'color' => 'red'],
+                    'display' => 'background',
+                    'backgroundColor' => $holidayTint,
+                    'extendedProps' => [
+                        'isHoliday' => true,
+                        'color' => 'red',
+                        'textHex' => $holidayText,
+                    ],
                 ];
             }
         }
@@ -79,6 +97,7 @@ class EventController extends Controller
             'title' => $request->input('title'),
             'date' => $request->input('date'),
             'color' => $request->input('color', Event::COLOR_DEFAULT),
+            'display_style' => $request->input('display_style', Event::STYLE_DEFAULT),
             'created_by_user_id' => $request->user()->id,
         ]);
 
@@ -95,6 +114,7 @@ class EventController extends Controller
             'title' => $request->input('title'),
             'date' => $request->input('date'),
             'color' => $request->input('color', $event->color),
+            'display_style' => $request->input('display_style', $event->display_style),
         ]);
 
         if ($request->wantsJson()) {

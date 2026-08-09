@@ -105,6 +105,21 @@
                     </div>
 
                     <div>
+                        <label class="mb-1 block text-xs font-medium text-slate-700">Type</label>
+                        <div class="flex flex-wrap gap-2">
+                            {{-- Radio pills same pattern as course material types. --}}
+                            @foreach (['pill' => 'Bar', 'background' => 'Highlight'] as $val => $lbl)
+                                <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white"
+                                       :class="canModify ? '' : 'opacity-60 cursor-not-allowed pointer-events-none'">
+                                    <input type="radio" x-model="modal.displayStyle" value="{{ $val }}" class="sr-only">
+                                    {{ $lbl }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <p x-show="errors.display_style" x-text="errors.display_style" class="mt-1 text-xs text-red-600"></p>
+                    </div>
+
+                    <div>
                         <label class="mb-1 block text-xs font-medium text-slate-700">Color</label>
                         <div class="flex flex-wrap gap-2">
                             {{-- Alpine's x-for only iterates arrays, not plain objects.
@@ -205,6 +220,38 @@
         .fc .fc-list-event-time {
             font-size: 0.85rem;
         }
+        /* Public holiday cells (background events with our light-red tint):
+           strengthen the color and make the date number red so the day
+           reads as a holiday at a glance, matching printed MY calendars. */
+        .fc .fc-daygrid-day.fc-day-has-holiday {
+            background-color: #fef2f2;                    /* rose-50 wash */
+        }
+        .fc .fc-daygrid-day.fc-day-has-holiday .fc-daygrid-day-number {
+            color: rgb(220 38 38);                        /* red-600 */
+            font-weight: 600;
+        }
+        /* Hide the raw background-event pill since we've styled the cell
+           itself — the cell tint + red date number + injected label carry
+           the message. */
+        .fc .fc-bg-event {
+            opacity: 0;
+        }
+        /* Holiday name written directly into the day cell (injected via
+           eventDidMount). Sits below the date number, wraps if long. */
+        .fc .fc-holiday-label,
+        .fc .fc-user-bg-label {
+            padding: 2px 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        .fc .fc-holiday-label {
+            color: rgb(185 28 28);                        /* red-700 */
+        }
+        /* User background events set their cell background + text color
+           inline based on the chosen palette slug. Cursor hints it's clickable. */
+        .fc .fc-day-has-user-bg { cursor: pointer; }
     </style>
 @endpush
 
@@ -232,7 +279,7 @@
                 currentMonthName: '',
                 prevMonthName: '',
                 nextMonthName: '',
-                modal: { open: false, id: null, title: '', date: '', color: opts.defaultColor, isHoliday: false },
+                modal: { open: false, id: null, title: '', date: '', color: opts.defaultColor, displayStyle: 'pill', isHoliday: false },
                 errors: {},
 
                 get canModify() {
@@ -271,6 +318,18 @@
                         },
                         events: this.feedUrl,
                         dateClick: (info) => {
+                            // Background events (holidays + user highlights) don't
+                            // fire eventClick. If the clicked date has a user
+                            // background event, treat as view/edit; if only a
+                            // holiday, treat as read-only view; otherwise fall
+                            // through to create.
+                            const bgEvent = this.calendar.getEvents().find(e =>
+                                e.startStr === info.dateStr && e.display === 'background'
+                            );
+                            if (bgEvent) {
+                                this.openView(bgEvent);
+                                return;
+                            }
                             if (! this.canCreate) return;
                             this.openCreate(info.dateStr);
                         },
@@ -278,7 +337,89 @@
                             info.jsEvent.preventDefault();
                             this.openView(info.event);
                         },
+                        // When a holiday background event mounts, tag the
+                        // corresponding day cell and write the holiday name
+                        // directly into the cell as a small red text label
+                        // (below the date number). No pill, no click target —
+                        // reads like a printed Malaysian calendar.
+                        //
+                        // Two gotchas:
+                        //   - eventDidMount fires more than once per event as
+                        //     FullCalendar re-renders → dedupe by title.
+                        //   - showNonCurrentDates:false hides the date number
+                        //     on leading/trailing cells but keeps them in the
+                        //     DOM with `data-date`. Filter those out with
+                        //     :not(.fc-day-other) so the label doesn't land on
+                        //     a numberless neighbouring-month cell.
+                        eventDidMount: (info) => {
+                            // Handle two flavours of background events:
+                            //   - Auto holidays (red, read-only, .fc-holiday-label)
+                            //   - User events with display_style='background'
+                            //     (chosen color, clickable, .fc-user-bg-label)
+                            const isHoliday = info.event.extendedProps?.isHoliday;
+                            const isUserBg = ! isHoliday
+                                && info.event.display === 'background';
+                            if (! isHoliday && ! isUserBg) return;
+
+                            // Find the "real" cell for this date — belongs to the
+                            // current view, not a hidden neighbour-month cell.
+                            const candidates = document.querySelectorAll(
+                                '.fc-daygrid-day[data-date="' + info.event.startStr + '"]'
+                            );
+                            const cell = Array.from(candidates).find(c => {
+                                if (c.classList.contains('fc-day-disabled')) return false;
+                                if (c.classList.contains('fc-day-other')) return false;
+                                const num = c.querySelector('.fc-daygrid-day-number');
+                                return num && num.textContent.trim() !== '';
+                            });
+                            if (! cell) return;
+
+                            const labelClass = isHoliday ? 'fc-holiday-label' : 'fc-user-bg-label';
+                            const cellClass = isHoliday ? 'fc-day-has-holiday' : 'fc-day-has-user-bg';
+
+                            cell.classList.add(cellClass);
+                            // Both types now carry their tint + text color inline
+                            // from the feed — a user red+highlight event renders
+                            // identically to an auto-fetched public holiday.
+                            cell.style.setProperty('background-color', info.event.backgroundColor);
+
+                            let label = cell.querySelector('.' + labelClass);
+                            if (! label) {
+                                label = document.createElement('div');
+                                label.className = labelClass;
+                                label.style.color = info.event.extendedProps.textHex;
+                                const frame = cell.querySelector('.fc-daygrid-day-frame');
+                                (frame || cell).appendChild(label);
+                            }
+                            // Dedupe: don't append a title that's already in the label.
+                            const parts = label.textContent
+                                ? label.textContent.split(' • ')
+                                : [];
+                            if (parts.includes(info.event.title)) return;
+                            parts.push(info.event.title);
+                            label.textContent = parts.join(' • ');
+
+                            // Tooltip aggregates ALL names on this cell (either type).
+                            const existingTitle = cell.getAttribute('title');
+                            const titleParts = existingTitle ? existingTitle.split(', ') : [];
+                            if (! titleParts.includes(info.event.title)) {
+                                titleParts.push(info.event.title);
+                                cell.setAttribute('title', titleParts.join(', '));
+                            }
+                        },
                         datesSet: (arg) => {
+                            // Wipe any previously-injected holiday/user-bg markup
+                            // before eventDidMount runs again for the new view.
+                            // FullCalendar reuses day cell DOM elements across
+                            // view changes, so labels from the previous view can
+                            // stick around if we don't clean up here.
+                            document.querySelectorAll('.fc-holiday-label, .fc-user-bg-label').forEach(el => el.remove());
+                            document.querySelectorAll('.fc-day-has-holiday, .fc-day-has-user-bg').forEach(cell => {
+                                cell.classList.remove('fc-day-has-holiday', 'fc-day-has-user-bg');
+                                cell.style.removeProperty('background-color');
+                                cell.removeAttribute('title');
+                            });
+
                             // Sync our custom header labels whenever the view changes.
                             this.view = arg.view.type;
                             const fmt = { month: 'long', year: 'numeric' };
@@ -309,7 +450,7 @@
                 },
 
                 openCreate(dateStr) {
-                    this.modal = { open: true, id: null, title: '', date: dateStr, color: this.defaultColor, isHoliday: false };
+                    this.modal = { open: true, id: null, title: '', date: dateStr, color: this.defaultColor, displayStyle: 'pill', isHoliday: false };
                     this.errors = {};
                     this.$nextTick(() => { this.initDatePicker(); this.fp?.setDate(dateStr, false); });
                 },
@@ -317,10 +458,11 @@
                 openView(fcEvent) {
                     const date = fcEvent.startStr.substring(0, 10);
                     const isHoliday = !! fcEvent.extendedProps?.isHoliday;
-                    // extendedProps.color carries the slug the server sent; fall back
-                    // to defaultColor if somehow missing.
+                    // extendedProps carry the slug + style the server sent; fall back
+                    // to defaults if somehow missing.
                     const color = fcEvent.extendedProps?.color || this.defaultColor;
-                    this.modal = { open: true, id: fcEvent.id, title: fcEvent.title, date, color, isHoliday };
+                    const displayStyle = fcEvent.extendedProps?.displayStyle || 'pill';
+                    this.modal = { open: true, id: fcEvent.id, title: fcEvent.title, date, color, displayStyle, isHoliday };
                     this.errors = {};
                     // Holiday view has no editable inputs, so no need to init flatpickr.
                     if (! isHoliday) {
@@ -352,6 +494,7 @@
                                 title: this.modal.title,
                                 date: this.modal.date,
                                 color: this.modal.color,
+                                display_style: this.modal.displayStyle,
                             }),
                         });
 
