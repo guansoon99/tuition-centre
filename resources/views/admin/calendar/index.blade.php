@@ -17,6 +17,8 @@
              feedUrl: '{{ route('calendar.events') }}',
              storeUrl: '{{ $canCreate ? route('calendar.events.store') : '' }}',
              csrf: '{{ csrf_token() }}',
+             palette: window.EVENT_COLORS,
+             defaultColor: '{{ \App\Models\Event::COLOR_DEFAULT }}',
          })">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Calendar</h1>
@@ -79,7 +81,7 @@
             <div class="w-full max-w-md rounded-lg bg-white shadow-lg">
                 <div class="border-b border-slate-200 px-5 py-3">
                     <h2 class="text-base font-semibold text-slate-900"
-                        x-text="modal.id ? 'Event' : 'New Event'"></h2>
+                        x-text="modal.isHoliday ? 'Public Holiday' : (modal.id ? 'Event' : 'New Event')"></h2>
                 </div>
 
                 <div class="space-y-3 px-5 py-4">
@@ -101,12 +103,31 @@
                                class="w-full min-w-0 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" />
                         <p x-show="errors.date" x-text="errors.date" class="mt-1 text-xs text-red-600"></p>
                     </div>
+
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-slate-700">Color</label>
+                        <div class="flex flex-wrap gap-2">
+                            {{-- Alpine's x-for only iterates arrays, not plain objects.
+                                 Object.entries turns {blue:'#3b82f6',...} into
+                                 [['blue','#3b82f6'],...] which x-for handles. --}}
+                            <template x-for="[slug, hex] in Object.entries(palette)" :key="slug">
+                                <button type="button"
+                                        @click="if (canModify) modal.color = slug"
+                                        :disabled="! canModify"
+                                        :title="slug"
+                                        :class="modal.color === slug ? 'ring-2 ring-offset-2 ring-slate-900' : 'ring-1 ring-slate-300'"
+                                        :style="`background:${hex}`"
+                                        class="h-7 w-7 rounded-full transition disabled:cursor-not-allowed"></button>
+                            </template>
+                        </div>
+                        <p x-show="errors.color" x-text="errors.color" class="mt-1 text-xs text-red-600"></p>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
                     {{-- Delete on the left (existing event only) --}}
                     <div>
-                        <template x-if="modal.id && canDelete">
+                        <template x-if="modal.id && canDelete && ! modal.isHoliday">
                             <button type="button" @click="deleteEvent()"
                                     class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
                                 Delete
@@ -191,6 +212,10 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script>
+        // Emit the palette as a JS global, kept out of the x-data attribute
+        // so Blade output doesn't collide with the attribute's quotes.
+        window.EVENT_COLORS = {!! json_encode(\App\Models\Event::COLORS) !!};
+
         function calendarPage(opts) {
             return {
                 calendar: null,
@@ -201,15 +226,19 @@
                 feedUrl: opts.feedUrl,
                 storeUrl: opts.storeUrl,
                 csrf: opts.csrf,
+                palette: opts.palette,
+                defaultColor: opts.defaultColor,
                 view: 'dayGridMonth',
                 currentMonthName: '',
                 prevMonthName: '',
                 nextMonthName: '',
-                modal: { open: false, id: null, title: '', date: '' },
+                modal: { open: false, id: null, title: '', date: '', color: opts.defaultColor, isHoliday: false },
                 errors: {},
 
                 get canModify() {
                     // Can save if creating a new event OR editing an existing one with edit perm.
+                    // Public holidays are always read-only regardless of perms.
+                    if (this.modal.isHoliday) return false;
                     return this.modal.id ? this.canEdit : this.canCreate;
                 },
 
@@ -280,16 +309,23 @@
                 },
 
                 openCreate(dateStr) {
-                    this.modal = { open: true, id: null, title: '', date: dateStr };
+                    this.modal = { open: true, id: null, title: '', date: dateStr, color: this.defaultColor, isHoliday: false };
                     this.errors = {};
                     this.$nextTick(() => { this.initDatePicker(); this.fp?.setDate(dateStr, false); });
                 },
 
                 openView(fcEvent) {
                     const date = fcEvent.startStr.substring(0, 10);
-                    this.modal = { open: true, id: fcEvent.id, title: fcEvent.title, date };
+                    const isHoliday = !! fcEvent.extendedProps?.isHoliday;
+                    // extendedProps.color carries the slug the server sent; fall back
+                    // to defaultColor if somehow missing.
+                    const color = fcEvent.extendedProps?.color || this.defaultColor;
+                    this.modal = { open: true, id: fcEvent.id, title: fcEvent.title, date, color, isHoliday };
                     this.errors = {};
-                    this.$nextTick(() => { this.initDatePicker(); this.fp?.setDate(date, false); });
+                    // Holiday view has no editable inputs, so no need to init flatpickr.
+                    if (! isHoliday) {
+                        this.$nextTick(() => { this.initDatePicker(); this.fp?.setDate(date, false); });
+                    }
                 },
 
                 closeModal() {
@@ -315,6 +351,7 @@
                             body: JSON.stringify({
                                 title: this.modal.title,
                                 date: this.modal.date,
+                                color: this.modal.color,
                             }),
                         });
 

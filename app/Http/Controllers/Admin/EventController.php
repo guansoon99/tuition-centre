@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\EventRequest;
 use App\Models\Event;
+use App\Support\HolidayProvider;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +23,7 @@ class EventController extends Controller
      * the calendar for each visible month; we return only events in range so
      * we don't ship every event ever created on every render.
      */
-    public function events(Request $request): JsonResponse
+    public function events(Request $request, HolidayProvider $holidays): JsonResponse
     {
         $start = $request->query('start');
         $end = $request->query('end');
@@ -35,14 +36,41 @@ class EventController extends Controller
             $q->where('date', '<=', substr($end, 0, 10));
         }
 
-        $events = $q->get()->map(fn (Event $e) => [
+        $userEvents = $q->get()->map(fn (Event $e) => [
             'id' => $e->id,
             'title' => $e->title,
             'start' => $e->date->format('Y-m-d'),
             'allDay' => true,
-        ]);
+            // FullCalendar reads these per-event and applies them directly
+            // to the rendered pill. Slug lives on the row; hex is resolved
+            // here so palette tweaks are one-file changes.
+            'backgroundColor' => $e->colorHex(),
+            'borderColor' => $e->colorHex(),
+            'extendedProps' => ['color' => $e->color],
+        ])->all();
 
-        return response()->json($events);
+        // Malaysia public holidays from the Google iCal feed. Only include
+        // those in the visible range so we don't ship the whole feed on
+        // every calendar hit. `id` gets a prefix so it can't collide with
+        // numeric event IDs and the frontend can distinguish read-only
+        // holidays from admin-editable events.
+        $holidayEvents = [];
+        if ($start && $end) {
+            foreach ($holidays->forRange(substr($start, 0, 10), substr($end, 0, 10)) as $h) {
+                $holidayEvents[] = [
+                    'id' => 'holiday-'.$h['date'],
+                    'title' => $h['name'],
+                    'start' => $h['date'],
+                    'allDay' => true,
+                    'backgroundColor' => '#ef4444', // red
+                    'borderColor' => '#ef4444',
+                    'editable' => false,
+                    'extendedProps' => ['isHoliday' => true, 'color' => 'red'],
+                ];
+            }
+        }
+
+        return response()->json(array_merge($userEvents, $holidayEvents));
     }
 
     public function store(EventRequest $request): RedirectResponse|JsonResponse
@@ -50,6 +78,7 @@ class EventController extends Controller
         $event = Event::create([
             'title' => $request->input('title'),
             'date' => $request->input('date'),
+            'color' => $request->input('color', Event::COLOR_DEFAULT),
             'created_by_user_id' => $request->user()->id,
         ]);
 
@@ -65,6 +94,7 @@ class EventController extends Controller
         $event->update([
             'title' => $request->input('title'),
             'date' => $request->input('date'),
+            'color' => $request->input('color', $event->color),
         ]);
 
         if ($request->wantsJson()) {
