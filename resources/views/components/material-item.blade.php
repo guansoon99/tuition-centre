@@ -40,8 +40,13 @@
 @if ($type === \App\Models\Material::TYPE_TEXT)
     @php
         // Quill leaves `<p><br></p>` or `<p>&nbsp;</p>` behind when the editor is
-        // emptied — treat any tag/entity-only shell as empty for rendering purposes.
-        $bodyText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($material->body ?? '', ENT_QUOTES | ENT_HTML5)));
+        // emptied — treat any tag/entity-only shell as empty. But an image-only
+        // or video-only body IS real content, so check for embedded media first
+        // before deciding the body is "empty" (strip_tags removes <img> etc).
+        $body = $material->body ?? '';
+        $hasMedia = (bool) preg_match('/<(img|video|iframe|audio|source|embed)\b/i', $body);
+        $bodyText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($body, ENT_QUOTES | ENT_HTML5)));
+        $bodyIsEmpty = $bodyText === '' && ! $hasMedia;
     @endphp
     <div class="flex gap-3 px-3 py-2">
         <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
@@ -58,7 +63,7 @@
             @if (trim($material->title) !== '' && $material->title !== 'Text')
                 <p class="truncate text-sm text-black">{{ $material->title }}</p>
             @endif
-            @if ($bodyText !== '')
+            @if (! $bodyIsEmpty)
                 <div class="prose-section mt-1 text-sm leading-relaxed text-black">
                     {!! $material->body !!}
                 </div>
