@@ -26,12 +26,49 @@ class Event extends Model
         'slate'  => '#64748b',
     ];
 
+    /**
+     * Light tint of each color, used when display_style='background' to
+     * paint the whole day cell without overwhelming it. Tailwind's 100-shade
+     * for each colour reads well.
+     */
+    public const COLOR_TINTS = [
+        'blue'   => '#dbeafe',
+        'green'  => '#d1fae5',
+        'red'    => '#fee2e2',
+        'amber'  => '#fef3c7',
+        'purple' => '#ede9fe',
+        'teal'   => '#ccfbf1',
+        'pink'   => '#fce7f3',
+        'slate'  => '#e2e8f0',
+    ];
+
+    /**
+     * Darker shade of each color for the injected text label — needs to
+     * stay readable on the light tint background. Tailwind 700-shade.
+     */
+    public const COLOR_TEXTS = [
+        'blue'   => '#1d4ed8',
+        'green'  => '#047857',
+        'red'    => '#b91c1c',
+        'amber'  => '#b45309',
+        'purple' => '#6d28d9',
+        'teal'   => '#0f766e',
+        'pink'   => '#be185d',
+        'slate'  => '#334155',
+    ];
+
     public const COLOR_DEFAULT = 'blue';
+
+    public const STYLE_PILL = 'pill';
+    public const STYLE_BACKGROUND = 'background';
+    public const STYLES = [self::STYLE_PILL, self::STYLE_BACKGROUND];
+    public const STYLE_DEFAULT = self::STYLE_PILL;
 
     protected $fillable = [
         'title',
         'date',
         'color',
+        'display_style',
         'created_by_user_id',
     ];
 
@@ -51,5 +88,15 @@ class Event extends Model
     public function colorHex(): string
     {
         return self::COLORS[$this->color] ?? self::COLORS[self::COLOR_DEFAULT];
+    }
+
+    public function colorTintHex(): string
+    {
+        return self::COLOR_TINTS[$this->color] ?? self::COLOR_TINTS[self::COLOR_DEFAULT];
+    }
+
+    public function colorTextHex(): string
+    {
+        return self::COLOR_TEXTS[$this->color] ?? self::COLOR_TEXTS[self::COLOR_DEFAULT];
     }
 }

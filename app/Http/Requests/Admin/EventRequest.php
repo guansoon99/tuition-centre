@@ -19,6 +19,7 @@ class EventRequest extends FormRequest
             'title' => ['required', 'string', 'max:200'],
             'date' => ['required', 'date_format:Y-m-d'],
             'color' => ['nullable', Rule::in(array_keys(Event::COLORS))],
+            'display_style' => ['nullable', Rule::in(Event::STYLES)],
         ];
     }
 }
