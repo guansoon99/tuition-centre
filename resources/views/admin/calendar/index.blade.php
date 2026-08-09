@@ -407,18 +407,20 @@
                                 cell.setAttribute('title', titleParts.join(', '));
                             }
                         },
+                        // Fires on every event refetch (save/delete → refetchEvents()
+                        // triggers loading:true → false cycle). We wipe injected
+                        // markup on the LOAD-START edge so cells are clean before
+                        // eventDidMount rebuilds them for the fresh event set.
+                        // Without this, deleting a highlight event leaves the
+                        // tinted cell + label until a manual page refresh.
+                        loading: (isLoading) => {
+                            if (isLoading) this.wipeInjectedBgMarkup();
+                        },
                         datesSet: (arg) => {
-                            // Wipe any previously-injected holiday/user-bg markup
-                            // before eventDidMount runs again for the new view.
-                            // FullCalendar reuses day cell DOM elements across
-                            // view changes, so labels from the previous view can
-                            // stick around if we don't clean up here.
-                            document.querySelectorAll('.fc-holiday-label, .fc-user-bg-label').forEach(el => el.remove());
-                            document.querySelectorAll('.fc-day-has-holiday, .fc-day-has-user-bg').forEach(cell => {
-                                cell.classList.remove('fc-day-has-holiday', 'fc-day-has-user-bg');
-                                cell.style.removeProperty('background-color');
-                                cell.removeAttribute('title');
-                            });
+                            // Same wipe on view change — FullCalendar reuses day
+                            // cell DOM elements across view switches so stale
+                            // labels need explicit cleanup here too.
+                            this.wipeInjectedBgMarkup();
 
                             // Sync our custom header labels whenever the view changes.
                             this.view = arg.view.type;
@@ -437,6 +439,19 @@
                 setView(name) {
                     this.calendar.changeView(name);
                     this.view = name;
+                },
+
+                // Remove all previously-injected holiday / user-bg markup from
+                // the day cells so eventDidMount can rebuild cleanly. Called
+                // before every event re-render (loading) and every view change
+                // (datesSet).
+                wipeInjectedBgMarkup() {
+                    document.querySelectorAll('.fc-holiday-label, .fc-user-bg-label').forEach(el => el.remove());
+                    document.querySelectorAll('.fc-day-has-holiday, .fc-day-has-user-bg').forEach(cell => {
+                        cell.classList.remove('fc-day-has-holiday', 'fc-day-has-user-bg');
+                        cell.style.removeProperty('background-color');
+                        cell.removeAttribute('title');
+                    });
                 },
 
                 initDatePicker() {
