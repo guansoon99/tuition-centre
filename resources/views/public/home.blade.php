@@ -13,7 +13,7 @@
                     next() { this.current = (this.current + 1) % this.total },
                     prev() { this.current = (this.current - 1 + this.total) % this.total },
                  }"
-                 x-init="setInterval(() => { if (! paused && total > 1) next() }, 2000)"
+                 x-init="setInterval(() => { if (! paused && total > 1) next() }, 3000)"
                  @mouseenter="paused = true"
                  @mouseleave="paused = false">
             {{--
