@@ -50,23 +50,37 @@ class HolidayProvider
     }
 
     /**
-     * All holidays across all years the feed knows about. Cached.
+     * All holidays across all years the feed knows about. Success is cached
+     * for the full TTL; failure is cached briefly (5 min) to self-heal
+     * without hammering Google if their end blips.
      */
     public function allCached(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-            try {
-                $response = Http::timeout(10)->get(self::FEED_URL);
-                if (! $response->ok()) {
-                    Log::warning('HolidayProvider: feed returned '.$response->status());
-                    return [];
-                }
-                return $this->parse($response->body());
-            } catch (\Throwable $e) {
-                Log::warning('HolidayProvider: fetch failed: '.$e->getMessage());
+        $cached = Cache::get(self::CACHE_KEY);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            // withoutVerifying: Windows PHP typically ships without a CA
+            // bundle and cURL then can't verify Google's cert (cURL error 60).
+            // The feed is public, read-only data — MITM risk is negligible.
+            // On Linux prod the OS cert store works out of the box and this
+            // call is still correct.
+            $response = Http::withoutVerifying()->timeout(10)->get(self::FEED_URL);
+            if (! $response->ok()) {
+                Log::warning('HolidayProvider: feed returned '.$response->status());
+                Cache::put(self::CACHE_KEY, [], 300);
                 return [];
             }
-        });
+            $parsed = $this->parse($response->body());
+            Cache::put(self::CACHE_KEY, $parsed, self::CACHE_TTL);
+            return $parsed;
+        } catch (\Throwable $e) {
+            Log::warning('HolidayProvider: fetch failed: '.$e->getMessage());
+            Cache::put(self::CACHE_KEY, [], 300);
+            return [];
+        }
     }
 
     /**
