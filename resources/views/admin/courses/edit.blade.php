@@ -362,7 +362,7 @@
                         <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">
                             <header class="border-b border-slate-100 bg-slate-50 px-4 py-3">
                                 <div class="flex items-baseline justify-between gap-2">
-                                    <h2 class="text-base font-medium text-black">
+                                    <h2 class="text-lg font-semibold text-black">
                                         {{ $section->title }}
                                         @if ($section->scheduled_at && $section->scheduled_at->isFuture())
                                             <span class="ml-1 rounded bg-sky-100 px-1.5 font-mono text-xs text-sky-700"
