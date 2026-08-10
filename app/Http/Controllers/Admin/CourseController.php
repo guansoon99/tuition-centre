@@ -174,7 +174,6 @@ class CourseController extends Controller
         ]);
 
         $courses = Course::with(['sections.materials'])->whereIn('id', $data['ids'])->get();
-        $deletedCodes = [];
 
         foreach ($courses as $course) {
             $this->bustCourseCaches($course);
@@ -192,13 +191,13 @@ class CourseController extends Controller
                 }
             }
 
-            $deletedCodes[] = $course->code;
             $course->delete();
         }
 
-        return redirect()
-            ->route('courses.index')
-            ->with('status', count($deletedCodes).' course(s) permanently deleted: '.implode(', ', $deletedCodes));
+        // Return to the exact filtered URL the admin was on — Laravel's
+        // back() uses the session's previous URL, which is the /courses
+        // page (with its ?q=&active=… query string) that submitted this POST.
+        return redirect()->back(fallback: route('courses.index'));
     }
 
     public function activate(Course $course): RedirectResponse

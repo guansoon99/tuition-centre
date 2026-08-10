@@ -35,9 +35,10 @@ class PermissionCatalog
         ],
         'Users' => [
             'users.view' => 'View',
+            'users.delete' => 'Delete',
+            'users.deactivate' => 'Activate / Deactivate',
             'users.create' => 'Create',
             'users.edit' => 'Edit',
-            'users.deactivate' => 'Activate / Deactivate',
             'users.export' => 'Export Excel',
             'users.import' => 'Import',
         ],
