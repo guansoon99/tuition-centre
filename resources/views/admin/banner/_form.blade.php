@@ -8,7 +8,7 @@
 
     <div x-data="{ preview: null }">
         <label class="mb-1 block text-sm font-medium text-slate-700">Image</label>
-        <input type="file" name="image" accept="image/*" {{ $slide ? '' : 'required' }}
+        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" {{ $slide ? '' : 'required' }}
                @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
                class="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white" />
 

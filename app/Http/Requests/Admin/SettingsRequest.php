@@ -16,7 +16,9 @@ class SettingsRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:500'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            // Only jpeg/jpg/png/webp — no gif, bmp, svg. StoredFile
+            // re-encodes to WebP on save regardless.
+            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
             'contact_phone' => ['nullable', 'string', 'max:64'],
             'contact_address' => ['nullable', 'string', 'max:500'],

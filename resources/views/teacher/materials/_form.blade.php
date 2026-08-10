@@ -21,8 +21,10 @@
     @endif
 
     <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Title</label>
-        <input type="text" name="title" required
+        <label class="mb-1 block text-sm font-medium text-slate-700">
+            Title <span class="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input type="text" name="title"
                value="{{ old('title', $material?->title) }}"
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
         @error('title')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -135,7 +137,7 @@
         /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
            no vertical gap between wrapped rows. */
         .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
-        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 8px 0 0; }
+        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; flex-wrap: wrap; align-items: center; vertical-align: middle; margin: 0 8px 0 0; row-gap: 4px; }
 
         /* Link tooltip — pin to top of editor and restore input styling that
            Tailwind's preflight strips. Without this the popup lands near the
@@ -209,19 +211,22 @@
                 placeholder: 'Write something…',
                 modules: {
                     toolbar: {
-                        container: [
-                            [{ header: [1, 2, 3, false] }],
-                            ['bold', 'italic', 'underline', 'strike'],
-                            [{ list: 'ordered' }, { list: 'bullet' }],
-                            [{ align: [] }],
-                            ['blockquote'],
-                            ['link', 'image', 'video'],
-                        ],
+                        container: [[
+                            // All buttons in one .ql-formats group — no visual
+                            // separators, wraps individually rather than by group.
+                            { header: [1, 2, 3, false] },
+                            'bold', 'italic', 'underline', 'strike',
+                            { color: [] }, { background: [] },
+                            { list: 'ordered' }, { list: 'bullet' },
+                            { align: [] },
+                            'blockquote',
+                            'link', 'image', 'video',
+                        ]],
                         handlers: {
                             image: function () {
                                 const input = document.createElement('input');
                                 input.type = 'file';
-                                input.accept = 'image/*';
+                                input.accept = 'image/jpeg,image/png,image/webp';
                                 input.click();
                                 input.onchange = async () => {
                                     const file = input.files[0];

@@ -55,6 +55,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/courses', [AdminCourseController::class, 'store'])->name('courses.store');
     });
 
+    // Permanent bulk delete — gated by the delegatable courses.delete
+    // permission (admin bypasses everything via the policy `before` hook
+    // in the usual way). Hard removes courses + cascades sections /
+    // materials / enrollments and cleans up their files.
+    Route::middleware('permission:courses.delete')->group(function () {
+        Route::post('/courses/bulk-destroy', [AdminCourseController::class, 'bulkDestroy'])->name('courses.bulk-destroy');
+    });
+
     // Full course list (admin dashboard) — needs courses.view to see every
     // course including inactive ones. Teachers without this permission
     // reach their own courses via the Home page instead.

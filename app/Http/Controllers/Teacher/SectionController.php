@@ -27,9 +27,12 @@ class SectionController extends Controller
     public function store(StoreSectionRequest $request, Course $course): RedirectResponse
     {
         $isPublished = $request->boolean('is_published', true);
-        // Ticking "Published" at save time means "publish now" — clears any
-        // pending schedule so it doesn't keep gating the section.
-        $scheduledAt = $isPublished ? null : ($request->input('scheduled_at') ?: null);
+        // Save whatever date the user typed as-is. scheduled_at doubles as a
+        // "when this section is/was current" record — the student view uses
+        // the latest past scheduled_at to decide which section auto-expands.
+        // Admin who wants a plain published section with no date can just
+        // clear the Available from field.
+        $scheduledAt = $request->input('scheduled_at') ?: null;
 
         $section = Section::create([
             'course_id' => $course->id,
@@ -86,7 +89,7 @@ class SectionController extends Controller
         });
 
         return redirect()
-            ->route('courses.edit', [$course, 'tab' => 'sections'])
+            ->route('courses.edit', [$course, 'tab' => 'materials'])
             ->with('status', 'Section inserted — click "Add resource" to choose what goes in it.');
     }
 
@@ -100,9 +103,12 @@ class SectionController extends Controller
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
         $isPublished = $request->boolean('is_published', true);
-        // Ticking "Published" at save time means "publish now" — clears any
-        // pending schedule so it doesn't keep gating the section.
-        $scheduledAt = $isPublished ? null : ($request->input('scheduled_at') ?: null);
+        // Save whatever date the user typed as-is. scheduled_at doubles as a
+        // "when this section is/was current" record — the student view uses
+        // the latest past scheduled_at to decide which section auto-expands.
+        // Admin who wants a plain published section with no date can just
+        // clear the Available from field.
+        $scheduledAt = $request->input('scheduled_at') ?: null;
 
         $section->update([
             'title' => $request->input('title'),
@@ -113,7 +119,7 @@ class SectionController extends Controller
 
         // Modal submits land back on the edit page with the modal closed.
         return redirect()
-            ->route('courses.edit', [$section->course, 'tab' => 'sections'])
+            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
             ->with('status', 'Section updated.');
     }
 
@@ -125,7 +131,9 @@ class SectionController extends Controller
     public function uploadImage(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            // Only jpeg/jpg/png/webp — matches the site-wide rule for all
+            // admin image uploads. StoredFile re-encodes to WebP on save.
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
         $path = StoredFile::store($request->file('image'), 'section-text-images');
@@ -159,7 +167,7 @@ class SectionController extends Controller
         $section->delete();
 
         return redirect()
-            ->route('courses.edit', [$course, 'tab' => 'sections'])
+            ->route('courses.edit', [$course, 'tab' => 'materials'])
             ->with('status', 'Section deleted.');
     }
 }

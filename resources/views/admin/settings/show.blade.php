@@ -72,7 +72,7 @@
                         <input type="hidden" name="remove_logo" x-bind:value="markedForRemoval && !preview ? '1' : ''">
                     @endif
 
-                    <input type="file" name="logo" accept="image/*"
+                    <input type="file" name="logo" accept="image/jpeg,image/png,image/webp"
                            @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
                            class="mt-2 block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white disabled:cursor-not-allowed disabled:opacity-60" />
 

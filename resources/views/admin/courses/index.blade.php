@@ -11,17 +11,54 @@
             'courses.manage_students',
             'sections.manage',
         ]);
+        // Permanent bulk-delete is gated by its own permission. Only
+        // holders of `courses.delete` see the checkboxes and Delete button.
+        $canBulkDelete = auth()->user()->can('courses.delete');
     @endphp
-    <div class="space-y-6">
+    <div class="space-y-6"
+         x-data="{
+             selected: [],
+             toggleAll(checked) {
+                 this.selected = checked ? Array.from(document.querySelectorAll('input.course-checkbox')).map(el => el.value) : [];
+             },
+             deleteSelected() {
+                 if (! this.selected.length) return;
+                 const msg = `Permanently delete ${this.selected.length} course(s)?\n\n`
+                     + `This will also destroy every section, material, enrollment and uploaded file. This is NOT reversible.`;
+                 if (! confirm(msg)) return;
+                 this.$refs.bulkDeleteForm.submit();
+             },
+         }">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Courses</h1>
-            @if ($isAdmin)
-                <a href="{{ route('courses.create') }}"
-                   class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                    + New course
-                </a>
-            @endif
+            <div class="flex gap-2">
+                @if ($canBulkDelete)
+                    {{-- Delete button: always visible, disabled until at least one row is ticked. --}}
+                    <button type="button" @click="deleteSelected()"
+                            :disabled="selected.length === 0"
+                            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:hover:bg-red-300">
+                        Delete
+                    </button>
+                @endif
+                @if ($isAdmin)
+                    <a href="{{ route('courses.create') }}"
+                       class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+                        + New course
+                    </a>
+                @endif
+            </div>
         </div>
+
+        {{-- Hidden form the bulk-delete button submits. Uses selected array
+             from Alpine, serialized as ids[] via a template loop. --}}
+        @if ($canBulkDelete)
+            <form method="POST" action="{{ route('courses.bulk-destroy') }}" x-ref="bulkDeleteForm" class="hidden">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+            </form>
+        @endif
 
         <form method="GET" action="{{ route('courses.index') }}"
               x-data
@@ -55,6 +92,13 @@
             <table class="w-full min-w-[720px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
                 <thead class="bg-slate-50 text-left text-xs uppercase text-slate-800">
                     <tr>
+                        @if ($canBulkDelete)
+                            <th class="w-8 px-4 py-3">
+                                {{-- Select-all header checkbox — only shown for users with courses.delete. --}}
+                                <input type="checkbox" @change="toggleAll($event.target.checked)"
+                                       class="rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                            </th>
+                        @endif
                         <th class="px-4 py-3">Code</th>
                         <th class="px-4 py-3">Name</th>
                         <th class="px-4 py-3 text-right">Teachers</th>
@@ -68,6 +112,12 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($courses as $c)
                         <tr>
+                            @if ($canBulkDelete)
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" x-model="selected" value="{{ $c->id }}"
+                                           class="course-checkbox rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                                </td>
+                            @endif
                             <td class="px-4 py-3 font-mono text-slate-800">{{ $c->code }}</td>
                             <td class="px-4 py-3 text-slate-800">{{ $c->name }}</td>
                             <td class="px-4 py-3 text-right text-slate-800">{{ $c->teachers_count }}</td>
@@ -123,7 +173,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-sm text-slate-400">No courses.</td></tr>
+                        <tr><td colspan="{{ $canBulkDelete ? 9 : 8 }}" class="px-4 py-8 text-center text-sm text-slate-400">No courses.</td></tr>
                     @endforelse
                 </tbody>
             </table>

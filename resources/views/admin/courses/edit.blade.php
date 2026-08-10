@@ -13,7 +13,7 @@
         $defaultTab = $canManageDetails ? 'details'
             : ($canManageTeachers ? 'teachers'
             : ($canManageStudents ? 'students'
-            : ($canManageSections ? 'sections' : 'details')));
+            : ($canManageSections ? 'materials' : 'details')));
     @endphp
 
     <div class="mx-auto max-w-6xl space-y-8"
@@ -65,8 +65,8 @@
                             class="border-b-2 pb-2">Students ({{ $course->students->count() }})</button>
                 @endif
                 @if ($canManageSections)
-                    <button @click="tab = 'sections'" :class="tab === 'sections' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
-                            class="border-b-2 pb-2">Sections ({{ $course->sections->count() }})</button>
+                    <button @click="tab = 'materials'" :class="tab === 'materials' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
+                            class="border-b-2 pb-2">Materials ({{ $course->sections->count() }})</button>
                 @endif
             </nav>
         </div>
@@ -331,7 +331,7 @@
         @endif
 
         @if ($canManageSections)
-        <section x-show="tab === 'sections'" x-cloak class="space-y-4">
+        <section x-show="tab === 'materials'" x-cloak class="space-y-4">
             <div class="flex items-center justify-between">
                 <p class="text-sm text-slate-500">{{ $course->sections->count() }} section{{ $course->sections->count() === 1 ? '' : 's' }}</p>
             </div>
@@ -451,8 +451,10 @@
                                                     @csrf @method('PATCH')
 
                                                     <div>
-                                                        <label class="mb-1 block text-sm font-medium text-slate-700">Title</label>
-                                                        <input type="text" name="title" required value="{{ $material->title }}"
+                                                        <label class="mb-1 block text-sm font-medium text-slate-700">
+                                                            Title <span class="font-normal text-slate-400">(optional)</span>
+                                                        </label>
+                                                        <input type="text" name="title" value="{{ $material->title }}"
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
                                                     </div>
 
@@ -628,12 +630,28 @@
 
                                     <div>
                                         <label class="mb-1 block text-sm font-medium text-slate-700">Available from (optional)</label>
-                                        <input type="text" name="scheduled_at" data-flatpickr
-                                               x-ref="scheduledAt"
-                                               @change="if ($event.target.value && $refs.publishedCheckbox) $refs.publishedCheckbox.checked = false"
-                                               value="{{ $section->scheduled_at?->format('Y-m-d H:i') }}"
-                                               placeholder="Y-m-d H:i"
-                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                        {{-- Local x-data so hasDate is reactive to input/clear changes.
+                                             Reading $refs.el.value directly isn't reactive — Alpine can't
+                                             re-evaluate x-show when a DOM property changes. --}}
+                                        <div class="relative"
+                                             x-data="{ hasDate: {{ $section->scheduled_at ? 'true' : 'false' }} }">
+                                            <input type="text" name="scheduled_at" data-flatpickr
+                                                   x-ref="scheduledAt"
+                                                   @change="hasDate = !! $event.target.value; if ($event.target.value && $root.$refs.publishedCheckbox) $root.$refs.publishedCheckbox.checked = false"
+                                                   @input="hasDate = !! $event.target.value"
+                                                   value="{{ $section->scheduled_at?->format('Y-m-d H:i') }}"
+                                                   placeholder="Y-m-d H:i"
+                                                   class="w-full rounded-md border border-slate-300 px-3 py-2 pr-9 text-sm" />
+                                            <button type="button"
+                                                    x-show="hasDate" x-cloak
+                                                    @click="$refs.scheduledAt._flatpickr?.clear(); $refs.scheduledAt.value = ''; hasDate = false"
+                                                    title="Clear date"
+                                                    class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                         <p class="mt-1 text-xs text-slate-500">Hidden from students until this moment. Leave empty to publish immediately.</p>
                                     </div>
 
@@ -690,7 +708,7 @@
         /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
            no vertical gap between wrapped rows. */
         .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
-        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 8px 0 0; }
+        .ql-toolbar.ql-snow .ql-formats { display: inline-flex; flex-wrap: wrap; align-items: center; vertical-align: middle; margin: 0 8px 0 0; row-gap: 4px; }
         .ql-editor table { border-collapse: collapse; margin: 0.75rem 0; width: 100%; }
         .ql-editor th, .ql-editor td { border: 1px solid #000; padding: 0.375rem 0.5rem; text-align: left; vertical-align: top; }
         .ql-editor th { background: rgb(241 245 249); font-weight: 600; }
@@ -805,19 +823,22 @@
                 placeholder: 'Write something…',
                 modules: {
                     toolbar: {
-                        container: [
-                            [{ header: [1, 2, 3, false] }],
-                            ['bold', 'italic', 'underline', 'strike'],
-                            [{ list: 'ordered' }, { list: 'bullet' }],
-                            [{ align: [] }],
-                            ['blockquote'],
-                            ['link', 'image', 'video'],
-                        ],
+                        container: [[
+                            // All buttons in one .ql-formats group — no visual
+                            // separators, wraps individually rather than by group.
+                            { header: [1, 2, 3, false] },
+                            'bold', 'italic', 'underline', 'strike',
+                            { color: [] }, { background: [] },
+                            { list: 'ordered' }, { list: 'bullet' },
+                            { align: [] },
+                            'blockquote',
+                            'link', 'image', 'video',
+                        ]],
                         handlers: {
                             image: function () {
                                 const input = document.createElement('input');
                                 input.type = 'file';
-                                input.accept = 'image/*';
+                                input.accept = 'image/jpeg,image/png,image/webp';
                                 input.click();
 
                                 input.onchange = async () => {
