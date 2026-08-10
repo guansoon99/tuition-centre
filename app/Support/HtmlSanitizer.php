@@ -31,13 +31,18 @@ class HtmlSanitizer
                 'HTML.Allowed',
                 'p[class],br,strong,em,u,s,h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel],img[src|alt|width|height],blockquote[class],code,pre,hr,'
                 .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col,'
-                .'video[src|controls|width|height|preload|poster],source[src|type]'
+                .'video[src|controls|width|height|preload|poster],source[src|type],'
+                // <span style="color:..."> and <span style="background-color:..."> are
+                // what Quill emits for text color + highlight. CSS whitelist below
+                // limits the style properties to just those two.
+                .'span[style]'
             );
             $config->set('Attr.AllowedClasses', [
                 'ql-align-center',
                 'ql-align-right',
                 'ql-align-justify',
             ]);
+            $config->set('CSS.AllowedProperties', ['color', 'background-color']);
             $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'data' => true]);
             $config->set('HTML.TargetBlank', true);
             $config->set('AutoFormat.RemoveEmpty', true);
@@ -49,7 +54,7 @@ class HtmlSanitizer
             // actually recognized. Bumping DefinitionRev when this changes
             // invalidates any in-memory cache from an earlier request.
             $config->set('HTML.DefinitionID', 'tuition-html5-media');
-            $config->set('HTML.DefinitionRev', 1);
+            $config->set('HTML.DefinitionRev', 2);
             if ($def = $config->maybeGetRawHTMLDefinition()) {
                 $def->addElement('video', 'Block', 'Optional: (source, Flow) | (Flow)', 'Common', [
                     'src' => 'URI',

@@ -21,11 +21,12 @@ class PermissionCatalog
     public const GROUPS = [
         'Courses' => [
             'courses.view' => 'View',
+            'courses.delete' => 'Delete',
+            'courses.activate' => 'Activate / Deactivate',
             'courses.manage_details' => 'Manage Details',
             'courses.manage_teachers' => 'Manage Teachers',
             'courses.manage_students' => 'Manage Students',
-            'sections.manage' => 'Manage Sections & Materials',
-            'courses.activate' => 'Activate / Deactivate',
+            'sections.manage' => 'Manage Materials',
         ],
         'Calendar' => [
             'calendar.create' => 'Create',

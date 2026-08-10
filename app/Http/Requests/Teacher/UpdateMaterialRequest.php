@@ -18,7 +18,7 @@ class UpdateMaterialRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in([
                 Material::TYPE_PDF,
                 Material::TYPE_EXTERNAL_LINK,

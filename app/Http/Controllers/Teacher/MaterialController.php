@@ -31,7 +31,7 @@ class MaterialController extends Controller
 
         $data = [
             'section_id' => $section->id,
-            'title' => $request->input('title'),
+            'title' => (string) $request->input('title'),
             'type' => $type,
             'sort_order' => $request->integer('sort_order') ?: ($section->materials()->max('sort_order') + 1),
             'is_published' => $request->boolean('is_published', true),
@@ -63,7 +63,7 @@ class MaterialController extends Controller
         Material::create($data);
 
         return redirect()
-            ->route('courses.edit', [$section->course, 'tab' => 'sections'])
+            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
             ->with('status', 'Resource added.');
     }
 
@@ -82,7 +82,7 @@ class MaterialController extends Controller
         // Reset all type-specific columns so changing type leaves nothing
         // stale; we'll re-populate the right ones below.
         $data = [
-            'title' => $request->input('title'),
+            'title' => (string) $request->input('title'),
             'type' => $type,
             // sort_order is managed exclusively via drag-and-drop; only accept
             // an explicit value if one was posted, otherwise preserve the row.
@@ -130,7 +130,7 @@ class MaterialController extends Controller
         $material->update($data);
 
         return redirect()
-            ->route('courses.edit', [$material->section->course, 'tab' => 'sections'])
+            ->route('courses.edit', [$material->section->course, 'tab' => 'materials'])
             ->with('status', 'Material updated.');
     }
 
@@ -182,7 +182,7 @@ class MaterialController extends Controller
         $material->delete();
 
         return redirect()
-            ->route('courses.edit', [$course, 'tab' => 'sections'])
+            ->route('courses.edit', [$course, 'tab' => 'materials'])
             ->with('status', 'Material deleted.');
     }
 }

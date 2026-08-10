@@ -89,9 +89,15 @@ class Course extends Model
     }
 
     /**
-     * Flip is_published to true (and clear scheduled_at) for any of this
-     * course's sections whose scheduled release time has passed. Cheap
-     * single UPDATE — safe to call on every course-page load.
+     * Flip is_published to true for any of this course's sections whose
+     * scheduled release time has passed. Cheap single UPDATE — safe to
+     * call on every course-page load.
+     *
+     * We deliberately KEEP scheduled_at after release — it doubles as the
+     * section's "release date" record, which the student view uses to
+     * auto-expand the currently-relevant section (latest past scheduled_at).
+     * The "Scheduled" badge only shows while scheduled_at is in the future,
+     * so keeping the date around after release doesn't affect the UI.
      */
     public function releaseScheduledSections(): int
     {
@@ -101,7 +107,6 @@ class Course extends Model
             ->where('is_published', false)
             ->update([
                 'is_published' => true,
-                'scheduled_at' => null,
             ]);
     }
 

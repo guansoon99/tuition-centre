@@ -83,7 +83,7 @@ class CourseController extends Controller
             'details' => 'courses.manage_details',
             'teachers' => 'courses.manage_teachers',
             'students' => 'courses.manage_students',
-            'sections' => 'sections.manage',
+            'materials' => 'sections.manage',
         ];
         if ($requestedTab && isset($tabPermissions[$requestedTab])) {
             abort_unless($user->can($tabPermissions[$requestedTab]), 403);
@@ -151,6 +151,54 @@ class CourseController extends Controller
         return redirect()
             ->route('courses.index')
             ->with('status', "Course {$course->code} deactivated.");
+    }
+
+    /**
+     * Permanent bulk delete — admin only. Wipes the selected courses and
+     * every dependent row (sections, materials, enrollments, course_views,
+     * teacher assignments handled by FK cascade), plus removes the physical
+     * files those courses uploaded to storage (banner, PDF materials).
+     *
+     * Not reversible. The UI wraps this in a strong confirmation.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        // Route middleware already gates on 'courses.delete' permission.
+        // Defence in depth: re-check here in case the route is ever hit
+        // through a different middleware stack (queued jobs, tests, etc).
+        abort_unless($request->user()->can('courses.delete'), 403);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:courses,id'],
+        ]);
+
+        $courses = Course::with(['sections.materials'])->whereIn('id', $data['ids'])->get();
+        $deletedCodes = [];
+
+        foreach ($courses as $course) {
+            $this->bustCourseCaches($course);
+
+            // Clean up files before dropping DB rows so we don't lose the
+            // references. Cascade delete takes care of the DB side.
+            if ($course->banner_image) {
+                StoredFile::forget($course->banner_image);
+            }
+            foreach ($course->sections as $section) {
+                foreach ($section->materials as $material) {
+                    if ($material->file_path) {
+                        \Illuminate\Support\Facades\Storage::delete($material->file_path);
+                    }
+                }
+            }
+
+            $deletedCodes[] = $course->code;
+            $course->delete();
+        }
+
+        return redirect()
+            ->route('courses.index')
+            ->with('status', count($deletedCodes).' course(s) permanently deleted: '.implode(', ', $deletedCodes));
     }
 
     public function activate(Course $course): RedirectResponse
