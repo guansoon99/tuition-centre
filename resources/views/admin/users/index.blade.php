@@ -3,10 +3,34 @@
 @section('title', 'Users')
 
 @section('content')
-    <div class="space-y-6">
+    @php
+        $canBulkDelete = auth()->user()->can('users.delete');
+    @endphp
+    <div class="space-y-6"
+         x-data="{
+             selected: [],
+             toggleAll(checked) {
+                 this.selected = checked ? Array.from(document.querySelectorAll('input.user-checkbox')).map(el => el.value) : [];
+             },
+             deleteSelected() {
+                 if (! this.selected.length) return;
+                 const msg = `Permanently delete ${this.selected.length} user(s)?\n\n`
+                     + `Your own account and any admin accounts in the selection will be skipped automatically. `
+                     + `Deleted users' enrollments, activity logs and history will be removed. This is NOT reversible.`;
+                 if (! confirm(msg)) return;
+                 this.$refs.bulkDeleteForm.submit();
+             },
+         }">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Users</h1>
             <div class="flex flex-wrap gap-2">
+                @if ($canBulkDelete)
+                    <button type="button" @click="deleteSelected()"
+                            :disabled="selected.length === 0"
+                            class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:hover:bg-red-300">
+                        Delete
+                    </button>
+                @endif
                 @can('users.export')
                     <a href="{{ route('users.export', request()->only(['q', 'role', 'active', 'course'])) }}"
                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
@@ -21,6 +45,16 @@
                 @endcan
             </div>
         </div>
+
+        {{-- Hidden form the bulk-delete button submits (Alpine serializes selected as ids[]). --}}
+        @if ($canBulkDelete)
+            <form method="POST" action="{{ route('users.bulk-destroy') }}" x-ref="bulkDeleteForm" class="hidden">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+            </form>
+        @endif
 
         <form method="GET" action="{{ route('users.index') }}"
               x-data
@@ -77,6 +111,13 @@
             <table class="w-full min-w-[700px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
                 <thead class="bg-slate-50 text-left text-xs uppercase text-slate-800">
                     <tr>
+                        @if ($canBulkDelete)
+                            <th class="w-8 px-4 py-3">
+                                {{-- Select-all: only ticks visible page — pagination boundaries left alone on purpose. --}}
+                                <input type="checkbox" @change="toggleAll($event.target.checked)"
+                                       class="rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                            </th>
+                        @endif
                         <th class="px-4 py-3">Username</th>
                         <th class="px-4 py-3">Name</th>
                         <th class="px-4 py-3">Role</th>
@@ -89,6 +130,12 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($users as $u)
                         <tr>
+                            @if ($canBulkDelete)
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" x-model="selected" value="{{ $u->id }}"
+                                           class="user-checkbox rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                                </td>
+                            @endif
                             <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $u->username }}</td>
                             <td class="px-4 py-3 text-slate-800">{{ $u->name }}</td>
                             <td class="px-4 py-3 text-slate-800">
@@ -152,7 +199,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
+                        <tr><td colspan="{{ $canBulkDelete ? 8 : 7 }}" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
                     @endforelse
                 </tbody>
             </table>

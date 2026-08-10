@@ -92,6 +92,42 @@ class UserController extends Controller
         return $query;
     }
 
+    /**
+     * Permanent bulk delete — hard removes selected users. Safety rails:
+     *   - Cannot delete the current user (would lock them out).
+     *   - Cannot delete any admin (protects the admin realm from a bulk
+     *     accident by a role holder who happens to have users.delete).
+     *
+     * Skipped IDs are silently ignored — no flash message is set. Cascade
+     * FKs handle enrollments / access_logs / course_views / notifications;
+     * uploader references (materials/announcements/events) are nulled out
+     * by their FK on-delete rule, preserving the content.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->can('users.delete'), 403);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        $selfId = $request->user()->id;
+        $candidates = User::with('roles')->whereIn('id', $data['ids'])->get();
+
+        foreach ($candidates as $user) {
+            if ($user->id === $selfId || $user->hasRole('admin')) {
+                continue;
+            }
+            $user->delete();
+        }
+
+        // Return to the exact filtered URL the admin was on — Laravel's
+        // back() uses the session's previous URL, which is the /users page
+        // (with its ?q=&role=&… query string) that submitted this POST.
+        return redirect()->back(fallback: route('users.index'));
+    }
+
     public function show(User $user): View
     {
         return view('admin.users.show', ['user' => $user->load('roles')]);

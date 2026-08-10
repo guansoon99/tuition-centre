@@ -161,6 +161,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
     });
 
+    // Permanent bulk delete — separate permission from deactivate. Controller
+    // enforces safety rules (can't delete self, can't delete admin users).
+    Route::middleware('permission:users.delete')->group(function () {
+        Route::post('/users/bulk-destroy', [AdminUserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+    });
+
     // Banner — split per-action so admins can grant view/create/edit/delete separately.
     // Static /banner/create MUST come before the /{slide} show route to avoid
     // being caught by the parameterised route.
