@@ -12,8 +12,9 @@
       x-data="{ type: '{{ $displayType }}', asPage: {{ $asPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.quillContainer, $refs.quillInput);
-          if (type === 'text') $nextTick(tryInit);
-          $watch('type', v => { if (v === 'text') $nextTick(tryInit); });
+          const needsQuill = v => v === 'text' || v === 'assignment';
+          if (needsQuill(type)) $nextTick(tryInit);
+          $watch('type', v => { if (needsQuill(v)) $nextTick(tryInit); });
       ">
     @csrf
     @if (strtoupper($method) !== 'POST')
@@ -22,7 +23,7 @@
 
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">
-            Title <span class="font-normal text-slate-400">(optional)</span>
+            Title <span class="font-normal text-slate-600">(optional)</span>
         </label>
         <input type="text" name="title"
                value="{{ old('title', $material?->title) }}"
@@ -33,7 +34,7 @@
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
         <div class="flex flex-wrap gap-2">
-            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
+            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown', 'assignment' => 'Assignment'] as $val => $lbl)
                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                     <input type="radio" x-model="type" value="{{ $val }}" class="sr-only">
                     {{ $lbl }}
@@ -83,16 +84,19 @@
         @error('external_url')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    {{-- Text block (Quill rich text editor) --}}
-    <div x-show="type === 'text'" x-cloak>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Body</label>
+    {{-- Text / Assignment body (shared Quill instance) --}}
+    <div x-show="type === 'text' || type === 'assignment'" x-cloak>
+        <label class="mb-1 block text-sm font-medium text-slate-700">
+            <span x-show="type === 'text'">Body</span>
+            <span x-show="type === 'assignment'" x-cloak>Description</span>
+        </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
             <div x-ref="quillContainer"
                  data-initial-html="{{ old('body', $material?->body) }}"
                  class="min-h-[280px] bg-white"></div>
         </div>
         <textarea name="body" x-ref="quillInput"
-                  x-bind:disabled="type !== 'text'"
+                  x-bind:disabled="type !== 'text' && type !== 'assignment'"
                   class="hidden">{{ old('body', $material?->body) }}</textarea>
         @error('body')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
@@ -106,6 +110,36 @@
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
         <p class="mt-1 text-xs text-slate-500">The countdown will tick down to this moment.</p>
         @error('target_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+    </div>
+
+    {{-- Assignment settings — due date + per-assignment upload caps --}}
+    <div x-show="type === 'assignment'" x-cloak class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="sm:col-span-3">
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                Due date <span class="font-normal text-slate-600">(optional)</span>
+            </label>
+            <input type="text" name="due_date" data-flatpickr
+                   value="{{ old('due_date', $material?->due_date?->format('Y-m-d H:i')) }}"
+                   placeholder="Y-m-d H:i"
+                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
+            @error('due_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+        </div>
+
+        <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (GB)</label>
+            <input type="number" name="max_file_size_gb" min="1" max="5"
+                   value="{{ old('max_file_size_gb', $material?->max_file_size_gb ?? 1) }}"
+                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
+            @error('max_file_size_gb')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+        </div>
+
+        <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Max files per student</label>
+            <input type="number" name="max_files" min="1" max="50"
+                   value="{{ old('max_files', $material?->max_files ?? 5) }}"
+                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
+            @error('max_files')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+        </div>
     </div>
 
     <label class="flex items-center gap-2 text-sm text-slate-700">

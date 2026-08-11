@@ -57,11 +57,11 @@
                 {{-- Global expand/collapse control --}}
                 <div class="flex justify-end gap-2 text-xs">
                     <button type="button" @click="expandAll()"
-                            class="rounded-md border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50">
+                            class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-medium hover:bg-slate-50">
                         Expand all
                     </button>
                     <button type="button" @click="collapseAll()"
-                            class="rounded-md border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50">
+                            class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-medium hover:bg-slate-50">
                         Collapse all
                     </button>
                 </div>
@@ -79,7 +79,7 @@
                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
-                            <h2 class="text-base font-medium text-slate-900">
+                            <h2 class="text-lg font-medium text-slate-900">
                                 {{ $section->title }}
                                 @unless ($section->is_published)
                                     <span class="ml-1 rounded bg-amber-100 px-1.5 text-xs text-amber-800">draft</span>

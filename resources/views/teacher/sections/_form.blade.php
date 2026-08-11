@@ -15,7 +15,9 @@
     </div>
 
     <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Description (optional)</label>
+        <label class="mb-1 block text-sm font-medium text-slate-700">
+            Description <span class="font-normal text-slate-600">(optional)</span>
+        </label>
         <textarea name="description" rows="3"
                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500">{{ old('description', $section?->description) }}</textarea>
     </div>

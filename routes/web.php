@@ -17,8 +17,10 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Student\CourseController;
 use App\Http\Controllers\Student\HomeController;
 use App\Http\Controllers\Student\MaterialController;
+use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\Teacher\MaterialController as TeacherMaterialController;
 use App\Http\Controllers\Teacher\SectionController as TeacherSectionController;
+use App\Http\Controllers\Teacher\SubmissionController as TeacherSubmissionController;
 use Illuminate\Support\Facades\Route;
 
 // Public landing (guests) + dashboard (auth) — controller branches on auth state.
@@ -42,6 +44,15 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('materials.demo-placeholder');
     Route::get('/materials/{material}/stream', [MaterialController::class, 'demoStream'])
         ->name('materials.demo-stream');
+
+    // Assignment submissions — student uploads / removes / downloads own files;
+    // teacher can also download any file for the assignments they own.
+    Route::post('/assignments/{material}/upload', [SubmissionController::class, 'upload'])
+        ->name('submissions.upload');
+    Route::delete('/submission-files/{file}', [SubmissionController::class, 'destroyFile'])
+        ->name('submission-files.destroy');
+    Route::get('/submission-files/{file}/download', [SubmissionController::class, 'download'])
+        ->name('submission-files.download');
 
     // -----------------------------------------------------------------
     // Courses
@@ -100,6 +111,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/materials/{material}/edit', [TeacherMaterialController::class, 'edit'])->name('materials.edit');
         Route::patch('/materials/{material}', [TeacherMaterialController::class, 'update'])->name('materials.update');
         Route::delete('/materials/{material}', [TeacherMaterialController::class, 'destroy'])->name('materials.destroy');
+
+        Route::patch('/submissions/{submission}/grade', [TeacherSubmissionController::class, 'grade'])
+            ->name('submissions.grade');
+        Route::get('/assignments/{material}/download-all', [TeacherSubmissionController::class, 'downloadAll'])
+            ->name('submissions.download-all');
     });
 
     // Course staff management — admins only.

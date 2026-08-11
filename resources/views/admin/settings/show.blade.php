@@ -5,7 +5,7 @@
 @section('content')
     @php $canEdit = auth()->user()?->can('settings.edit'); @endphp
 
-    <div class="mx-auto max-w-2xl space-y-6">
+    <div class="mx-auto max-w-6xl space-y-6">
         <div class="flex items-center justify-between gap-3">
             <h1 class="text-xl font-semibold text-slate-900">Website Settings</h1>
             @unless ($canEdit)

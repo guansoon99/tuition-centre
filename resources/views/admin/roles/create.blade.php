@@ -8,7 +8,7 @@
         $action = $role ? route('roles.update', $role) : route('roles.store');
     @endphp
 
-    <div class="mx-auto max-w-3xl space-y-4">
+    <div class="mx-auto max-w-6xl space-y-4">
         <div>
             <h1 class="text-xl font-semibold text-slate-900">
                 {{ $role ? 'Edit '.ucfirst($role->name) : 'New role' }}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Material;
+use App\Models\Submission;
 use App\Services\SignedUrlService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,40 @@ class MaterialController extends Controller
 
         if ($material->type === Material::TYPE_PAGE) {
             return view('student.materials.page', ['material' => $material]);
+        }
+
+        if ($material->type === Material::TYPE_ASSIGNMENT) {
+            $course = $material->section->course;
+            $user = $request->user();
+            $isTeacherOrAdmin = $user->teaches($course) || $user->hasRole('admin');
+
+            if ($isTeacherOrAdmin) {
+                $students = $course->students()
+                    ->wherePivot('is_active', true)
+                    ->orderBy('users.name')
+                    ->get();
+
+                $submissions = Submission::with(['files' => fn ($q) => $q->orderBy('uploaded_at')])
+                    ->where('material_id', $material->id)
+                    ->get()
+                    ->keyBy('user_id');
+
+                return view('teacher.materials.assignment', [
+                    'material' => $material,
+                    'students' => $students,
+                    'submissions' => $submissions,
+                ]);
+            }
+
+            $submission = Submission::with(['files' => fn ($q) => $q->orderBy('uploaded_at')])
+                ->where('material_id', $material->id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            return view('student.materials.assignment', [
+                'material' => $material,
+                'submission' => $submission,
+            ]);
         }
 
         if ($material->type !== Material::TYPE_PDF) {

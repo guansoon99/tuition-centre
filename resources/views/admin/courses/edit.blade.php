@@ -100,7 +100,7 @@
                            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
                     <input type="text" name="ends_at" data-flatpickr
                            x-ref="endsInput" placeholder="Ends (optional)"
-                           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+                           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm placeholder:text-slate-600" />
                     <button type="submit" class="rounded-md bg-slate-900 px-4 py-1.5 text-sm text-white hover:bg-slate-800">Enroll</button>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-sm text-slate-700">
@@ -215,7 +215,7 @@
                            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
                     <input type="text" name="expires_at" data-flatpickr
                            x-ref="endsInput" placeholder="Ends (optional)"
-                           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+                           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm placeholder:text-slate-600" />
                     <button type="submit" class="rounded-md bg-slate-900 px-4 py-1.5 text-sm text-white hover:bg-slate-800">Enroll</button>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-sm text-slate-700">
@@ -332,10 +332,6 @@
 
         @if ($canManageSections)
         <section x-show="tab === 'materials'" x-cloak class="space-y-4">
-            <div class="flex items-center justify-between">
-                <p class="text-sm text-slate-500">{{ $course->sections->count() }} section{{ $course->sections->count() === 1 ? '' : 's' }}</p>
-            </div>
-
             @if ($course->sections->isEmpty())
                 {{-- Empty state: single "+ Add first section" button --}}
                 <form method="POST" action="{{ route('sections.quick-insert', $course) }}">
@@ -444,15 +440,16 @@
                                                       x-data="{ matType: '{{ $matDisplayType }}', matAsPage: {{ $matAsPage ? 'true' : 'false' }} }"
                                                       x-init="
                                                           const tryInit = () => initQuillEditor($refs.matQuillContainer_{{ $material->id }}, $refs.matQuillInput_{{ $material->id }});
-                                                          if (matType === 'text') $nextTick(tryInit);
-                                                          $watch('matType', v => { if (v === 'text') $nextTick(tryInit); });
+                                                          const needsQuill = v => v === 'text' || v === 'assignment';
+                                                          if (needsQuill(matType)) $nextTick(tryInit);
+                                                          $watch('matType', v => { if (needsQuill(v)) $nextTick(tryInit); });
                                                       "
                                                       class="space-y-4">
                                                     @csrf @method('PATCH')
 
                                                     <div>
                                                         <label class="mb-1 block text-sm font-medium text-slate-700">
-                                                            Title <span class="font-normal text-slate-400">(optional)</span>
+                                                            Title <span class="font-normal text-slate-600">(optional)</span>
                                                         </label>
                                                         <input type="text" name="title" value="{{ $material->title }}"
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
@@ -461,7 +458,7 @@
                                                     <div>
                                                         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
                                                         <div class="flex flex-wrap gap-2">
-                                                            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown'] as $val => $lbl)
+                                                            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown', 'assignment' => 'Assignment'] as $val => $lbl)
                                                                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                                                                     <input type="radio" x-model="matType" value="{{ $val }}" class="sr-only">
                                                                     {{ $lbl }}
@@ -501,8 +498,11 @@
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
                                                     </div>
 
-                                                    <div x-show="matType === 'text'" x-cloak>
-                                                        <label class="mb-1 block text-sm font-medium text-slate-700">Body</label>
+                                                    <div x-show="matType === 'text' || matType === 'assignment'" x-cloak>
+                                                        <label class="mb-1 block text-sm font-medium text-slate-700">
+                                                            <span x-show="matType === 'text'">Body</span>
+                                                            <span x-show="matType === 'assignment'" x-cloak>Description</span>
+                                                        </label>
                                                         <div class="overflow-hidden rounded-md border border-slate-300">
                                                             <div x-ref="matQuillContainer_{{ $material->id }}"
                                                                  data-initial-html="{{ $material->body }}"
@@ -510,7 +510,7 @@
                                                         </div>
                                                         <textarea name="body"
                                                                   x-ref="matQuillInput_{{ $material->id }}"
-                                                                  x-bind:disabled="matType !== 'text'"
+                                                                  x-bind:disabled="matType !== 'text' && matType !== 'assignment'"
                                                                   class="hidden">{{ $material->body }}</textarea>
                                                     </div>
 
@@ -520,6 +520,30 @@
                                                                value="{{ $material->target_date?->format('Y-m-d H:i') }}"
                                                                placeholder="Y-m-d H:i"
                                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                                    </div>
+
+                                                    <div x-show="matType === 'assignment'" x-cloak class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                                        <div class="sm:col-span-3">
+                                                            <label class="mb-1 block text-sm font-medium text-slate-700">
+                                                                Due date <span class="font-normal text-slate-600">(optional)</span>
+                                                            </label>
+                                                            <input type="text" name="due_date" data-flatpickr
+                                                                   value="{{ $material->due_date?->format('Y-m-d H:i') }}"
+                                                                   placeholder="Y-m-d H:i"
+                                                                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (GB)</label>
+                                                            <input type="number" name="max_file_size_gb" min="1" max="5"
+                                                                   value="{{ $material->max_file_size_gb ?? 1 }}"
+                                                                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="mb-1 block text-sm font-medium text-slate-700">Max files per student</label>
+                                                            <input type="number" name="max_files" min="1" max="50"
+                                                                   value="{{ $material->max_files ?? 5 }}"
+                                                                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                                                        </div>
                                                     </div>
 
                                                     <label class="flex items-center gap-2 text-sm text-slate-700">
@@ -629,7 +653,9 @@
                                     </div>
 
                                     <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Available from (optional)</label>
+                                        <label class="mb-1 block text-sm font-medium text-slate-700">
+                                            Available from <span class="font-normal text-slate-600">(optional)</span>
+                                        </label>
                                         {{-- Local x-data so hasDate is reactive to input/clear changes.
                                              Reading $refs.el.value directly isn't reactive — Alpine can't
                                              re-evaluate x-show when a DOM property changes. --}}
