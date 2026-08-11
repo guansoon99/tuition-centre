@@ -90,6 +90,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Course content view — auth only; CoursePolicy@view decides who passes.
     Route::get('/courses/{course:slug}', [CourseController::class, 'show'])->name('courses.show');
 
+    // Per-user fold state for a section (persists across devices).
+    Route::post('/sections/{section}/toggle-fold', [CourseController::class, 'toggleFold'])
+        ->name('sections.toggle-fold');
+
     // Section + material CRUD — `sections.manage` permission + teaches() scope
     // enforced by the policy.
     Route::middleware('permission:sections.manage')->group(function () {
