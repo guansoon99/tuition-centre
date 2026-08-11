@@ -42,6 +42,9 @@ class MaterialController extends Controller
             'external_url' => null,
             'body' => null,
             'target_date' => null,
+            'due_date' => null,
+            'max_file_size_gb' => null,
+            'max_files' => null,
         ];
 
         if ($type === Material::TYPE_PDF) {
@@ -56,6 +59,11 @@ class MaterialController extends Controller
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } elseif ($type === Material::TYPE_COUNTDOWN) {
             $data['target_date'] = $request->input('target_date');
+        } elseif ($type === Material::TYPE_ASSIGNMENT) {
+            $data['body'] = HtmlSanitizer::clean($request->input('body'));
+            $data['due_date'] = $request->input('due_date') ?: null;
+            $data['max_file_size_gb'] = $request->integer('max_file_size_gb') ?: 1;
+            $data['max_files'] = $request->integer('max_files') ?: 5;
         } else {
             $data['external_url'] = $request->input('external_url');
         }
@@ -95,6 +103,9 @@ class MaterialController extends Controller
             'external_url' => null,
             'body' => null,
             'target_date' => null,
+            'due_date' => null,
+            'max_file_size_gb' => null,
+            'max_files' => null,
         ];
 
         if ($type === Material::TYPE_PDF) {
@@ -122,6 +133,11 @@ class MaterialController extends Controller
                 $data['body'] = HtmlSanitizer::clean($request->input('body'));
             } elseif ($type === Material::TYPE_COUNTDOWN) {
                 $data['target_date'] = $request->input('target_date');
+            } elseif ($type === Material::TYPE_ASSIGNMENT) {
+                $data['body'] = HtmlSanitizer::clean($request->input('body'));
+                $data['due_date'] = $request->input('due_date') ?: null;
+                $data['max_file_size_gb'] = $request->integer('max_file_size_gb') ?: 1;
+                $data['max_files'] = $request->integer('max_files') ?: 5;
             } else {
                 $data['external_url'] = $request->input('external_url');
             }

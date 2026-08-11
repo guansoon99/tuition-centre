@@ -17,6 +17,7 @@ class Material extends Model
     public const TYPE_TEXT = 'text';
     public const TYPE_PAGE = 'page';
     public const TYPE_COUNTDOWN = 'countdown';
+    public const TYPE_ASSIGNMENT = 'assignment';
 
     protected $fillable = [
         'section_id',
@@ -26,6 +27,9 @@ class Material extends Model
         'external_url',
         'body',
         'target_date',
+        'due_date',
+        'max_file_size_gb',
+        'max_files',
         'file_size_bytes',
         'sort_order',
         'is_published',
@@ -37,7 +41,10 @@ class Material extends Model
         'is_published' => 'boolean',
         'published_at' => 'datetime',
         'target_date' => 'datetime',
+        'due_date' => 'datetime',
         'file_size_bytes' => 'integer',
+        'max_file_size_gb' => 'integer',
+        'max_files' => 'integer',
     ];
 
     public function section(): BelongsTo
@@ -53,5 +60,20 @@ class Material extends Model
     public function accessLogs(): HasMany
     {
         return $this->hasMany(AccessLog::class);
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class);
+    }
+
+    public function isAssignment(): bool
+    {
+        return $this->type === self::TYPE_ASSIGNMENT;
+    }
+
+    public function isPastDue(): bool
+    {
+        return $this->due_date !== null && $this->due_date->isPast();
     }
 }

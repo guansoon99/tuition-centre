@@ -55,18 +55,24 @@
             @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Phone (optional)</label>
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                Phone <span class="font-normal text-slate-600">(optional)</span>
+            </label>
             <input type="text" name="phone" value="{{ old('phone', $user?->phone) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">IC Number (optional)</label>
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                IC Number <span class="font-normal text-slate-600">(optional)</span>
+            </label>
             <input type="text" name="ic_number" value="{{ old('ic_number', $user?->ic_number) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
             @error('ic_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
         <div class="sm:col-span-2">
-            <label class="mb-1 block text-sm font-medium text-slate-700">Candidate Number (optional)</label>
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                Candidate Number <span class="font-normal text-slate-600">(optional)</span>
+            </label>
             <input type="text" name="candidate_number" value="{{ old('candidate_number', $user?->candidate_number) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
             @error('candidate_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror

@@ -84,6 +84,39 @@
         @endif
     </div>
 
+{{-- ASSIGNMENT — clickable row with title + inline description. --}}
+@elseif ($type === \App\Models\Material::TYPE_ASSIGNMENT)
+    @php
+        $body = $material->body ?? '';
+        $hasMedia = (bool) preg_match('/<(img|video|iframe|audio|source|embed)\b/i', $body);
+        $bodyText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($body, ENT_QUOTES | ENT_HTML5)));
+        $hasBody = $bodyText !== '' || $hasMedia;
+    @endphp
+    <a href="{{ route('materials.view', $material) }}"
+       class="flex gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
+        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
+            {{-- Clipboard-with-check icon --}}
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 2h6a1 1 0 011 1v2H8V3a1 1 0 011-1z"
+                      stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                <path d="M8 5H6a2 2 0 00-2 2v13a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </span>
+        <div class="min-w-0 flex-1">
+            <p class="truncate text-black">
+                {{ $material->title ?: 'Assignment' }}
+            </p>
+            @if ($hasBody)
+                <div class="prose-section mt-1 text-black">
+                    {!! $body !!}
+                </div>
+            @endif
+        </div>
+    </a>
+
 {{-- PDF / PAGE / EXTERNAL LINK — clickable row. --}}
 @else
     @php

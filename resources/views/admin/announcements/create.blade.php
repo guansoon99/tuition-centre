@@ -3,7 +3,7 @@
 @section('title', 'Send announcement')
 
 @section('content')
-    <div class="mx-auto max-w-3xl space-y-6">
+    <div class="mx-auto max-w-6xl space-y-6">
         <div>
             <h1 class="text-xl font-semibold text-slate-900">Send Announcement</h1>
         </div>
