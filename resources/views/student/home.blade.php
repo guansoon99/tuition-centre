@@ -19,7 +19,7 @@
                      x-init="setInterval(() => { if (! paused && total > 1) next() }, 2500)"
                      @mouseenter="paused = true"
                      @mouseleave="paused = false">
-                <div class="relative mx-auto w-full overflow-hidden">
+                <div class="relative mx-auto w-full overflow-hidden sm:max-w-[70%]">
                     {{-- Invisible sizer: first image sets the container height. --}}
                     <img src="{{ $imageAnnouncements->first()->image_url }}"
                          alt="" aria-hidden="true"

@@ -24,7 +24,7 @@
                 all uploaded banners share the same dimensions (recommended:
                 1600×500) — see the banner upload form's hint.
             --}}
-            <div class="relative mx-auto w-full overflow-hidden">
+            <div class="relative mx-auto w-full overflow-hidden sm:max-w-[70%]">
                 {{-- Invisible sizer: reserves space based on first slide's
                      natural dimensions so the container never collapses.
                      Not shown to screen readers or visible on screen. --}}
