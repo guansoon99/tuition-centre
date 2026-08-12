@@ -17,7 +17,7 @@
             .prose-section blockquote { border-left: 3px solid rgb(203 213 225); padding-left: 0.75rem; color: rgb(71 85 105); margin: 0.5rem 0; }
             .prose-section img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; }
             @media (min-width: 640px) {
-                .prose-section img { max-width: 70%; }
+                .prose-section img { max-width: 60%; }
             }
             .prose-section video { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; display: block; }
             .prose-section pre, .prose-section code { background: rgb(241 245 249); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
@@ -52,9 +52,9 @@
         $bodyIsEmpty = $bodyText === '' && ! $hasMedia;
     @endphp
     <div class="flex gap-3 px-3 py-2">
-        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
+        <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
             {{-- Text: same document outline as the PDF icon, with lines inside --}}
-            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -97,9 +97,9 @@
     @endphp
     <a href="{{ route('materials.view', $material) }}"
        class="flex gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
-        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
+        <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
             {{-- Clipboard-with-check icon --}}
-            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 2h6a1 1 0 011 1v2H8V3a1 1 0 011-1z"
                       stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
                 <path d="M8 5H6a2 2 0 00-2 2v13a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"
@@ -134,10 +134,10 @@
     <a href="{{ $href }}"
        @if ($isExternal) target="_blank" rel="noopener" @endif
        class="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
-        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-black">
+        <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
             @if ($type === \App\Models\Material::TYPE_PDF)
                 {{-- PDF: document outline with "PDF" text inside --}}
-                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
                           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -146,7 +146,7 @@
                 </svg>
             @elseif ($type === \App\Models\Material::TYPE_PAGE)
                 {{-- Page: same icon as Text (they're the same underlying "type" in the UI) --}}
-                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
                           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -156,10 +156,10 @@
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
                 {{-- External link: custom icon --}}
                 <img src="{{ asset('images/icons/url.png') }}" alt="Link"
-                     class="h-6 w-6 object-contain" />
+                     class="h-7 w-7 object-contain" />
             @else
                 {{-- Fallback: generic file icon --}}
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
