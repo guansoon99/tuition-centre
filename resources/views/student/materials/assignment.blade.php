@@ -66,13 +66,6 @@
 
         </div>
 
-        {{-- Description --}}
-        @if ($material->body)
-            <div class="prose-section rounded-lg border border-slate-200 bg-white p-4 text-sm text-black">
-                {!! $material->body !!}
-            </div>
-        @endif
-
         {{-- Grade + comment card (shown once teacher grades) --}}
         @if ($submission?->isGraded())
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">

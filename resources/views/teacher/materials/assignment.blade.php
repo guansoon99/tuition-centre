@@ -62,18 +62,6 @@
             </div>
         </div>
 
-        {{-- Description --}}
-        @if ($material->body)
-            <details class="rounded-lg border border-slate-200 bg-white">
-                <summary class="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    Assignment description
-                </summary>
-                <div class="prose-section border-t border-slate-100 p-4 text-sm text-black">
-                    {!! $material->body !!}
-                </div>
-            </details>
-        @endif
-
         {{-- Roster --}}
         @if ($students->isEmpty())
             <div class="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-700">
