@@ -101,6 +101,11 @@ class SubmissionController extends Controller
             }
             $usedFolders[] = $folder;
 
+            // Track names already used inside THIS student's folder so two
+            // uploads with identical original_name don't clobber each other
+            // in the zip. Mirrors Windows/macOS "foo (2).pdf" behavior.
+            $usedInFolder = [];
+
             foreach ($submission->files as $file) {
                 if (! $disk->exists($file->file_path)) {
                     continue;
@@ -108,7 +113,21 @@ class SubmissionController extends Controller
                 // Strip path separators from the original name so a crafted
                 // upload like "../foo.pdf" can't escape its folder.
                 $safeName = str_replace(['/', '\\'], '_', $file->original_name);
-                $entry = $folder.'/'.$safeName;
+
+                $uniqueName = $safeName;
+                if (in_array($uniqueName, $usedInFolder, true)) {
+                    $ext = pathinfo($safeName, PATHINFO_EXTENSION);
+                    $stem = pathinfo($safeName, PATHINFO_FILENAME);
+                    $suffix = $ext !== '' ? '.'.$ext : '';
+                    $n = 2;
+                    do {
+                        $uniqueName = $stem.' ('.$n.')'.$suffix;
+                        $n++;
+                    } while (in_array($uniqueName, $usedInFolder, true));
+                }
+                $usedInFolder[] = $uniqueName;
+
+                $entry = $folder.'/'.$uniqueName;
 
                 $added = false;
                 try {
