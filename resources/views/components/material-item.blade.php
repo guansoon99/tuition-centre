@@ -17,7 +17,7 @@
             .prose-section blockquote { border-left: 3px solid rgb(203 213 225); padding-left: 0.75rem; color: rgb(71 85 105); margin: 0.5rem 0; }
             .prose-section img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; }
             @media (min-width: 640px) {
-                .prose-section img { max-width: 60%; }
+                .prose-section img { max-width: 50%; }
             }
             .prose-section video { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; display: block; }
             .prose-section pre, .prose-section code { background: rgb(241 245 249); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
