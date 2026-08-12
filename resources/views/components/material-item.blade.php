@@ -154,11 +154,9 @@
                           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
-                {{-- External link: chain icon --}}
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
+                {{-- External link: custom icon --}}
+                <img src="{{ asset('images/icons/url.png') }}" alt="Link"
+                     class="h-6 w-6 object-contain" />
             @else
                 {{-- Fallback: generic file icon --}}
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
