@@ -42,9 +42,14 @@ Measured on this app, one course page with 72 materials:
 wall 29.6 ms · CPU 29.2 ms · 44 MB peak RAM
 ```
 
-Wall time ≈ CPU time, so requests are **CPU-bound**, not waiting on I/O. Two
-consequences: vCPU count sets your throughput ceiling, and OPcache (which cuts
-PHP CPU by 50–70%) is worth more here than anything else you can change.
+Wall time ≈ CPU time, so requests are **CPU-bound**, not waiting on I/O — vCPU
+count sets your throughput ceiling.
+
+⚠️ **These figures assume OPcache is on.** They were measured with the files
+already compiled, which is the state OPcache maintains. On a box without it,
+every request re-compiles and the numbers below do not apply — see
+[OPcache](#opcache--verify-its-actually-on). Verify it first; everything here
+is conditional on it.
 
 The exception is image uploads — GD decodes to an uncompressed bitmap, so an
 8 MP phone photo peaks around **104 MB** in a single worker. That, not page
@@ -87,9 +92,31 @@ streaming happens at Cloudflare R2, not here.
 
 ## OPcache — verify it's actually on
 
-Without OPcache, PHP recompiles every file of Laravel plus the app on *every*
-request. It's worth roughly 2–3× throughput, and it is the single biggest
-lever on a PHP box.
+**Do not treat this as optional tuning.** Without OPcache, PHP re-parses and
+recompiles every file of Laravel plus the app on *every single request*. It is
+not a percentage improvement — it is the difference between the throughput
+figures in [Sizing](#sizing) being real and being fiction.
+
+Measured on this app, same page, same machine:
+
+```
+first request in a process (must compile)  217.4 ms
+subsequent requests (already compiled)      25.6 ms
+```
+
+php-fpm **without** OPcache pays something close to that first number on every
+request; **with** it, close to the second. Not all 192 ms is recoverable —
+some is Laravel's first-request bootstrapping rather than compilation — but
+the bulk is.
+
+Real-world confirmation: the Windows staging box, which has no OPcache, spent
+**~430 ms of server time on a login page** (TTFB 0.65 s minus 0.22 s of
+network). That is what a no-OPcache PHP box looks like.
+
+> Note for anyone reading benchmark numbers in this repo: they were measured
+> by looping a request inside one PHP process, so files were compiled once and
+> reused. Those numbers therefore approximate a machine **with** OPcache. They
+> do not describe a box without it.
 
 Debian/Ubuntu ship it enabled (`/etc/php/8.3/fpm/conf.d/10-opcache.ini`), so
 installing `php8.3-fpm` should be enough — but confirm rather than assume,
@@ -239,7 +266,8 @@ sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl sta
 - [ ] `php artisan migrate --force` ran without error
 - [ ] An admin user exists (`php artisan tinker` → `User::factory()->create([...])->assignRole('admin')`)
 - [ ] PDF upload, view, signed-URL download, access log all work end to end with a real R2 bucket
-- [ ] `php -m | grep -i opcache` prints "Zend OPcache" (see the OPcache section)
+- [ ] `php -m | grep -i opcache` prints "Zend OPcache" — do this FIRST, the
+      sizing assumptions depend on it (see the OPcache section)
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
 - [ ] (No queue worker needed — `app/Jobs` is empty and `QUEUE_CONNECTION=sync`)
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
