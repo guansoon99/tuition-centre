@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -44,6 +45,40 @@ class PublicFile extends StoredFile
             return null;
         }
 
+        static::warnIfNotPubliclyReachable();
+
         return Storage::disk(static::disk())->url($path);
+    }
+
+    /**
+     * An s3 disk with no 'url' configured is the worst kind of broken: the
+     * driver happily builds one from the API endpoint, which needs SigV4 auth,
+     * so every image 403s with no exception and nothing in the log. The page
+     * renders, the pictures just aren't there.
+     *
+     * Logging does not fix it, but it turns an invisible failure into a
+     * searchable one. `php artisan storage:check` catches it before deploy,
+     * which is where you actually want to find out.
+     */
+    protected static function warnIfNotPubliclyReachable(): void
+    {
+        static $warned = false;
+
+        if ($warned) {
+            return;   // once per request, not once per image
+        }
+
+        $disk = static::disk();
+        $config = config('filesystems.disks.'.$disk, []);
+
+        if (($config['driver'] ?? null) === 's3' && empty($config['url'])) {
+            $warned = true;
+
+            Log::error(
+                "Public uploads disk [{$disk}] has no 'url' configured, so its URLs point at "
+                ."the private S3 API endpoint and will 403. Set R2_PUBLIC_URL to the bucket's "
+                .'custom domain. Run `php artisan storage:check`.'
+            );
+        }
     }
 }

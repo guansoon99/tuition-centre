@@ -73,6 +73,15 @@ return [
             'throw' => false,
         ],
 
+        /*
+         * PRIVATE bucket. Material PDFs and student submissions.
+         *
+         * Never gets a custom domain and never becomes public. Everything here
+         * leaves through a signed URL or a controller that authorised the
+         * caller first. Deliberately has no 'url' key — PrivateFile has no
+         * url() method, and adding one here would be the first step toward
+         * exposing student work.
+         */
         'r2' => [
             'driver' => 's3',
             'key' => env('R2_ACCESS_KEY_ID'),
@@ -81,6 +90,34 @@ return [
             'bucket' => env('R2_BUCKET'),
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
+            'throw' => false,
+        ],
+
+        /*
+         * PUBLIC bucket. Banners, announcement images, inline editor images,
+         * section videos — assets meant to be world-readable.
+         *
+         * A SEPARATE bucket, not a prefix in the one above. This bucket gets a
+         * public custom domain so Cloudflare can cache it (and so video is
+         * served from a Cloudflare service, which is what their CDN terms
+         * require). Putting a public domain on a bucket that also held
+         * submissions would publish every student's work at a guessable-shaped
+         * URL.
+         *
+         * R2_PUBLIC_URL is that custom domain and is REQUIRED. Without it the
+         * S3 driver falls back to the API endpoint, which needs SigV4 auth —
+         * so every image silently 403s. See PublicFile::url().
+         */
+        'r2_public' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_PUBLIC_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'url' => env('R2_PUBLIC_URL'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'public',
             'throw' => false,
         ],
 
