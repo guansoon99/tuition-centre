@@ -32,7 +32,6 @@ class AdminCrudTest extends TestCase
 
         $this->actingAs($student)->get('/users')->assertForbidden();
         $this->actingAs($student)->get('/courses')->assertForbidden();
-        $this->actingAs($student)->get('/access-logs')->assertForbidden();
     }
 
     public function test_admin_can_load_user_list_and_filter_by_role(): void
@@ -149,12 +148,5 @@ class AdminCrudTest extends TestCase
         $this->actingAs($this->admin)
             ->post('/courses/'.$course->slug.'/teachers', ['user_id' => $student->id])
             ->assertStatus(422);
-    }
-
-    public function test_access_logs_page_loads_for_admin(): void
-    {
-        $this->actingAs($this->admin)->get('/access-logs')
-            ->assertOk()
-            ->assertSee('Access logs');
     }
 }

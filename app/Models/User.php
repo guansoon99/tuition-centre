@@ -90,11 +90,6 @@ class User extends Authenticatable
         return $this->hasMany(Material::class, 'uploaded_by_user_id');
     }
 
-    public function accessLogs(): HasMany
-    {
-        return $this->hasMany(AccessLog::class);
-    }
-
     /**
      * Notifications query filtered by the announcement visibility window
      * stored in `data->starts_at` and `data->ends_at` (nullable both sides).

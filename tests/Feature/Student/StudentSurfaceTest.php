@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Student;
 
-use App\Models\AccessLog;
 use App\Models\Course;
 use App\Models\Material;
 use App\Models\Section;
@@ -95,20 +94,11 @@ class StudentSurfaceTest extends TestCase
         );
     }
 
-    public function test_pdf_download_redirects_and_logs_access(): void
+    public function test_pdf_download_redirects_to_a_signed_url(): void
     {
-        $this->assertSame(0, AccessLog::count());
-
-        $response = $this->actingAs($this->student)
-            ->get('/materials/'.$this->pdf->id.'/download');
-
-        $response->assertStatus(302);
-
-        $this->assertSame(1, AccessLog::count());
-        $log = AccessLog::first();
-        $this->assertSame($this->student->id, $log->user_id);
-        $this->assertSame($this->pdf->id, $log->material_id);
-        $this->assertSame(AccessLog::ACTION_DOWNLOAD, $log->action);
+        $this->actingAs($this->student)
+            ->get('/materials/'.$this->pdf->id.'/download')
+            ->assertStatus(302);
     }
 
     public function test_student_cannot_download_material_from_unrelated_course(): void
@@ -119,22 +109,16 @@ class StudentSurfaceTest extends TestCase
         $this->actingAs($this->student)
             ->get('/materials/'.$otherPdf->id.'/download')
             ->assertForbidden();
-
-        $this->assertSame(0, AccessLog::count());
     }
 
-    public function test_external_link_logs_view_action_and_redirects_to_external_url(): void
+    public function test_external_link_redirects_to_the_external_url(): void
     {
         $link = Material::factory()->externalLink()->create(['section_id' => $this->section->id]);
 
-        $response = $this->actingAs($this->student)
-            ->get('/materials/'.$link->id.'/download');
-
-        $response->assertStatus(302);
-        $response->assertRedirect($link->external_url);
-
-        $log = AccessLog::where('material_id', $link->id)->first();
-        $this->assertSame(AccessLog::ACTION_VIEW, $log->action);
+        $this->actingAs($this->student)
+            ->get('/materials/'.$link->id.'/download')
+            ->assertStatus(302)
+            ->assertRedirect($link->external_url);
     }
 
     /**

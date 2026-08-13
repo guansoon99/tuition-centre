@@ -57,11 +57,6 @@ class Material extends Model
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
     }
 
-    public function accessLogs(): HasMany
-    {
-        return $this->hasMany(AccessLog::class);
-    }
-
     public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);

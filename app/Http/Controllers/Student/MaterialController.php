@@ -18,7 +18,7 @@ class MaterialController extends Controller
     {
         $this->authorize('download', $material);
 
-        $url = $signer->forMaterial($material, $request->user(), $request, 'attachment');
+        $url = $signer->forMaterial($material, 'attachment');
 
         return redirect()->away($url);
     }
@@ -73,7 +73,7 @@ class MaterialController extends Controller
             return redirect()->away($material->external_url ?? url('/'));
         }
 
-        $inlineUrl = $signer->forMaterial($material, $request->user(), $request, 'inline');
+        $inlineUrl = $signer->forMaterial($material, 'inline');
 
         return view('student.materials.view', [
             'material' => $material,

@@ -2,11 +2,7 @@
 
 namespace App\Services;
 
-use App\Jobs\LogMaterialAccessJob;
-use App\Models\AccessLog;
 use App\Models\Material;
-use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
@@ -15,13 +11,11 @@ class SignedUrlService
     public function __construct(private readonly int $ttlMinutes = 15) {}
 
     /**
-     * Resolve a viewable/downloadable URL for the material AND log the access.
-     * Returns a URL the caller should 302-redirect to.
+     * Resolve a viewable/downloadable URL for the material. Returns a URL the
+     * caller should 302-redirect to.
      */
-    public function forMaterial(Material $material, User $user, Request $request, string $disposition = 'inline'): string
+    public function forMaterial(Material $material, string $disposition = 'inline'): string
     {
-        $this->logAccess($material, $user, $request);
-
         return match ($material->type) {
             Material::TYPE_PDF => $this->urlForPdf($material, $disposition),
             default => $material->external_url ?? '',
@@ -59,20 +53,6 @@ class SignedUrlService
             'materials.demo-placeholder',
             now()->addMinutes($this->ttlMinutes),
             ['material' => $material->id]
-        );
-    }
-
-    private function logAccess(Material $material, User $user, Request $request): void
-    {
-        LogMaterialAccessJob::dispatch(
-            userId: $user->id,
-            materialId: $material->id,
-            action: $material->type === Material::TYPE_PDF
-                ? AccessLog::ACTION_DOWNLOAD
-                : AccessLog::ACTION_VIEW,
-            ipAddress: $request->ip() ?? '0.0.0.0',
-            userAgent: $request->userAgent(),
-            accessedAt: now(),
         );
     }
 }

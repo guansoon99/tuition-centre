@@ -121,7 +121,22 @@ sudo ln -s /etc/nginx/sites-available/tuition /etc/nginx/sites-enabled/
 sudo certbot --nginx -d your-domain.tld
 ```
 
-## Queue worker (supervisord)
+## Queue worker (supervisord) — NOT currently needed
+
+**`app/Jobs` is empty: the app dispatches nothing.** `QUEUE_CONNECTION=sync`
+is correct, and setting up a worker today would give you a process that idles
+forever. Skip this section on first deploy.
+
+The two things people expect to be queued are not:
+
+- **Student Excel imports** run inline — `ImportStudentsController` calls
+  `StudentImporter::processRows()` directly. Fine at a few hundred rows; if
+  they grow enough to risk a request timeout, queueing them is the fix.
+- **Material access logging** used to be a job, and was removed along with the
+  whole access-log feature.
+
+Keep the config below for when a first real job appears — at which point set
+`QUEUE_CONNECTION=redis` and start the worker.
 
 `/etc/supervisor/conf.d/tuition-worker.conf`:
 
@@ -141,14 +156,6 @@ stopwaitsecs=3600
 ```bash
 sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start tuition-worker:*
 ```
-
-Workers consume `LogMaterialAccessJob` (every PDF download) — currently the
-only queued job.
-
-Note that student Excel imports are **not** queued: `ImportStudentsController`
-runs `StudentImporter::processRows()` inline in the request. That's fine at a
-few hundred rows; if imports ever get large enough to risk a timeout, moving
-them onto the queue is the fix (and the reason this worker exists).
 
 ## Cloudflare R2
 
@@ -176,7 +183,7 @@ them onto the queue is the fix (and the reason this worker exists).
 - [ ] PDF upload, view, signed-URL download, access log all work end to end with a real R2 bucket
 - [ ] `php -m | grep -i opcache` prints "Zend OPcache" (see the OPcache section)
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
-- [ ] Queue worker is `RUNNING` in `supervisorctl status`
+- [ ] (No queue worker needed — `app/Jobs` is empty and `QUEUE_CONNECTION=sync`)
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
 - [ ] Nightly `mysqldump` to a backup location

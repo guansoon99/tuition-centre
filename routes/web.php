@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AnnouncementImageController;
-use App\Http\Controllers\Admin\AccessLogController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\ContactController;
@@ -164,11 +163,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         // destroy = soft-deactivate; activate = re-enable.
         Route::delete('/courses/{course:slug}', [AdminCourseController::class, 'destroy'])->name('courses.destroy');
         Route::post('/courses/{course:slug}/activate', [AdminCourseController::class, 'activate'])->name('courses.activate');
-    });
-
-    // Access logs has no dedicated permission yet — admin only.
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/access-logs', [AccessLogController::class, 'index'])->name('access-logs.index');
     });
 
     // Users — /users/create must come before /users/{user} to avoid the
