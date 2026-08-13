@@ -15,6 +15,11 @@ class UsernameGenerator
      * The counter marches forward monotonically. If a candidate is already
      * taken (e.g. an admin manually created "student5" via the UI), we skip
      * past it and try the next number until we find one that's free.
+     *
+     * withTrashed() is essential: users are soft deleted, so a deleted
+     * "student5" still holds that username at the DB level (the unique index
+     * knows nothing about deleted_at). Without it we'd hand back a name that
+     * is already taken and blow up on insert with a unique violation.
      */
     public function generateForStudent(): string
     {
@@ -32,7 +37,7 @@ class UsernameGenerator
             do {
                 $counter->increment('last_number');
                 $candidate = 'student'.$counter->last_number;
-            } while (User::where('username', $candidate)->exists());
+            } while (User::withTrashed()->where('username', $candidate)->exists());
 
             return $candidate;
         });

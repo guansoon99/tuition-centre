@@ -16,7 +16,7 @@ class BannerSlideRequest extends FormRequest
         $isCreate = $this->route('slide') === null;
 
         return [
-            // Only jpeg/jpg/png/webp — no gif, bmp, svg. StoredFile
+            // Only jpeg/jpg/png/webp — no gif, bmp, svg. PublicFile
             // re-encodes to WebP on save regardless.
             'image' => [$isCreate ? 'required' : 'nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'title' => ['required', 'string', 'max:255'],

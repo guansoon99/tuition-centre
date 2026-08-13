@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Submission;
+use App\Support\PrivateFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
@@ -89,7 +89,6 @@ class SubmissionController extends Controller
             abort(500, 'Could not create ZIP.');
         }
 
-        $disk = Storage::disk(config('filesystems.default'));
         $usedFolders = [];
 
         foreach ($submissions as $submission) {
@@ -107,7 +106,7 @@ class SubmissionController extends Controller
             $usedInFolder = [];
 
             foreach ($submission->files as $file) {
-                if (! $disk->exists($file->file_path)) {
+                if (! PrivateFile::exists($file->file_path)) {
                     continue;
                 }
                 // Strip path separators from the original name so a crafted
@@ -129,18 +128,14 @@ class SubmissionController extends Controller
 
                 $entry = $folder.'/'.$uniqueName;
 
-                $added = false;
-                try {
-                    $localPath = $disk->path($file->file_path);
-                    if (is_file($localPath)) {
-                        $zip->addFile($localPath, $entry);
-                        $added = true;
-                    }
-                } catch (\Throwable $e) {
-                    // Some disks (R2/S3) don't support path() — fall through.
-                }
-                if (! $added) {
-                    $zip->addFromString($entry, $disk->get($file->file_path));
+                // Prefer streaming from a local path so a big submission
+                // never gets buffered in PHP memory. Cloud disks (R2/S3)
+                // have no local path, so fall back to reading the bytes.
+                $localPath = PrivateFile::path($file->file_path);
+                if ($localPath !== null) {
+                    $zip->addFile($localPath, $entry);
+                } else {
+                    $zip->addFromString($entry, PrivateFile::get($file->file_path));
                 }
             }
         }

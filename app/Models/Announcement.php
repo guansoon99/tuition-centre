@@ -37,9 +37,17 @@ class Announcement extends Model
         'ends_at' => 'datetime',
     ];
 
+    /**
+     * Announcement images are stored privately — announcements can be scoped
+     * to a single course or role, so their images shouldn't be fetchable by
+     * anyone with the URL. This points at a route that authorises the caller
+     * before streaming the file. See AnnouncementImageController.
+     */
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn () => \App\Support\StoredFile::url($this->image_path));
+        return Attribute::get(fn () => $this->image_path
+            ? route('announcements.image', $this)
+            : null);
     }
 
     public function course(): BelongsTo

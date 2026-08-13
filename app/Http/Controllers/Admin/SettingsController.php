@@ -7,7 +7,7 @@ use App\Http\Requests\Admin\SettingsRequest;
 use App\Models\SiteSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use App\Support\StoredFile;
+use App\Support\PublicFile;
 
 class SettingsController extends Controller
 {
@@ -35,11 +35,11 @@ class SettingsController extends Controller
         // Logo handling: a new file overrides remove_logo; otherwise remove_logo wins.
         if ($request->hasFile('logo')) {
             if ($settings->logo_path) {
-                StoredFile::forget($settings->logo_path);
+                PublicFile::forget($settings->logo_path);
             }
-            $data['logo_path'] = StoredFile::store($request->file('logo'), 'site');
+            $data['logo_path'] = PublicFile::store($request->file('logo'), 'site');
         } elseif ($request->boolean('remove_logo') && $settings->logo_path) {
-            StoredFile::forget($settings->logo_path);
+            PublicFile::forget($settings->logo_path);
             $data['logo_path'] = null;
         }
 

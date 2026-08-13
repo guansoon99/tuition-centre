@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CourseRequest;
 use App\Models\Course;
+use App\Models\Material;
+use App\Models\Section;
+use App\Models\Submission;
+use App\Models\SubmissionFile;
 use App\Support\Cache\CacheKeys;
+use App\Support\PrivateFile;
+use App\Support\PublicFile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use App\Support\StoredFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CourseController extends Controller
@@ -52,7 +58,7 @@ class CourseController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('banner_image')) {
-            $data['banner_image'] = StoredFile::store($request->file('banner_image'), 'course-banners');
+            $data['banner_image'] = PublicFile::store($request->file('banner_image'), 'course-banners');
         }
 
         $data['is_active'] = $request->boolean('is_active', true);
@@ -113,10 +119,21 @@ class CourseController extends Controller
             ->limit(200)
             ->get(['id', 'username', 'name']);
 
+        // Student enrollment rows for the Students tab. whereHas('user')
+        // drops rows whose student has been soft deleted — the enrollment
+        // survives (nothing cascades on a soft delete) but ->user resolves
+        // to null, which the table would fatal on.
+        $enrollments = $course->enrollments()
+            ->whereHas('user')
+            ->with('user')
+            ->orderByDesc('enrolled_at')
+            ->get();
+
         return view('admin.courses.edit', [
             'course' => $course,
             'teacherCandidates' => $teacherCandidates,
             'studentCandidates' => $studentCandidates,
+            'enrollments' => $enrollments,
         ]);
     }
 
@@ -126,9 +143,9 @@ class CourseController extends Controller
 
         if ($request->hasFile('banner_image')) {
             if ($course->banner_image) {
-                StoredFile::forget($course->banner_image);
+                PublicFile::forget($course->banner_image);
             }
-            $data['banner_image'] = StoredFile::store($request->file('banner_image'), 'course-banners');
+            $data['banner_image'] = PublicFile::store($request->file('banner_image'), 'course-banners');
         } else {
             unset($data['banner_image']);
         }
@@ -154,12 +171,25 @@ class CourseController extends Controller
     }
 
     /**
-     * Permanent bulk delete — admin only. Wipes the selected courses and
-     * every dependent row (sections, materials, enrollments, course_views,
-     * teacher assignments handled by FK cascade), plus removes the physical
-     * files those courses uploaded to storage (banner, PDF materials).
+     * Permanent bulk delete — admin only. Hard-deletes the selected courses
+     * and lets the FK chain clear everything below them:
      *
-     * Not reversible. The UI wraps this in a strong confirmation.
+     *   courses → sections → materials → submissions → submission_files
+     *   courses → enrollments / course_views / announcements / access_logs
+     *
+     * This MUST be forceDelete(), not delete(). Course uses SoftDeletes, and
+     * a soft delete emits `UPDATE courses SET deleted_at = ...` — an UPDATE,
+     * which fires no ON DELETE CASCADE at all. Every child row would stay
+     * live while we removed their files, and the course would go on squatting
+     * its unique slug/code so the admin could never reuse that code.
+     *
+     * Order matters: caches and file paths are both read from rows the delete
+     * destroys, so they're gathered first. Files are unlinked only after the
+     * transaction commits — if the delete fails we want the files still on
+     * disk (recoverable) rather than gone with the rows intact.
+     *
+     * Not reversible — grades and submissions go too. The UI wraps this in a
+     * strong confirmation.
      */
     public function bulkDestroy(Request $request): RedirectResponse
     {
@@ -173,25 +203,60 @@ class CourseController extends Controller
             'ids.*' => ['integer', 'exists:courses,id'],
         ]);
 
-        $courses = Course::with(['sections.materials'])->whereIn('id', $data['ids'])->get();
+        $courses = Course::whereIn('id', $data['ids'])->get();
+        if ($courses->isEmpty()) {
+            return redirect()->back(fallback: route('courses.index'));
+        }
+        $courseIds = $courses->pluck('id')->all();
 
+        // --- 1. Bust caches while the membership rows still exist. ---
         foreach ($courses as $course) {
             $this->bustCourseCaches($course);
+        }
 
-            // Clean up files before dropping DB rows so we don't lose the
-            // references. Cascade delete takes care of the DB side.
-            if ($course->banner_image) {
-                StoredFile::forget($course->banner_image);
-            }
-            foreach ($course->sections as $section) {
-                foreach ($section->materials as $material) {
-                    if ($material->file_path) {
-                        \Illuminate\Support\Facades\Storage::delete($material->file_path);
-                    }
-                }
-            }
+        // --- 2. Collect every file path the cascade is about to orphan. ---
+        // withTrashed() throughout: a soft-deleted section or material is
+        // still a real row that the cascade will remove, and its file is
+        // still on disk. Miss it here and the row vanishes with the only
+        // reference to that file — it leaks forever.
+        $bannerPaths = $courses->pluck('banner_image')->filter()->all();
 
-            $course->delete();
+        $sectionIds = Section::withTrashed()
+            ->whereIn('course_id', $courseIds)
+            ->pluck('id');
+
+        $materialIds = Material::withTrashed()
+            ->whereIn('section_id', $sectionIds)
+            ->pluck('id');
+
+        $materialPaths = Material::withTrashed()
+            ->whereIn('id', $materialIds)
+            ->whereNotNull('file_path')
+            ->pluck('file_path')
+            ->all();
+
+        $submissionPaths = SubmissionFile::whereIn(
+            'submission_id',
+            Submission::whereIn('material_id', $materialIds)->select('id')
+        )
+            ->whereNotNull('file_path')
+            ->pluck('file_path')
+            ->all();
+
+        // --- 3. Drop the rows. The FK chain clears everything downstream. ---
+        DB::transaction(function () use ($courseIds) {
+            Course::whereIn('id', $courseIds)->forceDelete();
+        });
+
+        // --- 4. DB is committed — now free the disk. ---
+        // Banners live on the public uploads disk; materials and submissions
+        // are private and live on the default disk.
+        foreach ($bannerPaths as $path) {
+            PublicFile::forget($path);
+        }
+
+        foreach ([...$materialPaths, ...$submissionPaths] as $path) {
+            PrivateFile::forget($path);
         }
 
         // Return to the exact filtered URL the admin was on — Laravel's
@@ -212,8 +277,6 @@ class CourseController extends Controller
 
     private function bustCourseCaches(Course $course): void
     {
-        Cache::forget(CacheKeys::courseDetail($course->id));
-
         // Every user linked to this course (student OR teacher) sees it
         // through Course::visibleTo(), which is cached under userEnrolled
         // on the Home page. One pass over all memberships covers both.

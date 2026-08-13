@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AnnouncementImageController;
 use App\Http\Controllers\Admin\AccessLogController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
@@ -37,6 +38,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password');
+
+    // Announcement images live on the private disk — this is the only way to
+    // fetch one, and it checks the caller is in the announcement's audience.
+    Route::get('/announcement-images/{announcement}', [AnnouncementImageController::class, 'show'])
+        ->name('announcements.image');
 
     Route::get('/materials/{material}', [MaterialController::class, 'view'])->name('materials.view');
     Route::get('/materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');

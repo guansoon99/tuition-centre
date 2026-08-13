@@ -29,7 +29,7 @@ Password auth is left enabled for console-level recovery but should not be used 
 From an SSH session (or wrapped by Claude via SSH):
 
 ```
-cd /d C:\Users\Administrator\tuition-centre && git fetch && git reset --hard origin/main && composer install --no-dev --optimize-autoloader --no-interaction && php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && echo === DEPLOY OK ===
+cd /d C:\Users\Administrator\tuition-centre && git fetch && git reset --hard origin/main && composer install --no-dev --optimize-autoloader --no-interaction && php artisan migrate --force && php artisan cache:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && echo === DEPLOY OK ===
 ```
 
 What it does, in order:
@@ -37,8 +37,9 @@ What it does, in order:
 2. `git fetch` + `git reset --hard origin/main` — mirror the remote exactly (wipes any accidental local edits on the box)
 3. `composer install --no-dev` — install any new PHP deps
 4. `php artisan migrate --force` — run pending migrations
-5. Rebuild `config`, `route`, and `view` caches
-6. Print `=== DEPLOY OK ===` if every step succeeded (`&&` chain stops on the first error)
+5. `php artisan cache:clear` — **must come after migrate.** The app cache stores serialised Eloquent models, which carry the attribute set they had when written. A migration that adds or renames a column leaves warm entries silently missing it — reads return `null` instead of the real value, with no error, until the entry's TTL expires. Clearing here closes that window. Note `config:cache` and friends do *not* do this: they rebuild framework caches, not the application cache.
+6. Rebuild `config`, `route`, and `view` caches
+7. Print `=== DEPLOY OK ===` if every step succeeded (`&&` chain stops on the first error)
 
 No queue worker restart, no PHP-FPM reload — Windows PHP handler picks up changes on the next request. If a queue worker gets set up later (via Task Scheduler or NSSM), add `php artisan queue:restart` between the caches and the `echo`.
 

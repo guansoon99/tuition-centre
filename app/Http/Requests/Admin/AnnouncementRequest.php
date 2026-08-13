@@ -44,7 +44,7 @@ class AnnouncementRequest extends FormRequest
         // switching from text → image).
         $imageRequired = $type === Announcement::TYPE_IMAGE
             && (! $isUpdate || ! $existing?->image_path);
-        // Only jpeg/jpg/png/webp — no gif, bmp, svg. StoredFile
+        // Only jpeg/jpg/png/webp — no gif, bmp, svg. PublicFile
         // re-encodes to WebP on save regardless.
         $rules['image'] = [
             Rule::when($imageRequired, ['required'], ['nullable']),

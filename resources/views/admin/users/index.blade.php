@@ -14,9 +14,10 @@
              },
              deleteSelected() {
                  if (! this.selected.length) return;
-                 const msg = `Permanently delete ${this.selected.length} user(s)?\n\n`
+                 const msg = `Delete ${this.selected.length} user(s)?\n\n`
                      + `Your own account and any admin accounts in the selection will be skipped automatically. `
-                     + `Deleted users' enrollments, activity logs and history will be removed. This is NOT reversible.`;
+                     + `They will no longer be able to log in and will disappear from these lists. `
+                     + `Their enrollments, submissions and activity history are kept, and their usernames stay reserved.`;
                  if (! confirm(msg)) return;
                  this.$refs.bulkDeleteForm.submit();
              },
@@ -77,7 +78,7 @@
             <select name="role" onchange="this.form.submit()"
                     class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Roles</option>
-                @foreach (\Spatie\Permission\Models\Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name') as $r)
+                @foreach ($roleOptions as $r)
                     <option value="{{ $r }}" @selected(($filters['role'] ?? '') === $r)>{{ ucfirst($r) }}</option>
                 @endforeach
             </select>
@@ -85,7 +86,7 @@
             <select name="course" onchange="this.form.submit()"
                     class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Courses</option>
-                @foreach (\App\Models\Course::orderByDesc('created_at')->get(['id', 'name', 'code']) as $c)
+                @foreach ($courseOptions as $c)
                     <option value="{{ $c->id }}" @selected((string) ($filters['course'] ?? '') === (string) $c->id)>{{ $c->code }} — {{ $c->name }}</option>
                 @endforeach
             </select>

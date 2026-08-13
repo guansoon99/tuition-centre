@@ -137,14 +137,46 @@ class StudentSurfaceTest extends TestCase
         $this->assertSame(AccessLog::ACTION_VIEW, $log->action);
     }
 
-    public function test_recently_accessed_section_appears_after_visiting_course(): void
+    /**
+     * The "Recently accessed" strip is staff-only — see the guard in
+     * student/home.blade.php, added deliberately in beb15bb. Students get the
+     * full course list instead, so the strip would just be noise for them.
+     */
+    public function test_recently_accessed_strip_is_hidden_from_students(): void
     {
-        // Initial home: no recently accessed.
         $this->actingAs($this->student)->get('/')->assertDontSee('Recently accessed');
 
-        // Visit the course → bumps last_accessed_at.
+        // Visiting a course records the view...
         $this->actingAs($this->student)->get('/courses/'.$this->enrolled->slug);
 
-        $this->actingAs($this->student)->get('/')->assertSee('Recently accessed');
+        // ...but the strip still doesn't render for a student.
+        $this->actingAs($this->student)->get('/')->assertDontSee('Recently accessed');
+    }
+
+    public function test_recently_accessed_strip_appears_for_staff_after_visiting_a_course(): void
+    {
+        $staff = User::factory()->create(['is_active' => true]);
+        $staff->assignRole('admin');
+
+        // Nothing visited yet.
+        $this->actingAs($staff)->get('/')->assertDontSee('Recently accessed');
+
+        $this->actingAs($staff)->get('/courses/'.$this->enrolled->slug);
+
+        $this->actingAs($staff)->get('/')->assertSee('Recently accessed');
+    }
+
+    /**
+     * The visit is recorded regardless of who made it — only the rendering
+     * is role-gated. Guards against "fix" the display by dropping the write.
+     */
+    public function test_a_students_visit_is_still_recorded(): void
+    {
+        $this->actingAs($this->student)->get('/courses/'.$this->enrolled->slug);
+
+        $this->assertDatabaseHas('course_views', [
+            'user_id' => $this->student->id,
+            'course_id' => $this->enrolled->id,
+        ]);
     }
 }

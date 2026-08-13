@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Submission;
 use App\Services\SignedUrlService;
+use App\Support\PrivateFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -106,18 +106,18 @@ class MaterialController extends Controller
             abort(403);
         }
 
-        $disk = Storage::disk(config('filesystems.default'));
-
-        if (! $material->file_path || ! $disk->exists($material->file_path)) {
+        if (! PrivateFile::exists($material->file_path)) {
             abort(404);
         }
 
-        $filename = $material->title.'.pdf';
         $disposition = $request->query('disposition') === 'attachment' ? 'attachment' : 'inline';
 
-        return $disk->response($material->file_path, $filename, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
-        ]);
+        // Signature verified above — PrivateFile::response does no checks.
+        return PrivateFile::response(
+            $material->file_path,
+            $material->title.'.pdf',
+            'application/pdf',
+            $disposition,
+        );
     }
 }

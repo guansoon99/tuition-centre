@@ -10,49 +10,61 @@ use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 
 /**
- * Single abstraction for user-uploaded public files — banners, announcement
- * images, course banners, site logo, Quill inline images, etc.
+ * Shared behaviour for the two file stores. Do not use directly — pick the
+ * one that names the visibility you want:
  *
- * All storage / cleanup / URL generation for those files goes through here
- * so switching the underlying disk (local → Cloudflare R2, say) is a one-line
- * env change (UPLOADS_DISK=r2) rather than a codebase-wide refactor.
+ *   PublicFile   anything served straight off the web root with NO auth
+ *                check: banner slides, the site logo. Once stored, the file
+ *                is fetchable by anyone who has (or guesses) the URL.
  *
- * Reads the disk from config('filesystems.uploads_disk') which defaults to
- * 'public' (the local disk served via the /storage symlink).
+ *   PrivateFile  everything else: material PDFs, student submissions,
+ *                exports, imports. Unreachable by URL; the only way out is
+ *                through a controller that authorises the caller first.
+ *
+ * The split is deliberate and load-bearing. Reach for the wrong one and a
+ * file that should be gated becomes world-readable, with nothing failing to
+ * tell you. When adding an upload, ask "should a stranger be able to open
+ * this?" — if the answer is anything other than a confident yes, it is
+ * PrivateFile.
  */
-class StoredFile
+abstract class StoredFile
 {
     /** Max width — anything wider is scaled down (aspect preserved). */
-    private const IMAGE_MAX_WIDTH = 1600;
+    protected const IMAGE_MAX_WIDTH = 1600;
 
     /** WebP quality. 80-85 is imperceptible loss with a big size reduction. */
-    private const WEBP_QUALITY = 82;
+    protected const WEBP_QUALITY = 82;
 
     /**
-     * The disk name we're currently pointed at.
+     * Whether raster images are re-encoded on the way in. On for public
+     * assets (they're ours, and shrinking phone photos matters). Off for
+     * private files — a student's submitted work must land byte-for-byte as
+     * they uploaded it.
      */
-    public static function disk(): string
-    {
-        return config('filesystems.uploads_disk', 'public');
-    }
+    protected static bool $compressImages = false;
+
+    /** The disk this store writes to. */
+    abstract public static function disk(): string;
 
     /**
-     * Store an uploaded file under $folder on the configured disk.
-     * Returns the stored path (e.g. 'banner-slides/abc123.webp').
-     *
-     * Raster images (jpeg/png/webp) are transparently compressed on the way
-     * in: scaled down to IMAGE_MAX_WIDTH and re-encoded as WebP at
-     * WEBP_QUALITY. This typically shrinks phone-camera uploads by 90%+
-     * with no perceptible quality loss. Other file types (svg, gif, pdf,
-     * video, etc.) pass through unchanged.
+     * Store an uploaded file under $folder. Returns the stored path.
      */
     public static function store(UploadedFile $file, string $folder): string
     {
-        if (self::shouldCompress($file)) {
-            return self::storeCompressedImage($file, $folder);
+        if (static::$compressImages && static::shouldCompress($file)) {
+            return static::storeCompressedImage($file, $folder);
         }
 
-        return $file->store($folder, self::disk());
+        return $file->store($folder, static::disk());
+    }
+
+    /**
+     * Store under an explicit filename (no compression, no renaming).
+     * Used where the caller needs a deterministic name.
+     */
+    public static function storeAs(UploadedFile $file, string $folder, string $name): string
+    {
+        return $file->storeAs($folder, $name, static::disk());
     }
 
     /**
@@ -65,24 +77,15 @@ class StoredFile
             return;
         }
 
-        $disk = Storage::disk(self::disk());
+        $disk = Storage::disk(static::disk());
         if ($disk->exists($path)) {
             $disk->delete($path);
         }
     }
 
-    /**
-     * Public URL for a stored file. Works transparently for local (returns
-     * /storage/<path> via the symlink) and for cloud disks (returns the
-     * signed / public HTTPS URL configured on the disk).
-     */
-    public static function url(?string $path): ?string
+    public static function exists(?string $path): bool
     {
-        if (! $path) {
-            return null;
-        }
-
-        return Storage::disk(self::disk())->url($path);
+        return $path ? Storage::disk(static::disk())->exists($path) : false;
     }
 
     /**
@@ -92,7 +95,7 @@ class StoredFile
      *   - SVG → skip (vector, already tiny)
      *   - anything else (pdf, mp4, etc.) → skip
      */
-    private static function shouldCompress(UploadedFile $file): bool
+    protected static function shouldCompress(UploadedFile $file): bool
     {
         return in_array(strtolower($file->getMimeType() ?? ''), [
             'image/jpeg',
@@ -109,25 +112,27 @@ class StoredFile
      * Falls back to storing the raw upload untouched if Intervention throws
      * — better a large file than a broken upload.
      */
-    private static function storeCompressedImage(UploadedFile $file, string $folder): string
+    protected static function storeCompressedImage(UploadedFile $file, string $folder): string
     {
         try {
             $manager = ImageManager::gd();
             $image = $manager->read($file->getRealPath());
 
             // scaleDown only shrinks, never upscales — safe for small images.
-            if ($image->width() > self::IMAGE_MAX_WIDTH) {
-                $image->scaleDown(width: self::IMAGE_MAX_WIDTH);
+            if ($image->width() > static::IMAGE_MAX_WIDTH) {
+                $image->scaleDown(width: static::IMAGE_MAX_WIDTH);
             }
 
-            $encoded = $image->encode(new WebpEncoder(quality: self::WEBP_QUALITY));
+            $encoded = $image->encode(new WebpEncoder(quality: static::WEBP_QUALITY));
 
             $path = trim($folder, '/').'/'.Str::uuid().'.webp';
-            Storage::disk(self::disk())->put($path, (string) $encoded);
+            Storage::disk(static::disk())->put($path, (string) $encoded);
+
             return $path;
         } catch (\Throwable $e) {
             Log::warning('StoredFile: image compression failed, storing original — '.$e->getMessage());
-            return $file->store($folder, self::disk());
+
+            return $file->store($folder, static::disk());
         }
     }
 }

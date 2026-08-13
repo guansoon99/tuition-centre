@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Exports\UsersExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserRequest;
+use App\Models\Course;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class UserController extends Controller
@@ -26,7 +28,22 @@ class UserController extends Controller
         return view('admin.users.index', [
             'users' => $users,
             'filters' => $request->only(['q', 'role', 'active', 'course', 'enrollment']),
+            // Filter dropdown options. Passed in rather than queried from the
+            // Blade so every query this page runs is visible in one place.
+            'roleOptions' => $this->assignableRoles(),
+            'courseOptions' => Course::orderByDesc('created_at')->get(['id', 'name', 'code']),
         ]);
+    }
+
+    /**
+     * Roles an admin can hand out. `admin` is excluded — it's granted by
+     * seeding/tinker, never through the user form.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function assignableRoles()
+    {
+        return Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name');
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -93,15 +110,22 @@ class UserController extends Controller
     }
 
     /**
-     * Permanent bulk delete — hard removes selected users. Safety rails:
+     * Bulk delete — SOFT deletes the selected users. Safety rails:
      *   - Cannot delete the current user (would lock them out).
      *   - Cannot delete any admin (protects the admin realm from a bulk
      *     accident by a role holder who happens to have users.delete).
      *
-     * Skipped IDs are silently ignored — no flash message is set. Cascade
-     * FKs handle enrollments / access_logs / course_views / notifications;
-     * uploader references (materials/announcements/events) are nulled out
-     * by their FK on-delete rule, preserving the content.
+     * Soft delete means the row survives with deleted_at set, so:
+     *   - the user vanishes from every Eloquent query and can no longer log
+     *     in (Laravel's auth provider applies the global scope), but
+     *   - their enrollments, access logs, submissions and grades are all
+     *     preserved, and the account can be restored.
+     *
+     * Nothing cascades, precisely because nothing is really deleted — a soft
+     * delete is an UPDATE, and ON DELETE CASCADE only fires on a DELETE.
+     * That's the intent here: the history is the point.
+     *
+     * Skipped IDs are silently ignored — no flash message is set.
      */
     public function bulkDestroy(Request $request): RedirectResponse
     {
@@ -135,7 +159,7 @@ class UserController extends Controller
 
     public function create(): View
     {
-        return view('admin.users.create');
+        return view('admin.users.create', ['roleOptions' => $this->assignableRoles()]);
     }
 
     public function store(UserRequest $request): RedirectResponse
@@ -163,7 +187,10 @@ class UserController extends Controller
 
     public function edit(User $user): View
     {
-        return view('admin.users.edit', ['user' => $user]);
+        return view('admin.users.edit', [
+            'user' => $user,
+            'roleOptions' => $this->assignableRoles(),
+        ]);
     }
 
     public function update(UserRequest $request, User $user): RedirectResponse

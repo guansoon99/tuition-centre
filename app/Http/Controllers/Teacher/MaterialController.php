@@ -8,11 +8,11 @@ use App\Http\Requests\Teacher\UpdateMaterialRequest;
 use App\Models\Material;
 use App\Models\Section;
 use App\Support\HtmlSanitizer;
+use App\Support\PrivateFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -51,7 +51,7 @@ class MaterialController extends Controller
             $upload = $request->file('file');
             $courseId = $section->course_id;
             $name = Str::uuid().'.pdf';
-            $path = $upload->storeAs("materials/{$courseId}/{$section->id}", $name);
+            $path = PrivateFile::storeAs($upload, "materials/{$courseId}/{$section->id}", $name);
 
             $data['file_path'] = $path;
             $data['file_size_bytes'] = $upload->getSize();
@@ -111,12 +111,12 @@ class MaterialController extends Controller
         if ($type === Material::TYPE_PDF) {
             if ($request->hasFile('file')) {
                 if ($material->file_path) {
-                    Storage::delete($material->file_path);
+                    PrivateFile::forget($material->file_path);
                 }
                 $upload = $request->file('file');
                 $courseId = $material->section->course_id;
                 $name = Str::uuid().'.pdf';
-                $data['file_path'] = $upload->storeAs("materials/{$courseId}/{$material->section_id}", $name);
+                $data['file_path'] = PrivateFile::storeAs($upload, "materials/{$courseId}/{$material->section_id}", $name);
                 $data['file_size_bytes'] = $upload->getSize();
             } else {
                 // No new upload — keep the existing PDF file.
@@ -126,7 +126,7 @@ class MaterialController extends Controller
         } else {
             // Switched away from PDF — clean up the orphaned file.
             if ($wasPdf && $material->file_path) {
-                Storage::delete($material->file_path);
+                PrivateFile::forget($material->file_path);
             }
 
             if ($type === Material::TYPE_TEXT || $type === Material::TYPE_PAGE) {
@@ -193,7 +193,7 @@ class MaterialController extends Controller
         $course = $material->section->course;
 
         if ($material->file_path) {
-            Storage::delete($material->file_path);
+            PrivateFile::forget($material->file_path);
         }
         $material->delete();
 

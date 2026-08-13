@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\StoredFile;
+use App\Support\PublicFile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,7 +30,7 @@ class Course extends Model
 
     protected function bannerImageUrl(): Attribute
     {
-        return Attribute::get(fn () => StoredFile::url($this->banner_image));
+        return Attribute::get(fn () => PublicFile::url($this->banner_image));
     }
 
     public function getRouteKeyName(): string

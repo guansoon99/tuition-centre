@@ -142,11 +142,23 @@ cd /var/www/tuition
 git fetch && git reset --hard origin/main
 composer install --no-dev --optimize-autoloader
 php artisan migrate --force
+php artisan cache:clear        # AFTER migrate — see note below
 php artisan config:cache route:cache view:cache
 php artisan filament:cache-components
 php artisan queue:restart   # tells supervisor workers to reload
 sudo systemctl reload php8.3-fpm
 ```
+
+**Why `cache:clear` belongs there:** the application cache stores serialised
+Eloquent models, and a serialised model carries the attribute set it had when
+it was written. Deploy a migration that adds or renames a column and any warm
+entry deserialises without it — reads return `null` rather than the real
+value, silently, until that entry's TTL expires. Clearing straight after
+`migrate` closes the window.
+
+`config:cache` / `route:cache` / `view:cache` do **not** cover this. They
+rebuild framework caches; the application cache is separate and untouched by
+them.
 
 ## Local dev
 

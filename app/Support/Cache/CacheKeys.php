@@ -4,15 +4,9 @@ namespace App\Support\Cache;
 
 class CacheKeys
 {
-    public const TTL_COURSE_DETAIL = 600;
     public const TTL_ENROLLED = 300;
     public const TTL_RECENT = 60;
     public const TTL_COURSE_MEMBERSHIPS = 3600;
-
-    public static function courseDetail(int $courseId): string
-    {
-        return "course:{$courseId}:detail";
-    }
 
     /**
      * Course list shown on the Home page. Populated by Student\HomeController

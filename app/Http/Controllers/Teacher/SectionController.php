@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Support\StoredFile;
+use App\Support\PublicFile;
 use Illuminate\View\View;
 
 class SectionController extends Controller
@@ -132,14 +132,14 @@ class SectionController extends Controller
     {
         $request->validate([
             // Only jpeg/jpg/png/webp — matches the site-wide rule for all
-            // admin image uploads. StoredFile re-encodes to WebP on save.
+            // admin image uploads. PublicFile re-encodes to WebP on save.
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        $path = StoredFile::store($request->file('image'), 'section-text-images');
+        $path = PublicFile::store($request->file('image'), 'section-text-images');
 
         return response()->json([
-            'url' => StoredFile::url($path),
+            'url' => PublicFile::url($path),
         ]);
     }
 
@@ -151,10 +151,10 @@ class SectionController extends Controller
             'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime'],
         ]);
 
-        $path = StoredFile::store($request->file('video'), 'section-text-videos');
+        $path = PublicFile::store($request->file('video'), 'section-text-videos');
 
         return response()->json([
-            'url' => StoredFile::url($path),
+            'url' => PublicFile::url($path),
         ]);
     }
 

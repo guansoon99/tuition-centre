@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\StoredFile;
+use App\Support\PublicFile;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +26,6 @@ class BannerSlide extends Model
 
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn () => StoredFile::url($this->image_path));
+        return Attribute::get(fn () => PublicFile::url($this->image_path));
     }
 }

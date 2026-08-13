@@ -7,18 +7,43 @@ use App\Models\Enrollment;
 use App\Models\Material;
 use App\Models\Section;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Database\Seeders\RolesAndPermissionsSeeder;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
+/**
+ * Course-content permissions for teaching staff.
+ *
+ * Two separate things both get called "teacher" here, and the distinction is
+ * the whole point of these tests:
+ *
+ *   1. A Spatie ROLE carrying the `sections.manage` permission. There is no
+ *      built-in one — the seeder ships only `admin` and `student`, and an
+ *      admin creates whatever staff roles they want through the Roles UI.
+ *      So the test creates it, exactly as an admin would.
+ *
+ *   2. enrollments.role_on_course = 'teacher', which says this user teaches
+ *      THIS course.
+ *
+ * SectionPolicy/MaterialPolicy require BOTH:
+ *
+ *     $user->can('sections.manage') && $user->teaches($course)
+ *
+ * The permission alone is not enough, which is what stops one staff member
+ * editing another's course. $otherTeacher exists to hold that line: same
+ * role, same permission, no enrollment on $course.
+ */
 class TeacherCrudTest extends TestCase
 {
     use RefreshDatabase;
 
     private User $teacher;
+
     private User $otherTeacher;
+
     private Course $course;
 
     protected function setUp(): void
@@ -26,11 +51,18 @@ class TeacherCrudTest extends TestCase
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
 
-        $this->teacher = User::factory()->create(['username' => 'tA', 'password' => 'p']);
-        $this->teacher->assignRole('teacher');
+        // Stand up a staff role the way an admin would: create it, then tick
+        // the permissions. Nothing in the app ships a role by this name.
+        $staffRole = Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
+        $staffRole->givePermissionTo('sections.manage');
 
+        $this->teacher = User::factory()->create(['username' => 'tA', 'password' => 'p']);
+        $this->teacher->assignRole($staffRole);
+
+        // Same role and permission — differs only in having no enrollment on
+        // $course. Every "cannot" case below leans on that.
         $this->otherTeacher = User::factory()->create(['username' => 'tB', 'password' => 'p']);
-        $this->otherTeacher->assignRole('teacher');
+        $this->otherTeacher->assignRole($staffRole);
 
         $this->course = Course::factory()->create();
         // Direct insert — attach() on the belongsToMany wouldn't set
@@ -42,6 +74,21 @@ class TeacherCrudTest extends TestCase
             'enrolled_at' => now(),
             'is_active' => true,
         ]);
+    }
+
+    /**
+     * The permission on its own grants nothing — it has to be paired with a
+     * teacher enrollment on the specific course. Pins the exact split that
+     * makes custom staff roles safe to hand out.
+     */
+    public function test_permission_alone_does_not_grant_access_to_a_course(): void
+    {
+        $this->assertTrue($this->otherTeacher->can('sections.manage'));
+        $this->assertFalse($this->otherTeacher->teaches($this->course));
+
+        $this->actingAs($this->otherTeacher)
+            ->get(route('courses.edit', [$this->course, 'tab' => 'materials']))
+            ->assertForbidden();
     }
 
     public function test_assigned_teacher_can_create_section(): void
@@ -84,7 +131,7 @@ class TeacherCrudTest extends TestCase
                 'sort_order' => 1,
                 'is_published' => '1',
             ])
-            ->assertRedirect(route('courses.edit', [$this->course, 'tab' => 'sections']));
+            ->assertRedirect(route('courses.edit', [$this->course, 'tab' => 'materials']));
 
         $material = Material::where('title', '【上课资料】Minggu 1')->first();
         $this->assertNotNull($material);

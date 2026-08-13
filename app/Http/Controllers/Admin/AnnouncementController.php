@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AnnouncementRequest;
 use App\Models\Announcement;
 use App\Models\Course;
-use App\Support\StoredFile;
+use App\Support\PrivateFile;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -53,7 +53,7 @@ class AnnouncementController extends Controller
         ];
 
         if ($type === Announcement::TYPE_IMAGE && $request->hasFile('image')) {
-            $data['image_path'] = StoredFile::store($request->file('image'), 'announcement-images');
+            $data['image_path'] = PrivateFile::store($request->file('image'), 'announcement-images');
         }
 
         Announcement::create($data);
@@ -89,7 +89,7 @@ class AnnouncementController extends Controller
             $data['body'] = $request->input('body');
             // Switching from image → text: delete the old image file and clear the path.
             if ($announcement->type === Announcement::TYPE_IMAGE && $announcement->image_path) {
-                StoredFile::forget($announcement->image_path);
+                PrivateFile::forget($announcement->image_path);
                 $data['image_path'] = null;
             }
         } else { // TYPE_IMAGE
@@ -97,9 +97,9 @@ class AnnouncementController extends Controller
             if ($request->hasFile('image')) {
                 // New/replacement image: delete any old file first.
                 if ($announcement->image_path) {
-                    StoredFile::forget($announcement->image_path);
+                    PrivateFile::forget($announcement->image_path);
                 }
-                $data['image_path'] = StoredFile::store($request->file('image'), 'announcement-images');
+                $data['image_path'] = PrivateFile::store($request->file('image'), 'announcement-images');
             }
             // Otherwise keep the existing image_path (validation ensures one
             // exists when switching text → image).
@@ -115,7 +115,7 @@ class AnnouncementController extends Controller
     public function destroy(Announcement $announcement): RedirectResponse
     {
         if ($announcement->image_path) {
-            StoredFile::forget($announcement->image_path);
+            PrivateFile::forget($announcement->image_path);
         }
         $announcement->delete();
 

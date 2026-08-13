@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
+use App\Support\PrivateFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -62,12 +62,13 @@ class SubmissionController extends Controller
             }
 
             $courseId = $material->section->course_id;
-            $disk = Storage::disk(config('filesystems.default'));
 
             foreach ($request->file('files') as $upload) {
                 $ext = strtolower($upload->getClientOriginalExtension() ?: 'bin');
                 $name = Str::uuid().'.'.$ext;
-                $path = $upload->storeAs("submissions/{$courseId}/{$material->id}/{$user->id}", $name);
+                // PrivateFile: student work must never be reachable by URL,
+                // and must land byte-for-byte as uploaded (no re-encoding).
+                $path = PrivateFile::storeAs($upload, "submissions/{$courseId}/{$material->id}/{$user->id}", $name);
 
                 $submission->files()->create([
                     'file_path' => $path,
@@ -101,7 +102,7 @@ class SubmissionController extends Controller
             return back()->withErrors(['files' => 'Submissions are closed — files cannot be removed.']);
         }
 
-        Storage::disk(config('filesystems.default'))->delete($file->file_path);
+        PrivateFile::forget($file->file_path);
         $file->delete();
 
         return redirect()
@@ -127,16 +128,16 @@ class SubmissionController extends Controller
             abort(403);
         }
 
-        $disk = Storage::disk(config('filesystems.default'));
-
-        if (! $disk->exists($file->file_path)) {
+        if (! PrivateFile::exists($file->file_path)) {
             abort(404);
         }
 
-        return $disk->response($file->file_path, $file->original_name, [
-            'Content-Type' => $file->mime_type ?? 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="'.addslashes($file->original_name).'"',
-        ]);
+        // Authorised above — PrivateFile::response performs no checks itself.
+        return PrivateFile::response(
+            $file->file_path,
+            $file->original_name,
+            $file->mime_type ?? 'application/octet-stream',
+        );
     }
 
     private function assertIsAssignment(Material $material): void

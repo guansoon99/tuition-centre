@@ -8,7 +8,6 @@
 
     @php
         $currentRole = old('role', $user?->roles->first()?->name ?? 'student');
-        $allRoles = \Spatie\Permission\Models\Role::where('name', '!=', 'admin')->orderBy('name')->pluck('name');
         // Only admins can change a user's role. Others see the pills read-only.
         $canAssignRole = auth()->user()?->hasRole('admin') ?? false;
     @endphp
@@ -21,7 +20,7 @@
             @endunless
         </label>
         <div class="flex flex-wrap gap-2">
-            @foreach ($allRoles as $r)
+            @foreach ($roleOptions as $r)
                 <label class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white
                               {{ $canAssignRole ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-70' }}">
                     <input type="radio" name="role" value="{{ $r }}"
