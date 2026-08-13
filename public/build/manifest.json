@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-CXBxAZnT.css",
+    "file": "assets/app-BoWOpCzr.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -9,5 +9,14 @@
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
+  },
+  "resources/js/calendar.js": {
+    "file": "assets/calendar-CgLTc1_N.js",
+    "name": "calendar",
+    "src": "resources/js/calendar.js",
+    "isEntry": true,
+    "css": [
+      "assets/calendar-CksuuEqD.css"
+    ]
   }
 }

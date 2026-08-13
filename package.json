@@ -13,6 +13,11 @@
         "vite": "^6.4.3"
     },
     "dependencies": {
-        "alpinejs": "^3.16.1"
+        "@fullcalendar/core": "^6.1.21",
+        "@fullcalendar/daygrid": "^6.1.21",
+        "@fullcalendar/interaction": "^6.1.21",
+        "@fullcalendar/list": "^6.1.21",
+        "alpinejs": "^3.16.1",
+        "flatpickr": "^4.6.13"
     }
 }

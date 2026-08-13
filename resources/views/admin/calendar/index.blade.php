@@ -171,8 +171,8 @@
 @endsection
 
 @push('head')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    {{-- FullCalendar and flatpickr styles now ship inside the calendar bundle
+         (see resources/js/calendar.js) rather than coming from a CDN. --}}
     <style>
         /* Moodle-style airy calendar grid. */
         .fc {
@@ -256,8 +256,10 @@
 @endpush
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    {{-- Calendar-only bundle: FullCalendar (dayGrid + list + interaction) and
+         flatpickr. Exposes window.FullCalendar / window.flatpickr so the
+         inline code below is unchanged. Loaded only on this page. --}}
+    @vite('resources/js/calendar.js')
     <script>
         // Emit the palette as a JS global, kept out of the x-data attribute
         // so Blade output doesn't collide with the attribute's quotes.
