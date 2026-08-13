@@ -300,10 +300,20 @@ server {
         fastcgi_read_timeout 300;
     }
 
-    # Long-term cache for built static assets.
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
-        expires 1M;
+    # Vite content-hashes these (app-CDOQqzMD.js), so the filename changes
+    # whenever the contents do. That makes a year safe — and correct, since a
+    # shorter TTL just makes returning students re-download identical bytes.
+    location ^~ /build/ {
+        expires 1y;
         add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # Everything else static. Note webp: the material icons are webp, and
+    # leaving it out of this list silently excludes them from caching.
+    location ~* \.(js|css|png|jpg|jpeg|gif|webp|avif|ico|svg|woff2?|ttf)$ {
+        expires 1M;
+        add_header Cache-Control "public";
     }
 
     location ~ /\.(?!well-known).* { deny all; }
@@ -341,10 +351,42 @@ sudo certbot --nginx -d your-domain.tld
 
 - Proxy the apex/subdomain through Cloudflare (orange cloud).
 - SSL/TLS mode: Full (strict).
-- Cache rule: cache `*.css`, `*.js`, `*.woff2`, `*.png`, `*.jpg`, `*.svg` for 1 month.
-- Page rule: bypass cache on `/admin/*`, `/teach/*`, `/account*`, `/login`, `/logout`, `/materials/*`.
+- Cache rule — **`/build/*` for 1 year**. Those filenames are content-hashed,
+  so a new deploy produces new URLs and stale bytes are impossible.
+- Cache rule — 1 month for `*.css`, `*.js`, `*.woff2`, `*.ttf`, `*.png`,
+  `*.jpg`, `*.svg`, **`*.webp`**, `*.ico`.
+  ⚠️ `webp` is easy to forget and matters here: the material icons are webp, so
+  omitting it excludes the most-requested images on every course page.
+- Bypass cache on `/admin/*`, `/teach/*`, `/account*`, `/login`, `/logout`,
+  `/materials/*`, and **`/announcement-images/*`**.
+  ⚠️ That last one is not decoration. Announcement images are authorised
+  per-user through `User::visibleAnnouncements()`, and the URL contains only
+  the announcement id — so a cached response would be served to users who are
+  not permitted to see it.
 - WAF: enable "Bot Fight Mode" and the OWASP Core ruleset on the free plan.
 - Rate limit `/login` to 10 req/min per IP.
+
+### Don't enable "Cache Everything"
+
+The rules above are safe because Cloudflare's default cache level only caches
+by file extension and never caches a response carrying `Set-Cookie` — and
+Laravel sets a session cookie on every response. A "Cache Everything" rule
+removes both protections at once.
+
+Every HTML page here is per-user: `/` renders differently signed in, and
+course pages depend on enrolment. Caching HTML at the edge would serve one
+student's page to another. There is no version of this worth the risk.
+
+### How much is the CDN actually buying you?
+
+Be clear-eyed: **it can only ever cache static assets**, because none of the
+HTML is cacheable. Your entire static payload is four content-hashed build
+files plus a handful of icons — small, and already served once per student per
+deploy.
+
+The CDN is worth configuring for TLS, WAF, login rate-limiting and DDoS
+absorption. It is not what makes the app fast. [OPcache](#opcache--verify-its-actually-on)
+and direct-to-R2 uploads are, and both are settled elsewhere in this document.
 
 ## Going live checklist
 
