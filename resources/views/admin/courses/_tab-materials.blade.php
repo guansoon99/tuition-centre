@@ -122,7 +122,7 @@
                                                     <path d="M7 4a1 1 0 100 2 1 1 0 000-2zM7 9a1 1 0 100 2 1 1 0 000-2zM7 14a1 1 0 100 2 1 1 0 000-2zM13 4a1 1 0 100 2 1 1 0 000-2zM13 9a1 1 0 100 2 1 1 0 000-2zM13 14a1 1 0 100 2 1 1 0 000-2z" />
                                                 </svg>
                                             </button>
-                                            <div class="flex-1"><x-material-item :material="$material" /></div>
+                                            <div class="flex-1">@include('partials.material-item', ['material' => $material])</div>
                                             <button type="button"
                                                     @click="openMaterial = {{ $material->id }}"
                                                     title="Edit material"

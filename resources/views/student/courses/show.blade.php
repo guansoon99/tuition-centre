@@ -82,7 +82,7 @@
                             @else
                                 <div class="divide-y divide-slate-100">
                                     @foreach ($visibleMaterials as $material)
-                                        <x-material-item :material="$material" />
+                                        @include('partials.material-item', ['material' => $material])
                                     @endforeach
                                 </div>
                             @endif
