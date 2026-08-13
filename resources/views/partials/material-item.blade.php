@@ -63,14 +63,8 @@
     @endphp
     <div class="flex gap-3 px-3 py-2">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
-            {{-- Text: same document outline as the PDF icon, with lines inside --}}
-            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M8 14h8M8 18h5"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <img src="{{ asset('images/icons/docs.webp') }}" alt="Text"
+                 class="h-7 w-7 object-contain" />
         </span>
         <div class="min-w-0 flex-1">
             @if (trim($material->title) !== '' && $material->title !== 'Text')
@@ -108,15 +102,8 @@
     <a href="{{ route('materials.view', $material) }}"
        class="flex gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
-            {{-- Clipboard-with-check icon --}}
-            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 2h6a1 1 0 011 1v2H8V3a1 1 0 011-1z"
-                      stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-                <path d="M8 5H6a2 2 0 00-2 2v13a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <img src="{{ asset('images/icons/assignment.webp') }}" alt="Assignment"
+                 class="h-7 w-7 object-contain" />
         </span>
         <div class="min-w-0 flex-1">
             <p class="truncate text-black">
@@ -146,26 +133,14 @@
        class="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
             @if ($type === \App\Models\Material::TYPE_PDF)
-                {{-- PDF: document outline with "PDF" text inside --}}
-                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <text x="12" y="18.5" text-anchor="middle" font-size="7" font-weight="800"
-                          font-family="Arial, sans-serif" fill="currentColor">PDF</text>
-                </svg>
+                <img src="{{ asset('images/icons/pdf.webp') }}" alt="PDF"
+                     class="h-7 w-7 object-contain" />
             @elseif ($type === \App\Models\Material::TYPE_PAGE)
-                {{-- Page: same icon as Text (they're the same underlying "type" in the UI) --}}
-                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M8 14h8M8 18h5"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                {{-- Page shares the Text icon — same underlying "type" in the UI. --}}
+                <img src="{{ asset('images/icons/docs.webp') }}" alt="Page"
+                     class="h-7 w-7 object-contain" />
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
-                {{-- External link: custom icon --}}
-                <img src="{{ asset('images/icons/url.png') }}" alt="Link"
+                <img src="{{ asset('images/icons/url.webp') }}" alt="Link"
                      class="h-7 w-7 object-contain" />
             @else
                 {{-- Fallback: generic file icon --}}
