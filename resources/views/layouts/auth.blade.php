@@ -10,9 +10,7 @@
         <link rel="icon" href="{{ $favicon }}">
         <link rel="apple-touch-icon" href="{{ $favicon }}">
     @endif
-    <script src="https://cdn.tailwindcss.com"></script>
-    @include('partials.tailwind-config')
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
     <main class="flex min-h-screen items-center justify-center p-4">

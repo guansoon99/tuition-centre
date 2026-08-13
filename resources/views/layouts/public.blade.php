@@ -9,10 +9,7 @@
         <link rel="icon" href="{{ $favicon }}">
         <link rel="apple-touch-icon" href="{{ $favicon }}">
     @endif
-    <script src="https://cdn.tailwindcss.com"></script>
-    @include('partials.tailwind-config')
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>[x-cloak] { display: none !important; }</style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex min-h-screen flex-col bg-white text-slate-800 antialiased">
     <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">

@@ -9,6 +9,7 @@ The staging box is a Hetzner **Windows Server 2019/2022 VPS** at `135.181.95.15`
 | PHP 8.3 | `C:\tools\php83\php.exe` |
 | Composer | `C:\ProgramData\ComposerSetup\bin\composer.bat` |
 | Git | `C:\Program Files\Git\cmd\git.exe` |
+| Node + npm | **not installed** — assets are built locally and committed, see "Front-end assets" |
 | OpenSSH Server | Windows built-in capability, service name `sshd`, port 22 |
 | App checkout | `C:\Users\Administrator\tuition-centre` (git-tracked, tracks `origin/main`) |
 
@@ -79,6 +80,33 @@ if (!(Test-Path 'HKLM:\SOFTWARE\OpenSSH')) { New-Item -Path 'HKLM:\SOFTWARE\Open
 New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -PropertyType String -Force
 Restart-Service sshd
 ```
+
+## Front-end assets
+
+CSS and JS are built by Vite (Tailwind + Alpine) into `public/build/`. They
+used to come from CDNs at runtime; the Tailwind Play CDN alone was 397 KB and
+compiled stylesheets in the browser on every page load.
+
+The server has **no Node installed**, and deploys are a plain
+`git reset --hard`. So `public/build/` is deliberately committed to the repo
+(it's excluded from `.gitignore` on purpose) and the compiled assets travel
+down with the code.
+
+That means the build has to run *before* committing, on whichever machine
+changed a template:
+
+```bash
+npm install     # first time only
+npm run build   # regenerates public/build/
+```
+
+If you edit a Blade file and add a Tailwind class that has never been used
+anywhere else, **you must rebuild** — Tailwind only emits CSS for classes it
+finds by scanning the paths in `tailwind.config.js`. Forget, and the new class
+silently has no styling. Nothing errors.
+
+`npm run dev` runs a hot-reloading server for local work; it is never used on
+the server.
 
 ## Common issues
 

@@ -5,7 +5,13 @@
 /storage/app/exports
 /node_modules
 /docs/node_modules
-/public/build
+# NOTE: /public/build is deliberately NOT ignored. The server has no Node
+# installed, so deploys are a plain `git reset --hard` — the compiled CSS/JS
+# has to travel with the code. Run `npm run build` before committing any
+# template change that introduces a new Tailwind class.
+# /public/hot must stay ignored: it's the marker `npm run dev` writes, and if
+# it ever reached the server every page would try to load assets from a dev
+# server that isn't running.
 /public/hot
 /public/storage
 
