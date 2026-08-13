@@ -7,12 +7,29 @@ Target: single VPS (Contabo Singapore or similar), 4 GB RAM is enough for 500–
 ```bash
 # Ubuntu 22.04 / 24.04
 sudo apt-get update
-sudo apt-get install -y nginx mysql-server redis-server certbot python3-certbot-nginx \
-    php8.3-fpm php8.3-cli php8.3-mysql php8.3-redis php8.3-mbstring php8.3-xml \
+sudo apt-get install -y nginx mysql-server certbot python3-certbot-nginx \
+    php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml \
     php8.3-curl php8.3-zip php8.3-intl php8.3-gd php8.3-bcmath php8.3-sqlite3 \
-    supervisor unzip git
+    unzip git
 curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 ```
+
+**No Redis and no supervisor at launch — deliberately.** Cache and sessions
+both use the `file` driver, which on a single app server is a sub-millisecond
+file op that the OS page-caches, and `app/Jobs` is empty so there is nothing
+for a worker to consume. Installing either would be a service to run, secure
+and monitor in exchange for a fraction of a millisecond.
+
+Add `redis-server php8.3-redis` (and flip `CACHE_DRIVER`/`SESSION_DRIVER`) when
+one of these becomes true:
+
+- a **second app server** — `file` cache and sessions are per-box, so both have
+  to move to a shared store together
+- **background jobs** appear (`app/Jobs` stops being empty), which also means
+  `supervisor` and `QUEUE_CONNECTION=redis`
+- **real-time features** needing pub/sub
+
+See `.env.production.example`, which records the same decision.
 
 ## PHP-FPM tuning (`/etc/php/8.3/fpm/pool.d/www.conf`)
 
