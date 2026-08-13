@@ -82,6 +82,37 @@ class MaterialController extends Controller
         return view('teacher.materials.edit', ['material' => $material]);
     }
 
+    /**
+     * Body of the edit-material modal on the course Materials tab, fetched
+     * when the user actually opens it.
+     *
+     * It used to be rendered inline for every material on the page. A course
+     * with 72 materials shipped ~1.8 MB of HTML and initialised a Quill
+     * editor per text/assignment material at page load, all of it hidden.
+     *
+     * Returns a bare fragment — no layout — for the caller to inject.
+     */
+    public function editModal(Material $material): View
+    {
+        $this->authorize('update', $material);
+
+        return view('admin.courses._material-modal-body', ['material' => $material]);
+    }
+
+    /**
+     * Body of the "Add Resource" modal, fetched when opened.
+     *
+     * Same reasoning as editModal(): this was rendered once per section, and
+     * the form it wraps pushes a few hundred lines of Quill styles/scripts
+     * that aren't @once-guarded, so they were duplicated per section too.
+     */
+    public function createModal(Section $section): View
+    {
+        $this->authorize('create', [Material::class, $section]);
+
+        return view('admin.courses._material-create-modal-body', ['section' => $section]);
+    }
+
     public function update(UpdateMaterialRequest $request, Material $material): RedirectResponse
     {
         $type = $request->input('type');

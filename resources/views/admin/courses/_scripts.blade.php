@@ -228,15 +228,77 @@
                 + String(dt.getHours()).padStart(2, '0') + ':'
                 + String(dt.getMinutes()).padStart(2, '0');
         };
+        // Shared flatpickr options, reused when wiring up markup that arrives
+        // after page load (the lazily-fetched edit-material modal).
+        window.FLATPICKR_OPTS = {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: 'Y-m-d H:i',
+            minuteIncrement: 5,
+            allowInput: false,
+            disableMobile: true,
+        };
+
+        /**
+         * Backing component for the shared modals on the Materials tab —
+         * "Edit material" and "Add Resource".
+         *
+         * Both bodies are fetched when the modal opens instead of being
+         * rendered inline for every material/section. On a 72-material course
+         * that inline markup was ~1.2 MB of the page, and each copy's x-init
+         * spun up a hidden Quill editor before the user clicked anything.
+         *
+         * `urlTemplate` uses {id} as the placeholder; it defaults to the
+         * edit-material endpoint.
+         */
+        window.materialEditModal = function () {
+            return {
+                loading: false,
+                failed: false,
+                loadedId: null,
+
+                reset() {
+                    this.$refs.body.innerHTML = '';
+                    this.loadedId = null;
+                    this.failed = false;
+                    this.loading = false;
+                },
+
+                async load(id, urlTemplate = '/materials/{id}/edit-modal') {
+                    if (id === null || id === this.loadedId) return;
+
+                    this.loading = true;
+                    this.failed = false;
+                    this.$refs.body.innerHTML = '';
+
+                    try {
+                        const res = await fetch(urlTemplate.replace('{id}', id), {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!res.ok) throw new Error(res.status);
+
+                        this.$refs.body.innerHTML = await res.text();
+                        this.loadedId = id;
+
+                        // The fragment carries its own x-data/x-init, so Alpine
+                        // has to be told to walk the newly inserted subtree.
+                        window.Alpine.initTree(this.$refs.body);
+
+                        // Date pickers don't survive being injected as raw HTML.
+                        this.$refs.body
+                            .querySelectorAll('[data-flatpickr]')
+                            .forEach(el => flatpickr(el, window.FLATPICKR_OPTS));
+                    } catch (e) {
+                        this.failed = true;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+            };
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
-            flatpickr('[data-flatpickr]', {
-                enableTime: true,
-                time_24hr: true,
-                dateFormat: 'Y-m-d H:i',
-                minuteIncrement: 5,
-                allowInput: false,
-                disableMobile: true,
-            });
+            flatpickr('[data-flatpickr]', window.FLATPICKR_OPTS);
             document.querySelectorAll('[data-search-select]').forEach(el => {
                 new TomSelect(el, { create: false, allowEmptyOption: true });
             });

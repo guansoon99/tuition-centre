@@ -116,9 +116,15 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::delete('/sections/{section}', [TeacherSectionController::class, 'destroy'])->name('sections.destroy');
 
         Route::get('/sections/{section}/materials/create', [TeacherMaterialController::class, 'create'])->name('materials.create');
+        Route::get('/sections/{section}/materials/create-modal', [TeacherMaterialController::class, 'createModal'])
+            ->name('materials.create-modal');
         Route::post('/sections/{section}/materials', [TeacherMaterialController::class, 'store'])->name('materials.store');
         Route::patch('/sections/{section}/materials/reorder', [TeacherMaterialController::class, 'reorder'])->name('materials.reorder');
         Route::get('/materials/{material}/edit', [TeacherMaterialController::class, 'edit'])->name('materials.edit');
+        // Fragment for the edit modal on the Materials tab — loaded on open
+        // so the page doesn't ship one copy per material.
+        Route::get('/materials/{material}/edit-modal', [TeacherMaterialController::class, 'editModal'])
+            ->name('materials.edit-modal');
         Route::patch('/materials/{material}', [TeacherMaterialController::class, 'update'])->name('materials.update');
         Route::delete('/materials/{material}', [TeacherMaterialController::class, 'destroy'])->name('materials.destroy');
 
