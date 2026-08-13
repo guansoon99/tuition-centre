@@ -25,4 +25,5 @@
 @include('teacher.materials._form', [
     'action' => route('materials.store', $section),
     'material' => null,
+    'course' => $section->course,
 ])

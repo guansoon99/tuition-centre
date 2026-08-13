@@ -12,29 +12,24 @@ use Illuminate\Support\Facades\Storage;
  * URL — no login, no permission check, no PHP involved. `public/storage` is
  * a symlink to this disk, so the web server hands the file over directly.
  *
- * What lives here, and why:
+ * What lives here, and why — the list is short on purpose:
  *
  *   - banner slides       landing page, shown to guests before any login
  *   - the site logo       login page, so it must load without a session
  *   - course banners      course artwork
- *   - section images      inline in lesson rich text
- *   - section videos      inline in lesson rich text
  *
- * The last three are a deliberate choice, not an oversight. Making them
- * private is possible — a route that authorises then redirects to a signed
- * URL — but it was weighed and rejected: an enrolled student can screenshot or
- * screen-record either way, so gating raises the effort of leaking content
- * without preventing it. The URLs are UUID-based and never listed, so this is
- * unlisted-video privacy: fine for material the school produced, and not
- * access control.
+ * The first two have no alternative: there is no session to authorise against
+ * when they render.
  *
- * That reasoning covers content. It does NOT cover anything belonging to a
- * person. Student submissions, material PDFs and announcement images are on
- * PrivateFile and must stay there — a submission is a child's work, not
- * course content. If you are unsure which a new upload is, it is PrivateFile.
+ * Lesson content is NOT here. Inline section images and videos moved to
+ * CourseMedia (private, served through CourseMediaController) so that a URL
+ * pasted into a group chat gives a non-student nothing — matching the Moodle
+ * install this replaces, where pluginfile.php gates every course file.
  *
- * ⚠ Anything added here is fetchable by anyone with the URL, permanently.
- * There is no expiry and no revocation short of deleting the object.
+ * ⚠ Anything added here is fetchable by anyone who ever obtains the URL,
+ * permanently. No expiry, no revocation short of deleting the object. If a
+ * new upload belongs to a person or a course, it belongs in PrivateFile or
+ * CourseMedia. If you are unsure, it is not this class.
  *
  * Audit what is world-readable at any time with:  grep -rn "PublicFile::store"
  */

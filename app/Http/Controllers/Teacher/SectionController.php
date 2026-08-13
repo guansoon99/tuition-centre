@@ -8,11 +8,9 @@ use App\Http\Requests\Teacher\UpdateSectionRequest;
 use App\Models\Course;
 use App\Models\Section;
 use App\Support\HtmlSanitizer;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Support\PublicFile;
 use Illuminate\View\View;
 
 class SectionController extends Controller
@@ -121,41 +119,6 @@ class SectionController extends Controller
         return redirect()
             ->route('courses.edit', [$section->course, 'tab' => 'materials'])
             ->with('status', 'Section updated.');
-    }
-
-    /**
-     * Image-upload endpoint for the Quill rich-text editor (used in
-     * Text-type sections). Returns JSON with the public URL so the editor
-     * can insert <img> tags inline.
-     */
-    public function uploadImage(Request $request): JsonResponse
-    {
-        $request->validate([
-            // Only jpeg/jpg/png/webp — matches the site-wide rule for all
-            // admin image uploads. PublicFile re-encodes to WebP on save.
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-        ]);
-
-        $path = PublicFile::store($request->file('image'), 'section-text-images');
-
-        return response()->json([
-            'url' => PublicFile::url($path),
-        ]);
-    }
-
-    public function uploadVideo(Request $request): JsonResponse
-    {
-        // No app-level size cap — deliberately unbounded. The effective ceiling
-        // is whatever the PHP upload_max_filesize / post_max_size settings allow.
-        $request->validate([
-            'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime'],
-        ]);
-
-        $path = PublicFile::store($request->file('video'), 'section-text-videos');
-
-        return response()->json([
-            'url' => PublicFile::url($path),
-        ]);
     }
 
     public function destroy(Section $section): RedirectResponse

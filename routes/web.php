@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AnnouncementImageController;
+use App\Http\Controllers\CourseMediaController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\ContactController;
@@ -37,6 +38,15 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password');
+
+    // Embedded lesson media. The URL is saved into the editor's HTML, so it
+    // must stay stable — hence the course id rather than its slug, which
+    // changes when a course is renamed. Grants nothing by itself: every hit is
+    // authorised, then redirected to a short-lived signed URL.
+    Route::get('/courses/{course:id}/media/{file}', [CourseMediaController::class, 'show'])
+        ->whereNumber('course')
+        ->where('file', '[A-Za-z0-9\-]+\.[A-Za-z0-9]+')
+        ->name('course-media.show');
 
     // Announcement images live on the private disk — this is the only way to
     // fetch one, and it checks the caller is in the announcement's audience.
@@ -115,10 +125,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/courses/{course:slug}/sections', [TeacherSectionController::class, 'store'])->name('sections.store');
         Route::post('/courses/{course:slug}/sections/quick-insert', [TeacherSectionController::class, 'quickInsert'])
             ->name('sections.quick-insert');
-        Route::post('/sections/upload-image', [TeacherSectionController::class, 'uploadImage'])
-            ->name('sections.upload-image');
-        Route::post('/sections/upload-video', [TeacherSectionController::class, 'uploadVideo'])
-            ->name('sections.upload-video');
+        // Course-scoped on purpose. The endpoints these replace took no course
+        // and checked only the sections.manage permission, so any teacher
+        // holding it could upload media unattached to a course they teach.
+        Route::post('/courses/{course:id}/media/image', [CourseMediaController::class, 'uploadImage'])
+            ->whereNumber('course')->name('course-media.upload-image');
+        Route::post('/courses/{course:id}/media/video', [CourseMediaController::class, 'uploadVideo'])
+            ->whereNumber('course')->name('course-media.upload-video');
         Route::get('/sections/{section}/edit', [TeacherSectionController::class, 'edit'])->name('sections.edit');
         Route::patch('/sections/{section}', [TeacherSectionController::class, 'update'])->name('sections.update');
         Route::delete('/sections/{section}', [TeacherSectionController::class, 'destroy'])->name('sections.destroy');

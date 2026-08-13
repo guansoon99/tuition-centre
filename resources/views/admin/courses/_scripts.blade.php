@@ -41,7 +41,7 @@
                                     form.append('image', file);
 
                                     try {
-                                        const res = await fetch('{{ route('sections.upload-image') }}', {
+                                        const res = await fetch('{{ route('course-media.upload-image', $course) }}', {
                                             method: 'POST',
                                             headers: {
                                                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
@@ -73,7 +73,7 @@
                                     form.append('video', file);
 
                                     try {
-                                        const res = await fetch('{{ route('sections.upload-video') }}', {
+                                        const res = await fetch('{{ route('course-media.upload-video', $course) }}', {
                                             method: 'POST',
                                             headers: {
                                                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,

@@ -13,6 +13,7 @@
             'material' => $material,
             'action' => route('materials.update', $material),
             'method' => 'PATCH',
+            'course' => $material->section->course,
         ])
 
         <form method="POST" action="{{ route('materials.destroy', $material) }}"
