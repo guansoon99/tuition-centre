@@ -12,20 +12,25 @@ only HTML, and files stream from Cloudflare R2 rather than the droplet. See
 sudo apt-get update
 sudo apt-get install -y nginx mysql-server certbot python3-certbot-nginx \
     php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml \
-    php8.3-curl php8.3-zip php8.3-intl php8.3-gd php8.3-bcmath php8.3-sqlite3 \
+    php8.3-curl php8.3-zip php8.3-intl php8.3-gd php8.3-bcmath \
     unzip git
 curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 ```
 
-**No Redis and no supervisor at launch — deliberately.** Cache and sessions
-both use the `file` driver, which on a single app server is a sub-millisecond
-file op that the OS page-caches, and `app/Jobs` is empty so there is nothing
-for a *queue* worker to consume. Installing either would be a service to run,
-secure and monitor in exchange for a fraction of a millisecond.
+**No Redis, no supervisor, no queue worker.** Cache and sessions use the
+`file` driver — on a single app server that's a sub-millisecond file op the OS
+page-caches — and `app/Jobs` is empty, so `QUEUE_CONNECTION=sync` is correct
+and a worker would idle forever. The one thing people expect to be queued and
+isn't: student Excel imports run inline in `ImportStudentsController`. Fine at
+a few hundred rows; queue them if they ever grow enough to risk a timeout.
 
-⚠️ There *is* scheduled work, however: `submissions:sweep-orphans` runs nightly
-and is not optional — see [Uploads](#uploads-two-paths). It needs one cron
-entry and no daemon:
+Revisit only if you add a second app server (`file` cache and sessions are
+per-box) or a genuine background job. `.env.production.example` records the
+same decision.
+
+⚠️ There *is* scheduled work, and it is not optional:
+`submissions:sweep-orphans` runs nightly — see [Uploads](#uploads-two-paths).
+It needs one cron entry and no daemon:
 
 ```bash
 sudo crontab -e -u www-data
@@ -34,17 +39,6 @@ sudo crontab -e -u www-data
 
 Verify with `php artisan schedule:list`. Without this, abandoned uploads
 accumulate in R2 forever and nothing will ever report it.
-
-Add `redis-server php8.3-redis` (and flip `CACHE_DRIVER`/`SESSION_DRIVER`) when
-one of these becomes true:
-
-- a **second app server** — `file` cache and sessions are per-box, so both have
-  to move to a shared store together
-- **background jobs** appear (`app/Jobs` stops being empty), which also means
-  `supervisor` and `QUEUE_CONNECTION=redis`
-- **real-time features** needing pub/sub
-
-See `.env.production.example`, which records the same decision.
 
 ## Sizing
 
@@ -121,14 +115,11 @@ request; **with** it, close to the second. Not all 192 ms is recoverable —
 some is Laravel's first-request bootstrapping rather than compilation — but
 the bulk is.
 
-Real-world confirmation: the Windows staging box, which has no OPcache, spent
-**~430 ms of server time on a login page** (TTFB 0.65 s minus 0.22 s of
-network). That is what a no-OPcache PHP box looks like.
-
-> Note for anyone reading benchmark numbers in this repo: they were measured
-> by looping a request inside one PHP process, so files were compiled once and
-> reused. Those numbers therefore approximate a machine **with** OPcache. They
-> do not describe a box without it.
+Real-world confirmation: the Windows staging box has no OPcache and serves
+traffic with `php artisan serve` (PHP's single-threaded dev server), so
+requests queue behind each other. It spends **~430 ms of server time on a
+login page** (TTFB 0.65 s minus 0.22 s of network). That is what a no-OPcache
+PHP box looks like — don't carry any of that configuration over to Linux.
 
 Debian/Ubuntu ship it enabled (`/etc/php/8.3/fpm/conf.d/10-opcache.ini`), so
 installing `php8.3-fpm` should be enough — but confirm rather than assume,
@@ -156,11 +147,6 @@ edited files**. That's correct for production and requires
 `sudo systemctl reload php8.3-fpm` as part of every deploy — which the update
 procedure below already does. Leave it at `1` if you ever edit files directly
 on the server.
-
-> Note: the Windows staging box has no OPcache and serves traffic with
-> `php artisan serve` (PHP's single-threaded dev server) on port 80. Requests
-> there queue behind each other. Both problems disappear on this Linux setup;
-> don't carry the Windows configuration over.
 
 ## Uploads: two paths
 
@@ -193,21 +179,68 @@ hit an opaque wall:
 | PHP | `upload_max_filesize` | 50M |
 | App | `materials.max_file_size_mb` | 50 (default) |
 
-```ini
-; /etc/php/8.3/fpm/conf.d/99-uploads.ini
+#### Setting the PHP limits
+
+Write the settings to their own file rather than editing `php.ini` — a package
+upgrade can replace `php.ini`, and it will not touch this:
+
+```bash
+sudo tee /etc/php/8.3/fpm/conf.d/99-uploads.ini > /dev/null <<'INI'
+; Ceiling for one file. Must be >= the app's max_file_size_mb.
 upload_max_filesize = 50M
+; Ceiling for the WHOLE request body, not one file. Must exceed
+; upload_max_filesize with room for multiple files plus form fields.
 post_max_size = 96M
 max_file_uploads = 20
+INI
+
+# Same file for the CLI SAPI, purely so the verification below is meaningful.
+sudo cp /etc/php/8.3/fpm/conf.d/99-uploads.ini /etc/php/8.3/cli/conf.d/99-uploads.ini
+
+sudo systemctl restart php8.3-fpm
 ```
 
-⚠️ **Do not leave `post_max_size` at PHP's 8M default.** When a request body
-exceeds it, PHP discards the *entire* body — `$_POST` and `$_FILES` both come
-back empty. The CSRF token lives in `$_POST`, so Laravel throws **419 Page
-Expired** before any validation runs. The student waits through the whole
-upload and is then told their page expired, with nothing logged to explain it.
+Verify:
 
-The direct-to-R2 path is not subject to any of the above; its ceiling is R2's
-own **5 GiB** single-part limit, and the app cap is what actually governs.
+```bash
+php -i | grep -E '^(post_max_size|upload_max_filesize)'
+```
+
+⚠️ **`php -i` reads the CLI configuration, not FPM's.** The two SAPIs load
+different `conf.d` directories, so checking the CLI value proves nothing about
+the process actually serving requests — which is why the copy above exists. If
+you skip that copy, this check will happily report values your site is not
+using. To confirm what FPM itself loaded, restart it and check
+`journalctl -u php8.3-fpm --since '1 min ago'` for configuration errors.
+
+#### Why `post_max_size` in particular
+
+**Do not leave it at PHP's 8M default.** It is the setting whose failure mode
+is worst, because it does not produce an error a student can act on.
+
+When a request body exceeds `post_max_size`, PHP discards the **entire** body
+before any application code runs. Measured on PHP 8 with `post_max_size=8M`
+and `upload_max_filesize=2M`:
+
+| Upload | `$_FILES` | Result |
+|---|---|---|
+| 5 MB — over `upload_max_filesize` only | entry present, `error: 1` | Recoverable: Laravel can report "file too large" |
+| 12 MB — over `post_max_size` | **empty**, `$_POST` empty too | **419 Page Expired** |
+
+In the second row the CSRF token is gone with the rest of `$_POST`, so
+Laravel's `VerifyCsrfToken` middleware rejects the request before validation
+ever runs. The student waits through the whole upload and is told their *page
+expired*. Nothing is written to the application log, because the request never
+reached the application.
+
+Keep `post_max_size` comfortably above `upload_max_filesize`, and keep both
+under nginx's `client_max_body_size`.
+
+The direct-to-R2 path is subject to none of the above — the bytes never reach
+PHP. Its ceiling is R2's own **5 GiB** single-part limit, and the app's
+`max_file_size_mb` is what actually governs. These limits bind only the
+proxied fallback, which is exactly when a student is most likely to be on a
+constrained network already.
 
 ### Orphaned objects
 
@@ -230,11 +263,13 @@ from under a student.
 cd /var/www
 git clone https://github.com/your/tuition-lms tuition && cd tuition
 cp .env.production.example .env
-# Edit .env: APP_KEY (php artisan key:generate), DB creds, R2 creds, Redis password
+# Edit .env: APP_KEY (php artisan key:generate), DB creds, R2 creds
 composer install --no-dev --optimize-autoloader
 php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --class=RolesAndPermissionsSeeder --force
+# Only needed if UPLOADS_DISK=public. With UPLOADS_DISK=r2 (the production
+# default) nothing is written to the local public disk and the symlink is inert.
 php artisan storage:link
 php artisan config:cache route:cache view:cache
 php artisan filament:cache-components
@@ -278,42 +313,6 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/tuition /etc/nginx/sites-enabled/
 sudo certbot --nginx -d your-domain.tld
-```
-
-## Queue worker (supervisord) — NOT currently needed
-
-**`app/Jobs` is empty: the app dispatches nothing.** `QUEUE_CONNECTION=sync`
-is correct, and setting up a worker today would give you a process that idles
-forever. Skip this section on first deploy.
-
-The two things people expect to be queued are not:
-
-- **Student Excel imports** run inline — `ImportStudentsController` calls
-  `StudentImporter::processRows()` directly. Fine at a few hundred rows; if
-  they grow enough to risk a request timeout, queueing them is the fix.
-- **Material access logging** used to be a job, and was removed along with the
-  whole access-log feature.
-
-Keep the config below for when a first real job appears — at which point set
-`QUEUE_CONNECTION=redis` and start the worker.
-
-`/etc/supervisor/conf.d/tuition-worker.conf`:
-
-```
-[program:tuition-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/tuition/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-user=www-data
-numprocs=2
-redirect_stderr=true
-stdout_logfile=/var/log/tuition-worker.log
-stopwaitsecs=3600
-```
-
-```bash
-sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start tuition-worker:*
 ```
 
 ## Cloudflare R2
@@ -366,7 +365,6 @@ sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl sta
 - [ ] `php -m | grep -i opcache` prints "Zend OPcache" — do this FIRST, the
       sizing assumptions depend on it (see the OPcache section)
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
-- [ ] (No queue worker needed — `app/Jobs` is empty and `QUEUE_CONNECTION=sync`)
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
 - [ ] Nightly `mysqldump` to a backup location
@@ -381,7 +379,6 @@ php artisan migrate --force
 php artisan cache:clear        # AFTER migrate — see note below
 php artisan config:cache route:cache view:cache
 php artisan filament:cache-components
-php artisan queue:restart   # tells supervisor workers to reload
 sudo systemctl reload php8.3-fpm
 ```
 
@@ -398,4 +395,10 @@ them.
 
 ## Local dev
 
-The dev box is on PHP 8.1 + SQLite + file cache (no MySQL/Redis required). Path differences are summarised in `dev_environment.md` in the project memory; the only friction is dot-sourcing `dev.ps1` once per shell.
+The dev box is on PHP 8.1 + SQLite + file cache — no MySQL needed. Path
+differences are summarised in `dev_environment.md` in the project memory; the
+only friction is dot-sourcing `dev.ps1` once per shell.
+
+Note the local disk cannot presign, so student uploads take the proxied
+fallback path in dev. The direct-to-R2 path only exercises against a real
+bucket — see the going-live checklist.
