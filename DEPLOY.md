@@ -1,7 +1,6 @@
 # Deployment
 
-Target: a single small VPS (DigitalOcean Singapore, Contabo, or similar).
-**1 GB RAM / 1 vCPU is enough** for a few hundred active students — PHP serves
+Target: a single small VPS (DigitalOcean Singapore, Contabo, or similar), for a few thousands active students — PHP serves
 only HTML, and files stream from Cloudflare R2 rather than the droplet. See
 [Sizing](#sizing) for the measurements behind that.
 
@@ -28,7 +27,7 @@ Revisit only if you add a second app server (`file` cache and sessions are
 per-box) or a genuine background job. `.env.production.example` records the
 same decision.
 
-⚠️ There *is* scheduled work, and it is not optional:
+⚠️ There _is_ scheduled work, and it is not optional:
 `submissions:sweep-orphans` runs nightly — see [Uploads](#uploads-two-paths).
 It needs one cron entry and no daemon:
 
@@ -61,11 +60,11 @@ The exception is image uploads — GD decodes to an uncompressed bitmap, so an
 8 MP phone photo peaks around **104 MB** in a single worker. That, not page
 serving, is what sets the RAM floor.
 
-| Droplet | Workers | Throughput | Verdict |
-|---|---|---|---|
-| 512 MB / 1 vCPU | 3 | ~40/s | ✗ one photo upload can OOM the box |
-| **1 GB / 1 vCPU** | **8** | **~40–50/s** | ✓ fine for a few hundred students |
-| 2 GB / 2 vCPU | 16 | ~80–100/s | comfortable |
+| Droplet           | Workers | Throughput   | Verdict                            |
+| ----------------- | ------- | ------------ | ---------------------------------- |
+| 512 MB / 1 vCPU   | 3       | ~40/s        | ✗ one photo upload can OOM the box |
+| **1 GB / 1 vCPU** | **8**   | **~40–50/s** | ✓ fine for a few hundred students  |
+| 2 GB / 2 vCPU     | 16      | ~80–100/s    | comfortable                        |
 
 1 GB budget: Ubuntu 120 + MySQL 300 + nginx 15 + (8 × 35) 280 ≈ **715 MB**,
 leaving ~300 MB for upload spikes.
@@ -99,7 +98,7 @@ streaming happens at Cloudflare R2, not here.
 ## OPcache — verify it's actually on
 
 **Do not treat this as optional tuning.** Without OPcache, PHP re-parses and
-recompiles every file of Laravel plus the app on *every single request*. It is
+recompiles every file of Laravel plus the app on _every single request_. It is
 not a percentage improvement — it is the difference between the throughput
 figures in [Sizing](#sizing) being real and being fiction.
 
@@ -168,16 +167,16 @@ automatically on any transport failure. It is subject to every cap below.
 
 ### Cap chain — keep these consistent
 
-The binding constraint is whichever is *lowest*. Get this wrong and students
+The binding constraint is whichever is _lowest_. Get this wrong and students
 hit an opaque wall:
 
-| Layer | Setting | Value |
-|---|---|---|
-| Cloudflare (free/Pro) | — | 100 MB, immovable |
-| nginx | `client_max_body_size` | 96M |
-| PHP | `post_max_size` | 96M |
-| PHP | `upload_max_filesize` | 50M |
-| App | `materials.max_file_size_mb` | 50 (default) |
+| Layer                 | Setting                      | Value             |
+| --------------------- | ---------------------------- | ----------------- |
+| Cloudflare (free/Pro) | —                            | 100 MB, immovable |
+| nginx                 | `client_max_body_size`       | 96M               |
+| PHP                   | `post_max_size`              | 96M               |
+| PHP                   | `upload_max_filesize`        | 50M               |
+| App                   | `materials.max_file_size_mb` | 50 (default)      |
 
 #### Setting the PHP limits
 
@@ -222,15 +221,15 @@ When a request body exceeds `post_max_size`, PHP discards the **entire** body
 before any application code runs. Measured on PHP 8 with `post_max_size=8M`
 and `upload_max_filesize=2M`:
 
-| Upload | `$_FILES` | Result |
-|---|---|---|
-| 5 MB — over `upload_max_filesize` only | entry present, `error: 1` | Recoverable: Laravel can report "file too large" |
-| 12 MB — over `post_max_size` | **empty**, `$_POST` empty too | **419 Page Expired** |
+| Upload                                 | `$_FILES`                     | Result                                           |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------ |
+| 5 MB — over `upload_max_filesize` only | entry present, `error: 1`     | Recoverable: Laravel can report "file too large" |
+| 12 MB — over `post_max_size`           | **empty**, `$_POST` empty too | **419 Page Expired**                             |
 
 In the second row the CSRF token is gone with the rest of `$_POST`, so
 Laravel's `VerifyCsrfToken` middleware rejects the request before validation
-ever runs. The student waits through the whole upload and is told their *page
-expired*. Nothing is written to the application log, because the request never
+ever runs. The student waits through the whole upload and is told their _page
+expired_. Nothing is written to the application log, because the request never
 reached the application.
 
 Keep `post_max_size` comfortably above `upload_max_filesize`, and keep both
@@ -336,14 +335,16 @@ sudo certbot --nginx -d your-domain.tld
    proxied path — which still works, so this misconfiguration is easy to miss.
    In the R2 dashboard → your bucket → Settings → CORS policy:
 
-   ```json
-   [{
-     "AllowedOrigins": ["https://your-domain.tld"],
-     "AllowedMethods": ["PUT"],
-     "AllowedHeaders": ["content-type"],
-     "MaxAgeSeconds": 3600
-   }]
-   ```
+    ```json
+    [
+        {
+            "AllowedOrigins": ["https://your-domain.tld"],
+            "AllowedMethods": ["PUT"],
+            "AllowedHeaders": ["content-type"],
+            "MaxAgeSeconds": 3600
+        }
+    ]
+    ```
 
 5. The bucket itself stays private. Materials are served exclusively via 15-minute signed URLs generated by `SignedUrlService`.
 
@@ -377,12 +378,46 @@ Every HTML page here is per-user: `/` renders differently signed in, and
 course pages depend on enrolment. Caching HTML at the edge would serve one
 student's page to another. There is no version of this worth the risk.
 
+### Video — do NOT add `*.mp4` to the rules above
+
+It looks like the obvious next entry in the cache list. It is the one
+extension that belongs somewhere else, for two independent reasons.
+
+**1. It would match nothing.** Teacher video uploads go through
+`SectionController::uploadVideo` → `PublicFile` → `uploads_disk`, which is
+`r2` in production. The videos are already on R2 and are never served from
+this droplet, so a `*.mp4` rule on your own zone has nothing to act on.
+
+**2. If it did match, it would be the restricted case.** Cloudflare's CDN
+terms allow serving video only when the content is hosted on a Cloudflare
+service — Stream, Images, or R2. Video sitting on your origin and pulled
+through the orange cloud is exactly what the restriction covers. Because your
+videos live on R2, you are on the right side of this — but only for as long as
+they are served *from* R2.
+
+**So configure caching on the R2 custom domain instead.** Binding a custom
+domain (e.g. `cdn.your-domain.tld`) to the bucket puts Cloudflare's cache in
+front of R2, is explicitly permitted for video, and costs nothing in egress
+because R2-to-edge traffic is internal to Cloudflare. Byte-range requests work
+through it, which is what makes seeking in a `<video>` element usable.
+
+⚠️ **Cap video uploads below 512 MB.** That is Cloudflare's maximum cacheable
+object size on Free, Pro *and* Business alike — only Enterprise raises it, to
+5 GB. Anything larger is fetched from R2 on every single view and never cached
+at the edge. `SectionController::uploadVideo` is currently unbounded by
+design, so a teacher can upload a 700 MB lecture that permanently misses the
+cache. Egress is still $0, but every viewer pays the full origin round-trip.
+
 ### How much is the CDN actually buying you?
 
 Be clear-eyed: **it can only ever cache static assets**, because none of the
 HTML is cacheable. Your entire static payload is four content-hashed build
 files plus a handful of icons — small, and already served once per student per
 deploy.
+
+Video is the exception, and it is the one case where a CDN genuinely earns its
+keep — a 50 MB lesson watched by 200 students is 10 GB that the edge serves
+instead of R2. But that happens on the R2 custom domain, not here.
 
 The CDN is worth configuring for TLS, WAF, login rate-limiting and DDoS
 absorption. It is not what makes the app fast. [OPcache](#opcache--verify-its-actually-on)
@@ -400,7 +435,7 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
       to your own domain. If it posts to `/assignments/*/upload` instead, the
       direct path failed and it fell back silently; check the bucket CORS
       policy first
-- [ ] An oversized file is refused *before* the upload starts, not after
+- [ ] An oversized file is refused _before_ the upload starts, not after
 - [ ] `php artisan schedule:list` shows `submissions:sweep-orphans`
 - [ ] `php artisan submissions:sweep-orphans --dry-run` runs without error
       against the real bucket
