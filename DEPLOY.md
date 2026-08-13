@@ -1,6 +1,9 @@
 # Deployment
 
-Target: single VPS (Contabo Singapore or similar), 4 GB RAM is enough for 500–2 000 concurrent students because PHP serves only HTML — PDFs are streamed by Cloudflare R2.
+Target: a single small VPS (DigitalOcean Singapore, Contabo, or similar).
+**1 GB RAM / 1 vCPU is enough** for a few hundred active students — PHP serves
+only HTML, and files stream from Cloudflare R2 rather than the droplet. See
+[Sizing](#sizing) for the measurements behind that.
 
 ## Server prerequisites
 
@@ -31,18 +34,56 @@ one of these becomes true:
 
 See `.env.production.example`, which records the same decision.
 
+## Sizing
+
+Measured on this app, one course page with 72 materials:
+
+```
+wall 29.6 ms · CPU 29.2 ms · 44 MB peak RAM
+```
+
+Wall time ≈ CPU time, so requests are **CPU-bound**, not waiting on I/O. Two
+consequences: vCPU count sets your throughput ceiling, and OPcache (which cuts
+PHP CPU by 50–70%) is worth more here than anything else you can change.
+
+The exception is image uploads — GD decodes to an uncompressed bitmap, so an
+8 MP phone photo peaks around **104 MB** in a single worker. That, not page
+serving, is what sets the RAM floor.
+
+| Droplet | Workers | Throughput | Verdict |
+|---|---|---|---|
+| 512 MB / 1 vCPU | 3 | ~40/s | ✗ one photo upload can OOM the box |
+| **1 GB / 1 vCPU** | **8** | **~40–50/s** | ✓ fine for a few hundred students |
+| 2 GB / 2 vCPU | 16 | ~80–100/s | comfortable |
+
+1 GB budget: Ubuntu 120 + MySQL 300 + nginx 15 + (8 × 35) 280 ≈ **715 MB**,
+leaving ~300 MB for upload spikes.
+
+Note **1000 registered students is not 1000 requests/second.** A class of 50
+opening the app together is ~10 req/s; 300 students within 10 seconds is ~30.
+Only a simultaneous refresh by everyone at once would saturate a single vCPU.
+
+Resizing a droplet takes minutes, so start small and move up on real traffic
+rather than guessing. If you do outgrow 1 GB, you need **more vCPU** — RAM
+won't be the thing that ran out.
+
 ## PHP-FPM tuning (`/etc/php/8.3/fpm/pool.d/www.conf`)
+
+For **1 GB / 1 vCPU** — do not use 40 children on a small box, the workers
+alone would exceed RAM and start swapping:
 
 ```
 pm = dynamic
-pm.max_children = 40
-pm.start_servers = 8
-pm.min_spare_servers = 4
-pm.max_spare_servers = 12
+pm.max_children = 8
+pm.start_servers = 2
+pm.min_spare_servers = 2
+pm.max_spare_servers = 4
 pm.max_requests = 500
 ```
 
-Forty workers × ~30 MB ≈ 1.2 GB. Each request just renders Blade — file streaming happens at Cloudflare/R2.
+Scale `pm.max_children` with RAM, roughly `(available MB) / 40`, leaving
+~150 MB headroom for an image upload. Each request renders Blade — file
+streaming happens at Cloudflare R2, not here.
 
 ## OPcache — verify it's actually on
 

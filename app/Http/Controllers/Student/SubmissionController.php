@@ -47,38 +47,73 @@ class SubmissionController extends Controller
         ]);
 
         $user = $request->user();
+        $uploads = $request->file('files');
 
-        DB::transaction(function () use ($request, $material, $user, $maxFiles) {
-            $submission = Submission::firstOrCreate(
-                ['material_id' => $material->id, 'user_id' => $user->id],
-                ['submitted_at' => now()],
-            );
+        // Cheap pre-check so an obviously over-cap upload is rejected before
+        // anything is written. Re-checked authoritatively inside the
+        // transaction below, which is what actually enforces the limit.
+        $existing = Submission::where('material_id', $material->id)
+            ->where('user_id', $user->id)
+            ->withCount('files')
+            ->first()?->files_count ?? 0;
 
-            $existingCount = $submission->files()->count();
-            $incomingCount = count($request->file('files'));
+        if ($existing + count($uploads) > $maxFiles) {
+            return back()->withErrors(['files' => "This assignment allows at most {$maxFiles} files. You already have {$existing}."]);
+        }
 
-            if ($existingCount + $incomingCount > $maxFiles) {
-                abort(422, "This assignment allows at most {$maxFiles} files. You already have {$existingCount}.");
-            }
+        // --- 1. Write the files FIRST, outside any transaction. ---
+        //
+        // This is the slow part: on the production disk it's an upload to R2,
+        // seconds per file. Doing it inside a transaction would hold a write
+        // lock for that whole time — on SQLite that's a lock on the entire
+        // database, so every other student's course page (which writes
+        // course_views and enrollments) would block until this finished.
+        // Measured at 6ms -> 2600ms for concurrent page views.
+        $courseId = $material->section->course_id;
+        $stored = [];
 
-            $courseId = $material->section->course_id;
-
-            foreach ($request->file('files') as $upload) {
+        try {
+            foreach ($uploads as $upload) {
                 $ext = strtolower($upload->getClientOriginalExtension() ?: 'bin');
                 $name = Str::uuid().'.'.$ext;
+
                 // PrivateFile: student work must never be reachable by URL,
                 // and must land byte-for-byte as uploaded (no re-encoding).
-                $path = PrivateFile::storeAs($upload, "submissions/{$courseId}/{$material->id}/{$user->id}", $name);
-
-                $submission->files()->create([
-                    'file_path' => $path,
+                $stored[] = [
+                    'file_path' => PrivateFile::storeAs($upload, "submissions/{$courseId}/{$material->id}/{$user->id}", $name),
                     'original_name' => $upload->getClientOriginalName(),
                     'size_bytes' => $upload->getSize(),
                     'mime_type' => $upload->getMimeType(),
                     'uploaded_at' => now(),
-                ]);
+                ];
             }
-        });
+
+            // --- 2. Now a short transaction for the rows only. ---
+            DB::transaction(function () use ($material, $user, $maxFiles, $stored) {
+                $submission = Submission::firstOrCreate(
+                    ['material_id' => $material->id, 'user_id' => $user->id],
+                    ['submitted_at' => now()],
+                );
+
+                // Authoritative check — two uploads racing could both pass the
+                // pre-check above, so the cap is enforced here where it's
+                // serialised against other writers.
+                if ($submission->files()->count() + count($stored) > $maxFiles) {
+                    abort(422, "This assignment allows at most {$maxFiles} files.");
+                }
+
+                $submission->files()->createMany($stored);
+            });
+        } catch (\Throwable $e) {
+            // --- 3. Rows didn't land, so the files shouldn't either. ---
+            // Preserves the original all-or-nothing guarantee without holding
+            // a lock across the uploads.
+            foreach ($stored as $row) {
+                PrivateFile::forget($row['file_path']);
+            }
+
+            throw $e;
+        }
 
         return redirect()
             ->route('materials.view', $material)
