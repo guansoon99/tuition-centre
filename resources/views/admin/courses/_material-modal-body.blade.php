@@ -122,9 +122,9 @@
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (GB)</label>
-            <input type="number" name="max_file_size_gb" min="1" max="5"
-                   value="{{ $material->max_file_size_gb ?? 1 }}"
+            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (MB)</label>
+            <input type="number" name="max_file_size_mb" min="1" max="{{ \App\Models\Material::MAX_FILE_SIZE_MB }}"
+                   value="{{ $material->max_file_size_mb ?? \App\Models\Material::DEFAULT_MAX_FILE_SIZE_MB }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div>

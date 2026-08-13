@@ -20,8 +20,20 @@ curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin
 **No Redis and no supervisor at launch — deliberately.** Cache and sessions
 both use the `file` driver, which on a single app server is a sub-millisecond
 file op that the OS page-caches, and `app/Jobs` is empty so there is nothing
-for a worker to consume. Installing either would be a service to run, secure
-and monitor in exchange for a fraction of a millisecond.
+for a *queue* worker to consume. Installing either would be a service to run,
+secure and monitor in exchange for a fraction of a millisecond.
+
+⚠️ There *is* scheduled work, however: `submissions:sweep-orphans` runs nightly
+and is not optional — see [Uploads](#uploads-two-paths). It needs one cron
+entry and no daemon:
+
+```bash
+sudo crontab -e -u www-data
+# * * * * * cd /var/www/tuition && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Verify with `php artisan schedule:list`. Without this, abandoned uploads
+accumulate in R2 forever and nothing will ever report it.
 
 Add `redis-server php8.3-redis` (and flip `CACHE_DRIVER`/`SESSION_DRIVER`) when
 one of these becomes true:
@@ -150,6 +162,68 @@ on the server.
 > there queue behind each other. Both problems disappear on this Linux setup;
 > don't carry the Windows configuration over.
 
+## Uploads: two paths
+
+Student submissions upload **directly to R2** — the browser asks for a signed
+URL (`submissions.presign`), PUTs the file to Cloudflare, then tells the app
+about it (`submissions.register`). The bytes never touch this server.
+
+That matters for two reasons. **Cloudflare's free and Pro plans cap a proxied
+request body at 100 MB**, and no server-side setting can raise it — Business is
+200 MB, so paying does not meaningfully help. And a proxied upload occupies a
+PHP-FPM worker for the whole transfer, so on a 1 vCPU box a few concurrent
+uploads would stall page rendering for everyone.
+
+**A proxied fallback still exists** (`submissions.upload`) and is a real
+production path, not just a dev convenience: some school and corporate networks
+block unfamiliar hostnames, and a student whose network blocks the R2 endpoint
+would otherwise have no way to submit at all. The browser falls back to it
+automatically on any transport failure. It is subject to every cap below.
+
+### Cap chain — keep these consistent
+
+The binding constraint is whichever is *lowest*. Get this wrong and students
+hit an opaque wall:
+
+| Layer | Setting | Value |
+|---|---|---|
+| Cloudflare (free/Pro) | — | 100 MB, immovable |
+| nginx | `client_max_body_size` | 96M |
+| PHP | `post_max_size` | 96M |
+| PHP | `upload_max_filesize` | 50M |
+| App | `materials.max_file_size_mb` | 50 (default) |
+
+```ini
+; /etc/php/8.3/fpm/conf.d/99-uploads.ini
+upload_max_filesize = 50M
+post_max_size = 96M
+max_file_uploads = 20
+```
+
+⚠️ **Do not leave `post_max_size` at PHP's 8M default.** When a request body
+exceeds it, PHP discards the *entire* body — `$_POST` and `$_FILES` both come
+back empty. The CSRF token lives in `$_POST`, so Laravel throws **419 Page
+Expired** before any validation runs. The student waits through the whole
+upload and is then told their page expired, with nothing logged to explain it.
+
+The direct-to-R2 path is not subject to any of the above; its ceiling is R2's
+own **5 GiB** single-part limit, and the app cap is what actually governs.
+
+### Orphaned objects
+
+A direct upload can succeed at R2 and then never be registered — closed tab,
+dropped connection. Nothing on this server observes that, so there is no error
+to catch; the object is simply there, referenced by nothing. This is the one
+genuine cost of direct uploads, and `submissions:sweep-orphans` (nightly, see
+[prerequisites](#server-prerequisites)) is the only thing that cleans them up.
+
+```bash
+php artisan submissions:sweep-orphans --dry-run   # safe: lists, deletes nothing
+```
+
+It skips anything younger than 24h so an in-flight upload is never deleted out
+from under a student.
+
 ## App deploy
 
 ```bash
@@ -179,7 +253,7 @@ server {
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
 
-    client_max_body_size 60M;  # PDFs up to 50M plus form overhead
+    client_max_body_size 96M;  # see Uploads — must stay under Cloudflare's 100M
 
     location / { try_files $uri $uri/ /index.php?$query_string; }
 
@@ -247,7 +321,21 @@ sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl sta
 1. Create bucket `tuition-prod` in the Cloudflare dashboard.
 2. Generate an R2 access key (Account → R2 → Manage R2 API tokens).
 3. Set the four `R2_*` env vars in `.env`.
-4. Bucket CORS — only needed if you ever serve direct browser uploads. The current app proxies uploads through PHP, so CORS is not required.
+4. **Bucket CORS is required.** Student submissions upload straight from the
+   browser to R2, so the bucket must allow `PUT` from your origin. Without it
+   every direct upload fails CORS and silently falls back to the slower
+   proxied path — which still works, so this misconfiguration is easy to miss.
+   In the R2 dashboard → your bucket → Settings → CORS policy:
+
+   ```json
+   [{
+     "AllowedOrigins": ["https://your-domain.tld"],
+     "AllowedMethods": ["PUT"],
+     "AllowedHeaders": ["content-type"],
+     "MaxAgeSeconds": 3600
+   }]
+   ```
+
 5. The bucket itself stays private. Materials are served exclusively via 15-minute signed URLs generated by `SignedUrlService`.
 
 ## Cloudflare CDN/WAF (free tier)
@@ -265,7 +353,16 @@ sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl sta
 - [ ] `APP_KEY` set
 - [ ] `php artisan migrate --force` ran without error
 - [ ] An admin user exists (`php artisan tinker` → `User::factory()->create([...])->assignRole('admin')`)
-- [ ] PDF upload, view, signed-URL download, access log all work end to end with a real R2 bucket
+- [ ] PDF upload, view, signed-URL download all work end to end with a real R2 bucket
+- [ ] **A student submission uploads directly to R2** — watch the browser
+      Network tab and confirm the PUT goes to `*.r2.cloudflarestorage.com`, not
+      to your own domain. If it posts to `/assignments/*/upload` instead, the
+      direct path failed and it fell back silently; check the bucket CORS
+      policy first
+- [ ] An oversized file is refused *before* the upload starts, not after
+- [ ] `php artisan schedule:list` shows `submissions:sweep-orphans`
+- [ ] `php artisan submissions:sweep-orphans --dry-run` runs without error
+      against the real bucket
 - [ ] `php -m | grep -i opcache` prints "Zend OPcache" — do this FIRST, the
       sizing assumptions depend on it (see the OPcache section)
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443

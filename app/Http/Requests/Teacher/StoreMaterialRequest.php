@@ -34,7 +34,7 @@ class StoreMaterialRequest extends FormRequest
             'body' => ['nullable', 'required_if:type,text', 'required_if:type,page', 'string'],
             'target_date' => ['nullable', 'required_if:type,countdown', 'date'],
             'due_date' => ['nullable', 'date'],
-            'max_file_size_gb' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'max_file_size_mb' => ['nullable', 'integer', 'min:1', 'max:'.\App\Models\Material::MAX_FILE_SIZE_MB],
             'max_files' => ['nullable', 'integer', 'min:1', 'max:50'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['nullable', 'boolean'],

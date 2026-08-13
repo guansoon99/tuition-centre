@@ -126,11 +126,11 @@
         </div>
 
         <div>
-            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (GB)</label>
-            <input type="number" name="max_file_size_gb" min="1" max="5"
-                   value="{{ old('max_file_size_gb', $material?->max_file_size_gb ?? 1) }}"
+            <label class="mb-1 block text-sm font-medium text-slate-700">Max file size (MB)</label>
+            <input type="number" name="max_file_size_mb" min="1" max="{{ \App\Models\Material::MAX_FILE_SIZE_MB }}"
+                   value="{{ old('max_file_size_mb', $material?->max_file_size_mb ?? \App\Models\Material::DEFAULT_MAX_FILE_SIZE_MB) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
-            @error('max_file_size_gb')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            @error('max_file_size_mb')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
         </div>
 
         <div>

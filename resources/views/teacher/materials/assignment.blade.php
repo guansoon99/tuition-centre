@@ -44,8 +44,8 @@
                         <p class="mt-1 text-sm italic text-slate-900">No due date.</p>
                     @endif
                     <p class="mt-1 text-sm text-slate-900">
-                        Max {{ $material->max_file_size_gb ?? 1 }}GB per file &middot;
-                        {{ $material->max_files ?? 5 }} files max per student
+                        Max {{ $material->max_file_size_mb ?? \App\Models\Material::DEFAULT_MAX_FILE_SIZE_MB }}MB per file &middot;
+                        {{ $material->maxFiles() }} files max per student
                     </p>
                 </div>
 

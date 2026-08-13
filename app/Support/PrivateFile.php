@@ -71,4 +71,103 @@ class PrivateFile extends StoredFile
     {
         return Storage::disk(static::disk())->get($path);
     }
+
+    /**
+     * Whether this disk can hand the browser a URL to upload straight to.
+     * False on the local disk, which is what dev runs on — callers must keep
+     * a path that proxies the upload through PHP for that case.
+     */
+    public static function canPresign(): bool
+    {
+        // Not method_exists(): FilesystemAdapter declares temporaryUploadUrl()
+        // for every driver and throws "does not support" at call time, so the
+        // method being present says nothing. The driver is what decides.
+        return config('filesystems.disks.'.static::disk().'.driver') === 's3';
+    }
+
+    /**
+     * A short-lived URL the browser can PUT one file to, bypassing this
+     * server entirely.
+     *
+     * ContentLength and ContentType are baked into the signature, so the
+     * client cannot upload more bytes than it declared or relabel the type
+     * without invalidating it. Treat that as the first line of defence only:
+     * R2's enforcement of signed ContentLength is not something we can verify
+     * from here, so the register step re-checks the stored object for real.
+     */
+    public static function presignPut(
+        string $path,
+        int $bytes,
+        string $contentType,
+        int $ttlMinutes = 5,
+    ): array {
+        return Storage::disk(static::disk())->temporaryUploadUrl(
+            $path,
+            now()->addMinutes($ttlMinutes),
+            [
+                'ContentLength' => $bytes,
+                'ContentType' => $contentType,
+            ],
+        );
+    }
+
+    /** Size of the stored object in bytes. */
+    public static function sizeOf(string $path): int
+    {
+        return (int) Storage::disk(static::disk())->size($path);
+    }
+
+    /**
+     * The first $n bytes of a stored file, for magic-byte type sniffing.
+     *
+     * Fetched with an HTTP Range request on S3/R2 so a 200 MB submission
+     * costs one small read rather than a full download. finfo only ever looks
+     * at the leading bytes anyway — which is all the `mimetypes:` validation
+     * rule was doing back when uploads passed through PHP.
+     */
+    public static function leadingBytes(string $path, int $n = 4096): string
+    {
+        $disk = Storage::disk(static::disk());
+
+        if (method_exists($disk, 'getClient')) {
+            try {
+                $result = $disk->getClient()->getObject([
+                    'Bucket' => config('filesystems.disks.'.static::disk().'.bucket'),
+                    'Key' => $path,
+                    'Range' => 'bytes=0-'.($n - 1),
+                ]);
+
+                return (string) $result['Body'];
+            } catch (\Throwable) {
+                // Fall through to the stream read below.
+            }
+        }
+
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            return '';
+        }
+
+        try {
+            return (string) fread($stream, $n);
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /**
+     * Sniff the real MIME type from the stored bytes, ignoring whatever the
+     * client claimed. Returns null if it cannot be determined.
+     */
+    public static function sniffMimeType(string $path): ?string
+    {
+        $head = static::leadingBytes($path);
+
+        if ($head === '') {
+            return null;
+        }
+
+        return (new \finfo(FILEINFO_MIME_TYPE))->buffer($head) ?: null;
+    }
 }

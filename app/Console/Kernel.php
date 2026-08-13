@@ -12,7 +12,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Direct-to-R2 uploads land in the bucket before this server is told
+        // about them, so a browser that dies in between leaves an object no
+        // row references. Nothing else will ever notice those — see
+        // SweepOrphanedSubmissionFiles. Needs a cron entry for schedule:run.
+        $schedule->command('submissions:sweep-orphans')->dailyAt('03:30');
     }
 
     /**

@@ -52,6 +52,15 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Assignment submissions — student uploads / removes / downloads own files;
     // teacher can also download any file for the assignments they own.
+    // Direct-to-R2 upload, in two steps: presign hands the browser a URL to
+    // PUT to, register accepts the object once it has landed. Both are needed
+    // — the file bypasses this server entirely in between.
+    Route::post('/assignments/{material}/presign', [SubmissionController::class, 'presign'])
+        ->name('submissions.presign');
+    Route::post('/assignments/{material}/register', [SubmissionController::class, 'register'])
+        ->name('submissions.register');
+    // Fallback for disks that cannot presign (dev) and networks that block
+    // the R2 endpoint (some schools). Bytes pass through PHP here.
     Route::post('/assignments/{material}/upload', [SubmissionController::class, 'upload'])
         ->name('submissions.upload');
     Route::delete('/submission-files/{file}', [SubmissionController::class, 'destroyFile'])

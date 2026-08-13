@@ -43,7 +43,7 @@ class MaterialController extends Controller
             'body' => null,
             'target_date' => null,
             'due_date' => null,
-            'max_file_size_gb' => null,
+            'max_file_size_mb' => null,
             'max_files' => null,
         ];
 
@@ -62,8 +62,8 @@ class MaterialController extends Controller
         } elseif ($type === Material::TYPE_ASSIGNMENT) {
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
             $data['due_date'] = $request->input('due_date') ?: null;
-            $data['max_file_size_gb'] = $request->integer('max_file_size_gb') ?: 1;
-            $data['max_files'] = $request->integer('max_files') ?: 5;
+            $data['max_file_size_mb'] = $request->integer('max_file_size_mb') ?: Material::DEFAULT_MAX_FILE_SIZE_MB;
+            $data['max_files'] = $request->integer('max_files') ?: Material::DEFAULT_MAX_FILES;
         } else {
             $data['external_url'] = $request->input('external_url');
         }
@@ -135,7 +135,7 @@ class MaterialController extends Controller
             'body' => null,
             'target_date' => null,
             'due_date' => null,
-            'max_file_size_gb' => null,
+            'max_file_size_mb' => null,
             'max_files' => null,
         ];
 
@@ -167,8 +167,8 @@ class MaterialController extends Controller
             } elseif ($type === Material::TYPE_ASSIGNMENT) {
                 $data['body'] = HtmlSanitizer::clean($request->input('body'));
                 $data['due_date'] = $request->input('due_date') ?: null;
-                $data['max_file_size_gb'] = $request->integer('max_file_size_gb') ?: 1;
-                $data['max_files'] = $request->integer('max_files') ?: 5;
+                $data['max_file_size_mb'] = $request->integer('max_file_size_mb') ?: Material::DEFAULT_MAX_FILE_SIZE_MB;
+                $data['max_files'] = $request->integer('max_files') ?: Material::DEFAULT_MAX_FILES;
             } else {
                 $data['external_url'] = $request->input('external_url');
             }
