@@ -27,6 +27,44 @@ pm.max_requests = 500
 
 Forty workers × ~30 MB ≈ 1.2 GB. Each request just renders Blade — file streaming happens at Cloudflare/R2.
 
+## OPcache — verify it's actually on
+
+Without OPcache, PHP recompiles every file of Laravel plus the app on *every*
+request. It's worth roughly 2–3× throughput, and it is the single biggest
+lever on a PHP box.
+
+Debian/Ubuntu ship it enabled (`/etc/php/8.3/fpm/conf.d/10-opcache.ini`), so
+installing `php8.3-fpm` should be enough — but confirm rather than assume,
+because when it's missing there is no error, just a slow site:
+
+```bash
+php -m | grep -i opcache            # must print: Zend OPcache
+php -i | grep opcache.enable        # must be On/1
+```
+
+If it's absent: `sudo apt-get install -y php8.3-opcache`.
+
+Worth setting explicitly in `/etc/php/8.3/fpm/conf.d/10-opcache.ini` — the
+defaults are sized for a small app and Laravel has a lot of files:
+
+```ini
+opcache.enable=1
+opcache.memory_consumption=192      ; MB of compiled bytecode
+opcache.max_accelerated_files=20000 ; Laravel + vendor exceeds the 10k default
+opcache.validate_timestamps=0       ; never stat files for changes — see below
+```
+
+`validate_timestamps=0` is the fast setting but means **PHP will not notice
+edited files**. That's correct for production and requires
+`sudo systemctl reload php8.3-fpm` as part of every deploy — which the update
+procedure below already does. Leave it at `1` if you ever edit files directly
+on the server.
+
+> Note: the Windows staging box has no OPcache and serves traffic with
+> `php artisan serve` (PHP's single-threaded dev server) on port 80. Requests
+> there queue behind each other. Both problems disappear on this Linux setup;
+> don't carry the Windows configuration over.
+
 ## App deploy
 
 ```bash
@@ -130,6 +168,8 @@ Workers consume `LogMaterialAccessJob` (every PDF download) and `ImportStudentsJ
 - [ ] `php artisan migrate --force` ran without error
 - [ ] An admin user exists (`php artisan tinker` → `User::factory()->create([...])->assignRole('admin')`)
 - [ ] PDF upload, view, signed-URL download, access log all work end to end with a real R2 bucket
+- [ ] `php -m | grep -i opcache` prints "Zend OPcache" (see the OPcache section)
+- [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
 - [ ] Queue worker is `RUNNING` in `supervisorctl status`
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
