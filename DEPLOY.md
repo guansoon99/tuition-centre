@@ -142,7 +142,13 @@ stopwaitsecs=3600
 sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start tuition-worker:*
 ```
 
-Workers consume `LogMaterialAccessJob` (every PDF download) and `ImportStudentsJob` (admin Excel imports).
+Workers consume `LogMaterialAccessJob` (every PDF download) — currently the
+only queued job.
+
+Note that student Excel imports are **not** queued: `ImportStudentsController`
+runs `StudentImporter::processRows()` inline in the request. That's fine at a
+few hundred rows; if imports ever get large enough to risk a timeout, moving
+them onto the queue is the fix (and the reason this worker exists).
 
 ## Cloudflare R2
 
