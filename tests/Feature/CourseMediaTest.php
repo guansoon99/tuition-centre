@@ -231,6 +231,62 @@ class CourseMediaTest extends TestCase
             ])->assertSessionHasErrors('video');
     }
 
+    // ---------------- editor wiring ----------------
+
+    /**
+     * Guards against a broken edit to the Quill toolbar handlers.
+     *
+     * These live as inline JS inside Blade, so nothing type-checks or parses
+     * them — a mangled edit compiles fine, passes every other test here, and
+     * only fails in the browser with "Unexpected token ')'". That happened:
+     * a regex replace stopped at the wrong brace and left half the old handler
+     * behind, duplicating its body.
+     *
+     * Exact counts catch precisely that, because the failure duplicates code
+     * rather than removing it.
+     */
+    public function test_the_editor_page_wires_each_upload_handler_exactly_once(): void
+    {
+        $material = $this->materialEmbedding([]);
+
+        $html = $this->actingAs($this->teacher)
+            ->get(route('materials.edit', $material))
+            ->assertOk()
+            ->getContent();
+
+        $expectations = [
+            // One overlay per handler: image and video.
+            'window.courseMediaOverlay(' => 2,
+            // Video goes through the shared uploader, exactly once.
+            'window.uploadCourseVideo(' => 1,
+            // The image handler posts to this endpoint once. A duplicated
+            // handler body would make it 2.
+            route('course-media.upload-image', $this->course) => 1,
+            // Leftovers from a half-replaced handler would repeat these.
+            "form.append('image', file)" => 1,
+            // Once only, inside the shared uploader's proxied() fallback —
+            // never inline in the toolbar handler, which is where the old
+            // pre-presign version put it.
+            "form.append('video', file)" => 1,
+        ];
+
+        foreach ($expectations as $needle => $times) {
+            $this->assertSame(
+                $times,
+                substr_count($html, $needle),
+                "Expected [{$needle}] exactly {$times}x in the editor page — a different count "
+                .'means a toolbar handler was duplicated or dropped by a bad edit.',
+            );
+        }
+
+        // The toolbar handler must delegate, not do its own fetch. The old
+        // version posted the video straight from here.
+        $this->assertStringNotContainsString(
+            "const res = await fetch('".route('course-media.upload-video', $this->course)."'",
+            $html,
+        );
+    }
+
     // ---------------- cleanup ----------------
 
     private function materialEmbedding(array $names): Material

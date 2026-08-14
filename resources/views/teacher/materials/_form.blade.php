@@ -292,18 +292,6 @@
                                     }
                                 };
                             },
-                                            body: form,
-                                        });
-                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
-                                        const data = await res.json();
-                                        const range = editor.getSelection(true);
-                                        editor.insertEmbed(range.index, 'image', data.url, 'user');
-                                        editor.setSelection(range.index + 1);
-                                    } catch (e) {
-                                        alert('Image upload failed: ' + e.message);
-                                    }
-                                };
-                            },
                             video: function () {
                                 const input = document.createElement('input');
                                 input.type = 'file';
@@ -329,18 +317,6 @@
                                         alert('Video upload failed: ' + e.message);
                                     } finally {
                                         ui.done();
-                                    }
-                                };
-                            },
-                                            body: form,
-                                        });
-                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
-                                        const data = await res.json();
-                                        const range = editor.getSelection(true);
-                                        const html = '<p><video controls src="' + data.url + '" style="max-width:100%;"></video></p>';
-                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
-                                    } catch (e) {
-                                        alert('Video upload failed: ' + e.message);
                                     }
                                 };
                             },

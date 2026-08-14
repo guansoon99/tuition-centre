@@ -33,6 +33,7 @@
                                 input.type = 'file';
                                 input.accept = 'image/jpeg,image/png,image/webp';
                                 input.click();
+
                                 input.onchange = async () => {
                                     const file = input.files[0];
                                     if (!file) return;
@@ -40,6 +41,7 @@
                                     const ui = window.courseMediaOverlay(editor.root, 'Uploading image…');
                                     const form = new FormData();
                                     form.append('image', file);
+
                                     try {
                                         const res = await fetch('{{ route('course-media.upload-image', $course) }}', {
                                             method: 'POST',
@@ -61,28 +63,18 @@
                                     }
                                 };
                             },
-                                            body: form,
-                                        });
-                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
-                                        const data = await res.json();
-                                        const range = editor.getSelection(true);
-                                        editor.insertEmbed(range.index, 'image', data.url, 'user');
-                                        editor.setSelection(range.index + 1);
-                                    } catch (e) {
-                                        alert('Image upload failed: ' + e.message);
-                                    }
-                                };
-                            },
                             video: function () {
                                 const input = document.createElement('input');
                                 input.type = 'file';
                                 input.accept = 'video/mp4,video/webm,video/quicktime';
                                 input.click();
+
                                 input.onchange = async () => {
                                     const file = input.files[0];
                                     if (!file) return;
 
                                     const ui = window.courseMediaOverlay(editor.root, 'Uploading video…');
+
                                     try {
                                         const url = await window.uploadCourseVideo({
                                             presign:  '{{ route('course-media.presign-video', $course) }}',
@@ -91,6 +83,9 @@
                                             maxMb:    {{ \App\Http\Controllers\CourseMediaController::MAX_VIDEO_MB }},
                                         }, file, ui.progress);
 
+                                        // Insert an HTML5 <video> tag at the cursor. Quill's built-in
+                                        // video embed uses <iframe> (for YouTube-style URLs) — we want
+                                        // native playback for uploaded files.
                                         const range = editor.getSelection(true);
                                         const html = '<p><video controls src="' + url + '" style="max-width:100%;"></video></p>';
                                         editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
@@ -98,22 +93,6 @@
                                         alert('Video upload failed: ' + e.message);
                                     } finally {
                                         ui.done();
-                                    }
-                                };
-                            },
-                                            body: form,
-                                        });
-                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
-                                        const data = await res.json();
-
-                                        // Insert an HTML5 <video> tag at the cursor. Quill's built-in
-                                        // video embed uses <iframe> (for YouTube-style URLs) — we want
-                                        // native playback for uploaded files.
-                                        const range = editor.getSelection(true);
-                                        const html = '<p><video controls src="' + data.url + '" style="max-width:100%;"></video></p>';
-                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
-                                    } catch (e) {
-                                        alert('Video upload failed: ' + e.message);
                                     }
                                 };
                             },
