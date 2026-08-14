@@ -1,3 +1,4 @@
+@include('partials.course-video-uploader')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
@@ -64,21 +65,35 @@
                                 input.type = 'file';
                                 input.accept = 'video/mp4,video/webm,video/quicktime';
                                 input.click();
-
                                 input.onchange = async () => {
                                     const file = input.files[0];
                                     if (!file) return;
 
-                                    const form = new FormData();
-                                    form.append('video', file);
+                                    // Quill has no progress UI, so the toolbar
+                                    // button doubles as one — a long upload
+                                    // with no feedback reads as a hang.
+                                    const btn = document.querySelector('.ql-video');
+                                    const label = btn ? btn.innerHTML : null;
+                                    const show = (pct) => { if (btn) btn.textContent = pct + '%'; };
 
                                     try {
-                                        const res = await fetch('{{ route('course-media.upload-video', $course) }}', {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                                                'Accept': 'application/json',
-                                            },
+                                        const url = await window.uploadCourseVideo({
+                                            presign:  '{{ route('course-media.presign-video', $course) }}',
+                                            register: '{{ route('course-media.register-video', $course) }}',
+                                            upload:   '{{ route('course-media.upload-video', $course) }}',
+                                            maxMb:    {{ \App\Http\Controllers\CourseMediaController::MAX_VIDEO_MB }},
+                                        }, file, show);
+
+                                        const range = editor.getSelection(true);
+                                        const html = '<p><video controls src="' + url + '" style="max-width:100%;"></video></p>';
+                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+                                    } catch (e) {
+                                        alert('Video upload failed: ' + e.message);
+                                    } finally {
+                                        if (btn && label !== null) btn.innerHTML = label;
+                                    }
+                                };
+                            },
                                             body: form,
                                         });
                                         if (!res.ok) throw new Error('Upload failed (' + res.status + ')');

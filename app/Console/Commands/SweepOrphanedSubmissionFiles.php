@@ -2,27 +2,34 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Material;
 use App\Models\SubmissionFile;
 use App\Support\PrivateFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Deletes submission objects that no database row points at.
+ * Deletes stored objects that nothing references any more.
  *
- * These exist because direct-to-R2 uploads are two separate requests. The
+ * They exist because direct-to-R2 uploads are two separate requests. The
  * browser PUTs the file straight to the bucket, then tells us about it. If it
  * never gets to the second step — tab closed, network dropped, laptop shut —
  * the object is in the bucket and nothing here knows it happened. Unlike the
- * proxied path, there is no exception to catch: the failure occurs somewhere
- * this server cannot observe.
+ * proxied path there is no exception to catch: the failure happens somewhere
+ * this server cannot observe. The only way to find them is to compare the
+ * bucket against what the app believes exists.
  *
- * So the only way to find them is to compare the bucket against the table,
- * which is what this does. It is the one caveat of presigned uploads that
- * has no clean fix — it can only be swept up afterwards.
+ * Two prefixes, reconciled against different sources:
  *
- * The grace period matters: an upload in flight right now has no row yet and
- * must not be deleted out from under the student.
+ *   submissions/    against the submission_files table
+ *   course-media/   against the URLs embedded in material bodies, because
+ *                   course media has no table — the lesson text IS the index
+ *
+ * A teacher who uploads a video and then abandons the form orphans it the
+ * same way, so this is not only a consequence of presigning.
+ *
+ * The grace period matters: an upload in flight right now is referenced by
+ * nothing yet and must not be deleted out from under whoever is sending it.
  */
 class SweepOrphanedSubmissionFiles extends Command
 {
@@ -30,7 +37,7 @@ class SweepOrphanedSubmissionFiles extends Command
                             {--hours=24 : Ignore objects younger than this}
                             {--dry-run : List what would be deleted, delete nothing}';
 
-    protected $description = 'Delete submission files in storage that have no database row';
+    protected $description = 'Delete submission and course-media files in storage that nothing references';
 
     public function handle(): int
     {
@@ -38,10 +45,13 @@ class SweepOrphanedSubmissionFiles extends Command
         $cutoff = now()->subHours((int) $this->option('hours'));
         $dryRun = (bool) $this->option('dry-run');
 
-        $objects = $disk->allFiles('submissions');
+        $objects = array_merge(
+            $disk->allFiles('submissions'),
+            $disk->allFiles('course-media'),
+        );
 
         if ($objects === []) {
-            $this->info('No submission objects in storage.');
+            $this->info('No submission or course-media objects in storage.');
 
             return self::SUCCESS;
         }
@@ -52,11 +62,20 @@ class SweepOrphanedSubmissionFiles extends Command
             ->pluck('file_path')
             ->flip();
 
+        // Course media has no table. A file's only link to a lesson is the URL
+        // embedded in the rich-text body, so the bodies ARE the index — pull
+        // every referenced filename out of them once and match on that.
+        $referenced = $this->filenamesReferencedInLessons();
+
         $deleted = 0;
         $bytes = 0;
 
         foreach ($objects as $path) {
             if ($known->has($path)) {
+                continue;
+            }
+
+            if (str_starts_with($path, 'course-media/') && isset($referenced[basename($path)])) {
                 continue;
             }
 
@@ -88,5 +107,36 @@ class SweepOrphanedSubmissionFiles extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Every course-media filename that appears in a lesson body.
+     *
+     * Returned as a lookup keyed by filename. Matching on the filename rather
+     * than the whole URL keeps this working if the app's domain ever changes,
+     * which would otherwise silently orphan every embedded file at once.
+     */
+    private function filenamesReferencedInLessons(): array
+    {
+        $found = [];
+
+        // chunkById, not chunk: offset-based paging can skip rows, and a
+        // skipped body means its media looks unreferenced and gets deleted.
+        Material::whereNotNull('body')
+            ->select('id', 'body')
+            ->chunkById(500, function ($rows) use (&$found) {
+                foreach ($rows as $row) {
+                    preg_match_all(
+                        '#/media/([A-Za-z0-9\-]+\.[A-Za-z0-9]+)#',
+                        (string) $row->body,
+                        $m,
+                    );
+                    foreach ($m[1] as $name) {
+                        $found[$name] = true;
+                    }
+                }
+            });
+
+        return $found;
     }
 }

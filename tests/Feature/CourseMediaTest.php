@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\CourseMediaController;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Section;
@@ -226,6 +227,107 @@ class CourseMediaTest extends TestCase
         $this->actingAs($this->teacher)
             ->post(route('course-media.upload-video', $this->course), [
                 'video' => UploadedFile::fake()->create('sneaky.mp4', 10, 'application/x-php'),
+            ])->assertSessionHasErrors('video');
+    }
+
+    // ---------------- direct-to-R2 video ----------------
+
+    private function presignVideo(array $payload = [])
+    {
+        return $this->actingAs($this->teacher)
+            ->postJson(route('course-media.presign-video', $this->course), $payload + [
+                'size' => 1024,
+                'content_type' => 'video/mp4',
+            ]);
+    }
+
+    /**
+     * Guard, not a feature test. Storage::fake cannot sign, so presign's
+     * success path is only exercisable against a real bucket — every video
+     * test below therefore covers rejections only. If someone points the test
+     * disk at S3, this fails and says so, rather than the others quietly
+     * starting to mean something different.
+     */
+    public function test_the_test_disk_cannot_presign_so_only_rejections_are_covered(): void
+    {
+        $this->assertFalse(CourseMedia::canPresign());
+    }
+
+    public function test_presign_video_rejects_a_file_over_the_cap(): void
+    {
+        $over = (CourseMediaController::MAX_VIDEO_MB + 1) * 1024 * 1024;
+
+        $this->presignVideo(['size' => $over])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('size');
+    }
+
+    public function test_presign_video_rejects_a_non_video_content_type(): void
+    {
+        $this->presignVideo(['content_type' => 'application/x-php'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('content_type');
+    }
+
+    public function test_a_teacher_cannot_presign_for_a_course_they_do_not_teach(): void
+    {
+        $other = Course::factory()->create(['is_active' => true]);
+
+        $this->actingAs($this->teacher)
+            ->postJson(route('course-media.presign-video', $other), [
+                'size' => 1024, 'content_type' => 'video/mp4',
+            ])->assertForbidden();
+    }
+
+    public function test_a_student_cannot_presign(): void
+    {
+        $this->actingAs($this->student)
+            ->postJson(route('course-media.presign-video', $this->course), [
+                'size' => 1024, 'content_type' => 'video/mp4',
+            ])->assertForbidden();
+    }
+
+    /**
+     * R2 signs only the host, so nothing about the upload is constrained at
+     * PUT time. register is where size and type are actually enforced — on
+     * bytes that already exist in the bucket.
+     */
+    public function test_register_video_deletes_an_object_that_is_not_really_video(): void
+    {
+        $name = 'cccc1111-2222-3333-4444-555566667777.mp4';
+        $this->putMedia($name);   // plain text, not video
+
+        $this->actingAs($this->teacher)
+            ->postJson(route('course-media.register-video', $this->course), ['name' => $name])
+            ->assertStatus(422);
+
+        Storage::disk(CourseMedia::disk())
+            ->assertMissing(CourseMedia::folder($this->course->id).'/'.$name);
+    }
+
+    public function test_register_video_404s_when_nothing_was_uploaded(): void
+    {
+        $this->actingAs($this->teacher)
+            ->postJson(route('course-media.register-video', $this->course), [
+                'name' => 'dddd1111-2222-3333-4444-555566667777.mp4',
+            ])->assertNotFound();
+    }
+
+    public function test_register_video_refuses_a_name_that_escapes_the_course_folder(): void
+    {
+        $this->actingAs($this->teacher)
+            ->postJson(route('course-media.register-video', $this->course), [
+                'name' => '../../submissions/1/2/8/stolen.pdf',
+            ])->assertStatus(422)->assertJsonValidationErrors('name');
+    }
+
+    public function test_the_proxied_video_fallback_still_enforces_the_cap(): void
+    {
+        $overMb = CourseMediaController::MAX_VIDEO_MB + 1;
+
+        $this->actingAs($this->teacher)
+            ->post(route('course-media.upload-video', $this->course), [
+                'video' => UploadedFile::fake()->create('huge.mp4', $overMb * 1024, 'video/mp4'),
             ])->assertSessionHasErrors('video');
     }
 

@@ -130,6 +130,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         // holding it could upload media unattached to a course they teach.
         Route::post('/courses/{course:id}/media/image', [CourseMediaController::class, 'uploadImage'])
             ->whereNumber('course')->name('course-media.upload-image');
+        // Video goes direct to R2 like submissions do — a lesson video is the
+        // one upload here large enough that proxying it would hold a worker
+        // for the whole transfer and hit Cloudflare's 100MB ceiling.
+        Route::post('/courses/{course:id}/media/presign-video', [CourseMediaController::class, 'presignVideo'])
+            ->whereNumber('course')->name('course-media.presign-video');
+        Route::post('/courses/{course:id}/media/register-video', [CourseMediaController::class, 'registerVideo'])
+            ->whereNumber('course')->name('course-media.register-video');
         Route::post('/courses/{course:id}/media/video', [CourseMediaController::class, 'uploadVideo'])
             ->whereNumber('course')->name('course-media.upload-video');
         Route::get('/sections/{section}/edit', [TeacherSectionController::class, 'edit'])->name('sections.edit');

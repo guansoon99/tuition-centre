@@ -8,8 +8,10 @@ use App\Support\CourseMedia;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -40,6 +42,15 @@ class CourseMediaController extends Controller
         'video/webm' => 'webm',
         'video/quicktime' => 'mov',
     ];
+
+    /**
+     * Video was previously uncapped, which was never really true — the
+     * proxied path is bounded by Cloudflare (100 MB), nginx and PHP, and a
+     * teacher exceeding those got an opaque failure rather than a message.
+     * Direct-to-R2 lifts those, so this is now the only limit and it needs to
+     * be a real number. Roughly an hour of 720p.
+     */
+    public const MAX_VIDEO_MB = 500;
 
     /**
      * Serve one media file, if the caller may see the course.
@@ -95,12 +106,105 @@ class CourseMediaController extends Controller
         return $this->urlFor($course, basename($path));
     }
 
+    /**
+     * Step 1 of a direct-to-R2 video upload: a URL the browser can PUT to.
+     *
+     * Lesson video is the one upload here big enough to matter. Proxied
+     * through PHP it would occupy a worker for the whole transfer and die at
+     * Cloudflare's 100 MB ceiling; this keeps both out of the way.
+     */
+    public function presignVideo(Request $request, Course $course): JsonResponse
+    {
+        $this->authorizeUpload($course);
+
+        $maxBytes = self::MAX_VIDEO_MB * 1024 * 1024;
+
+        $validated = $request->validate([
+            'size' => ['required', 'integer', 'min:1', "max:{$maxBytes}"],
+            'content_type' => ['required', 'string', Rule::in(array_keys(self::VIDEO_EXT))],
+        ], [
+            'size.max' => 'Videos must be under '.self::MAX_VIDEO_MB.'MB.',
+            'content_type.in' => 'Only MP4, WebM and QuickTime video are allowed.',
+        ]);
+
+        $name = Str::uuid().'.'.self::VIDEO_EXT[$validated['content_type']];
+        $key = CourseMedia::folder($course->id).'/'.$name;
+
+        $signed = CourseMedia::presignPut($key, $validated['size'], $validated['content_type']);
+
+        return response()->json([
+            'name' => $name,
+            'url' => $signed['url'],
+            // Host is browser-controlled and cannot be overridden by fetch/XHR.
+            'headers' => Arr::except($signed['headers'], ['Host', 'host']),
+        ]);
+    }
+
+    /**
+     * Step 2: the browser reports a successful PUT and we decide whether to
+     * keep it.
+     *
+     * R2 signs only the host, so the size and type declared at presign time
+     * constrain nothing (verified against a live bucket — see
+     * PrivateFile::presignPut). This is where they are actually enforced, on
+     * the object that really landed, and anything rejected is deleted rather
+     * than left occupying the bucket.
+     */
+    public function registerVideo(Request $request, Course $course): JsonResponse
+    {
+        $this->authorizeUpload($course);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9\-]+\.[A-Za-z0-9]+$/'],
+        ]);
+
+        $name = $validated['name'];
+        $key = CourseMedia::folder($course->id).'/'.$name;
+
+        if (! CourseMedia::exists($key)) {
+            return response()->json(['message' => 'Upload not found — please try again.'], 404);
+        }
+
+        $size = CourseMedia::sizeOf($key);
+
+        if ($size > self::MAX_VIDEO_MB * 1024 * 1024) {
+            CourseMedia::forget($key);
+
+            return response()->json(['message' => 'Videos must be under '.self::MAX_VIDEO_MB.'MB.'], 422);
+        }
+
+        // The declared Content-Type is a claim. Sniff the stored bytes.
+        $mime = CourseMedia::sniffMimeType($key);
+
+        if (! array_key_exists($mime, self::VIDEO_EXT)) {
+            CourseMedia::forget($key);
+
+            return response()->json(['message' => 'That file is not a supported video.'], 422);
+        }
+
+        return $this->urlFor($course, $name);
+    }
+
+    /**
+     * Proxied upload — the fallback, kept for the same reasons submissions
+     * keep theirs: a network that blocks the R2 endpoint would otherwise leave
+     * a teacher unable to upload anything at all.
+     *
+     * Bounded by Cloudflare, nginx and PHP, so it handles small clips but not
+     * a full lesson. The direct path is preferred whenever it works.
+     */
     public function uploadVideo(Request $request, Course $course): JsonResponse
     {
         $this->authorizeUpload($course);
 
         $request->validate([
-            'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime'],
+            'video' => [
+                'required', 'file',
+                'mimetypes:'.implode(',', array_keys(self::VIDEO_EXT)),
+                'max:'.(self::MAX_VIDEO_MB * 1024),
+            ],
+        ], [
+            'video.max' => 'Videos must be under '.self::MAX_VIDEO_MB.'MB.',
         ]);
 
         $upload = $request->file('video');
