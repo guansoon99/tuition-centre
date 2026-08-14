@@ -42,6 +42,10 @@
             @yield('content')
         </main>
     @endauth
+    {{-- Upload feedback: the shared overlay helper, plus an automatic spinner
+         on any form submission. Before @stack so page scripts can use it. --}}
+    @include('partials.upload-feedback')
+
     @stack('scripts')
 </body>
 </html>

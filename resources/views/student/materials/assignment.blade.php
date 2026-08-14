@@ -119,6 +119,11 @@
                               accept: @js(\App\Models\Material::SUBMISSION_MIME_TYPES),
                           })"
                           @submit="onSubmit($event)"
+                          {{-- Has its own per-file progress bar below; the
+                               layout's generic submit spinner would only
+                               duplicate it, and would still fire on the
+                               proxied fallback path. --}}
+                          data-no-spinner
                           class="space-y-3">
                         @csrf
                         <input type="file" name="files[]" multiple

@@ -287,6 +287,51 @@ class CourseMediaTest extends TestCase
         );
     }
 
+    /**
+     * The submit spinner is wired from the layout, so every page with a form
+     * gets it without being edited. That also means nothing on an individual
+     * page would reveal it going missing.
+     */
+    public function test_the_submit_spinner_ships_on_every_authenticated_page(): void
+    {
+        $material = $this->materialEmbedding([]);
+
+        $html = $this->actingAs($this->teacher)
+            ->get(route('materials.edit', $material))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('cm-spinner', $html, 'Spinner CSS missing.');
+        $this->assertStringContainsString('cmSubmitting', $html, 'Submit handler missing.');
+
+        // Defined once from the layout, not per-page — two copies would mean
+        // the listener runs twice and double-blocks a legitimate submit.
+        $this->assertSame(
+            1,
+            substr_count($html, "form.dataset.cmSubmitting = '1'"),
+            'The submit handler must be registered exactly once per page.',
+        );
+    }
+
+    /**
+     * The student submission form runs its own XHR upload with a per-file
+     * progress bar, so the generic spinner must stay out of its way.
+     */
+    public function test_the_submission_form_opts_out_of_the_generic_spinner(): void
+    {
+        $assignment = Material::create([
+            'section_id' => $this->course->sections()->first()->id,
+            'title' => 'Essay', 'type' => Material::TYPE_ASSIGNMENT,
+            'due_date' => now()->addWeek(), 'max_files' => 3, 'max_file_size_mb' => 50,
+            'sort_order' => 2, 'is_published' => true, 'published_at' => now(),
+        ]);
+
+        $this->actingAs($this->student)
+            ->get(route('materials.view', $assignment))
+            ->assertOk()
+            ->assertSee('data-no-spinner', false);
+    }
+
     // ---------------- cleanup ----------------
 
     private function materialEmbedding(array $names): Material
