@@ -76,6 +76,18 @@ class CourseMedia extends PrivateImage
 
         $stillUsed = [];
 
+        // Course banners live in this same folder but are referenced by a
+        // column, not by any lesson body. Nothing currently routes a banner
+        // filename into $filenames — they are UUIDs and never appear in text —
+        // but if one ever did, the body scan below would not see it and the
+        // banner would be deleted. Same blind spot the orphan sweep had.
+        \App\Models\Course::withTrashed()
+            ->whereNotNull('banner_image')
+            ->pluck('banner_image')
+            ->each(function ($path) use (&$stillUsed) {
+                $stillUsed[basename($path)] = true;
+            });
+
         // withTrashed: a soft-deleted material can still be force-deleted
         // later, and until then its body is the only record of what it used.
         \App\Models\Material::withTrashed()

@@ -386,6 +386,28 @@ class CourseMediaTest extends TestCase
         Storage::disk(CourseMedia::disk())->assertExists($path);
     }
 
+    /**
+     * Banners share the course-media folder with lesson images. Deleting a
+     * material must not take the banner with it.
+     */
+    public function test_deleting_a_material_leaves_the_course_banner_alone(): void
+    {
+        $bannerFile = $this->putMedia('bbbb0000-0000-0000-0000-000000000012.webp');
+        $bannerPath = CourseMedia::folder($this->course->id).'/'.$bannerFile;
+        $this->course->update(['banner_image' => $bannerPath]);
+
+        $embedded = $this->putMedia('bbbb0000-0000-0000-0000-000000000013.webp');
+        $material = $this->materialEmbedding([$embedded]);
+
+        $this->actingAs($this->teacher)
+            ->delete(route('materials.destroy', $material))
+            ->assertRedirect();
+
+        $disk = Storage::disk(CourseMedia::disk());
+        $disk->assertExists($bannerPath);
+        $disk->assertMissing(CourseMedia::folder($this->course->id).'/'.$embedded);
+    }
+
     // ---------------- cleanup ----------------
 
     private function materialEmbedding(array $names): Material
