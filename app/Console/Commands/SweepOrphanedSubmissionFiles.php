@@ -47,9 +47,13 @@ class SweepOrphanedSubmissionFiles extends Command
         $cutoff = now()->subHours((int) $this->option('hours'));
         $dryRun = (bool) $this->option('dry-run');
 
+        // Everything a course owns now lives under one root: banners,
+        // materials (PDFs and embedded media) and assignments (submissions).
+        // The old submissions/ and materials/ roots are kept in the sweep so
+        // anything written before the restructure is still reclaimable.
         $objects = array_merge(
-            $disk->allFiles('submissions'),
             $disk->allFiles('course-media'),
+            $disk->allFiles('submissions'),
             $disk->allFiles('materials'),
         );
 
@@ -87,6 +91,8 @@ class SweepOrphanedSubmissionFiles extends Command
                 continue;
             }
 
+            // Submissions under course-media/<course>/assignments/ are matched
+            // by full path in $known above, like any other submission file.
             if (str_starts_with($path, 'course-media/') && isset($referenced[basename($path)])) {
                 continue;
             }

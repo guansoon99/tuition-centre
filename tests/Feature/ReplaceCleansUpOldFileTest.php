@@ -128,7 +128,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
     {
         // Private now, and filed under the course id like the rest of its media.
         $course = Course::factory()->create(['is_active' => true]);
-        $old = $this->seedFile(PrivateFile::disk(), CourseMedia::folder($course->id).'/old.webp');
+        $old = $this->seedFile(PrivateFile::disk(), CourseMedia::bannerFolder($course->id).'/old.webp');
         $course->update(['banner_image' => $old]);
 
         $this->actingAs($this->admin)
@@ -158,7 +158,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
             'role_on_course' => Enrollment::ROLE_TEACHER, 'is_active' => true, 'enrolled_at' => now(),
         ]);
 
-        $old = $this->seedFile(PrivateFile::disk(), 'materials/1/1/old.pdf');
+        $old = $this->seedFile(PrivateFile::disk(), CourseMedia::materialsFolder($course->id).'/old.pdf');
         $material = Material::factory()->create([
             'section_id' => $section->id, 'type' => Material::TYPE_PDF, 'file_path' => $old,
         ]);

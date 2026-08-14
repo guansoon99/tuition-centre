@@ -34,6 +34,43 @@ class CourseMedia extends PrivateImage
         return "course-media/{$courseId}";
     }
 
+    /** The course banner. One file, replaced in place. */
+    public static function bannerFolder(int $courseId): string
+    {
+        return static::folder($courseId).'/banners';
+    }
+
+    /**
+     * Teaching material: PDFs, and the images and video embedded in lesson
+     * text.
+     *
+     * Flat rather than nested per material, deliberately. The Quill editor
+     * uploads while a resource is still being composed — before it has been
+     * saved and therefore before it has an id — so there is nothing to nest
+     * under at the moment the file arrives.
+     */
+    public static function materialsFolder(int $courseId): string
+    {
+        return static::folder($courseId).'/materials';
+    }
+
+    /**
+     * One student's work on one assignment.
+     *
+     * Nested, unlike materials, because here the ids all exist by the time
+     * anything is uploaded — and because this path is load-bearing: the
+     * register step refuses any object key that does not sit under the
+     * uploader's own prefix, which is what stops one student claiming
+     * another's file.
+     */
+    public static function assignmentFolder(int $courseId, int $materialId, int $userId): string
+    {
+        return static::folder($courseId)."/assignments/{$materialId}/{$userId}";
+    }
+
+    /** Subfolders reachable through CourseMediaController. */
+    public const SERVED_FOLDERS = ['banners', 'materials'];
+
     /**
      * Filenames of course media embedded in a rich-text body.
      *
@@ -47,7 +84,10 @@ class CourseMedia extends PrivateImage
             return [];
         }
 
-        preg_match_all('#/media/([A-Za-z0-9\-]+\.[A-Za-z0-9]+)#', $html, $m);
+        // The optional folder segment covers both the current
+        // /media/materials/<file> shape and the older /media/<file> one, so a
+        // body saved before the restructure still counts as a reference.
+        preg_match_all('#/media/(?:[a-z-]+/)?([A-Za-z0-9\-]+\.[A-Za-z0-9]+)#', $html, $m);
 
         return array_values(array_unique($m[1]));
     }
@@ -109,7 +149,8 @@ class CourseMedia extends PrivateImage
                 continue;
             }
 
-            static::forget(static::folder($courseId).'/'.$name);
+            // Embedded media lives in materials/, not at the course root.
+            static::forget(static::materialsFolder($courseId).'/'.$name);
             $deleted++;
         }
 

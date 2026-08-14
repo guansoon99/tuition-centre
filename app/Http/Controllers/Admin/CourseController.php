@@ -70,7 +70,7 @@ class CourseController extends Controller
             $course->update([
                 'banner_image' => CourseMedia::store(
                     $request->file('banner_image'),
-                    CourseMedia::folder($course->id),
+                    CourseMedia::bannerFolder($course->id),
                 ),
             ]);
         }
@@ -159,7 +159,7 @@ class CourseController extends Controller
             $replaced = $course->banner_image;
             $data['banner_image'] = CourseMedia::store(
                 $request->file('banner_image'),
-                CourseMedia::folder($course->id),
+                CourseMedia::bannerFolder($course->id),
             );
         } else {
             unset($data['banner_image']);

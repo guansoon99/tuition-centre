@@ -52,7 +52,7 @@ class MaterialController extends Controller
             $upload = $request->file('file');
             $courseId = $section->course_id;
             $name = Str::uuid().'.pdf';
-            $path = PrivateFile::storeAs($upload, "materials/{$courseId}/{$section->id}", $name);
+            $path = PrivateFile::storeAs($upload, CourseMedia::materialsFolder($courseId), $name);
 
             $data['file_path'] = $path;
             $data['file_size_bytes'] = $upload->getSize();
@@ -151,7 +151,7 @@ class MaterialController extends Controller
                 $upload = $request->file('file');
                 $courseId = $material->section->course_id;
                 $name = Str::uuid().'.pdf';
-                $data['file_path'] = PrivateFile::storeAs($upload, "materials/{$courseId}/{$material->section_id}", $name);
+                $data['file_path'] = PrivateFile::storeAs($upload, CourseMedia::materialsFolder($courseId), $name);
                 $data['file_size_bytes'] = $upload->getSize();
             } else {
                 // No new upload — keep the existing PDF file.

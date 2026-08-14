@@ -70,7 +70,7 @@ class CourseMediaTest extends TestCase
 
     private function putMedia(string $name = 'abc-123.webp', ?Course $course = null): string
     {
-        $path = CourseMedia::folder(($course ?? $this->course)->id).'/'.$name;
+        $path = CourseMedia::materialsFolder(($course ?? $this->course)->id).'/'.$name;
         Storage::disk(CourseMedia::disk())->put($path, 'GIF89a fake bytes');
 
         return $name;
@@ -83,7 +83,7 @@ class CourseMediaTest extends TestCase
         $file = $this->putMedia();
 
         $this->actingAs($this->student)
-            ->get(route('course-media.show', ['course' => $this->course->id, 'file' => $file]))
+            ->get(route('course-media.show', ['course' => $this->course->id, 'folder' => 'materials', 'file' => $file]))
             ->assertOk();
     }
 
@@ -92,7 +92,7 @@ class CourseMediaTest extends TestCase
         $file = $this->putMedia();
 
         $this->actingAs($this->teacher)
-            ->get(route('course-media.show', ['course' => $this->course->id, 'file' => $file]))
+            ->get(route('course-media.show', ['course' => $this->course->id, 'folder' => 'materials', 'file' => $file]))
             ->assertOk();
     }
 
@@ -108,7 +108,7 @@ class CourseMediaTest extends TestCase
         $outsider->assignRole('student');
 
         $this->actingAs($outsider)
-            ->get(route('course-media.show', ['course' => $this->course->id, 'file' => $file]))
+            ->get(route('course-media.show', ['course' => $this->course->id, 'folder' => 'materials', 'file' => $file]))
             ->assertForbidden();
     }
 
@@ -116,7 +116,7 @@ class CourseMediaTest extends TestCase
     {
         $file = $this->putMedia();
 
-        $this->get(route('course-media.show', ['course' => $this->course->id, 'file' => $file]))
+        $this->get(route('course-media.show', ['course' => $this->course->id, 'folder' => 'materials', 'file' => $file]))
             ->assertRedirect(route('login'));
     }
 
@@ -127,14 +127,14 @@ class CourseMediaTest extends TestCase
         $file = $this->putMedia('other-1.webp', $other);
 
         $this->actingAs($this->student)
-            ->get(route('course-media.show', ['course' => $other->id, 'file' => $file]))
+            ->get(route('course-media.show', ['course' => $other->id, 'folder' => 'materials', 'file' => $file]))
             ->assertForbidden();
     }
 
     public function test_a_missing_file_is_a_404_not_a_500(): void
     {
         $this->actingAs($this->student)
-            ->get(route('course-media.show', ['course' => $this->course->id, 'file' => 'nope-1.webp']))
+            ->get(route('course-media.show', ['course' => $this->course->id, 'folder' => 'materials', 'file' => 'nope-1.webp']))
             ->assertNotFound();
     }
 
@@ -147,7 +147,7 @@ class CourseMediaTest extends TestCase
     {
         foreach (['../../.env', '..%2F..%2F.env', 'a/../../secret.pdf'] as $evil) {
             $this->actingAs($this->student)
-                ->get('/courses/'.$this->course->id.'/media/'.$evil)
+                ->get('/courses/'.$this->course->id.'/media/materials/'.$evil)
                 ->assertNotFound();
         }
     }
@@ -341,10 +341,10 @@ class CourseMediaTest extends TestCase
      */
     public function test_a_course_banner_is_served_through_the_gated_route(): void
     {
-        $file = $this->putMedia('bbbb0000-0000-0000-0000-00000000000f.webp');
-        $this->course->update([
-            'banner_image' => CourseMedia::folder($this->course->id).'/'.$file,
-        ]);
+        $file = 'bbbb0000-0000-0000-0000-00000000000f.webp';
+        $path = CourseMedia::bannerFolder($this->course->id).'/'.$file;
+        Storage::disk(CourseMedia::disk())->put($path, 'banner');
+        $this->course->update(['banner_image' => $path]);
 
         $url = $this->course->fresh()->banner_image_url;
 
@@ -357,10 +357,10 @@ class CourseMediaTest extends TestCase
 
     public function test_a_course_banner_is_refused_to_someone_not_on_the_course(): void
     {
-        $file = $this->putMedia('bbbb0000-0000-0000-0000-000000000010.webp');
-        $this->course->update([
-            'banner_image' => CourseMedia::folder($this->course->id).'/'.$file,
-        ]);
+        $file = 'bbbb0000-0000-0000-0000-000000000010.webp';
+        $path = CourseMedia::bannerFolder($this->course->id).'/'.$file;
+        Storage::disk(CourseMedia::disk())->put($path, 'banner');
+        $this->course->update(['banner_image' => $path]);
 
         $outsider = User::factory()->create(['is_active' => true]);
         $outsider->assignRole('student');
@@ -377,8 +377,8 @@ class CourseMediaTest extends TestCase
      */
     public function test_the_orphan_sweep_does_not_delete_a_course_banner(): void
     {
-        $file = $this->putMedia('bbbb0000-0000-0000-0000-000000000011.webp');
-        $path = CourseMedia::folder($this->course->id).'/'.$file;
+        $path = CourseMedia::bannerFolder($this->course->id).'/bbbb0000-0000-0000-0000-000000000011.webp';
+        Storage::disk(CourseMedia::disk())->put($path, 'banner');
         $this->course->update(['banner_image' => $path]);
 
         $this->artisan('submissions:sweep-orphans', ['--hours' => 0])->assertSuccessful();
@@ -392,8 +392,9 @@ class CourseMediaTest extends TestCase
      */
     public function test_deleting_a_material_leaves_the_course_banner_alone(): void
     {
-        $bannerFile = $this->putMedia('bbbb0000-0000-0000-0000-000000000012.webp');
-        $bannerPath = CourseMedia::folder($this->course->id).'/'.$bannerFile;
+        $bannerFile = 'bbbb0000-0000-0000-0000-000000000012.webp';
+        $bannerPath = CourseMedia::bannerFolder($this->course->id).'/'.$bannerFile;
+        Storage::disk(CourseMedia::disk())->put($bannerPath, 'banner');
         $this->course->update(['banner_image' => $bannerPath]);
 
         $embedded = $this->putMedia('bbbb0000-0000-0000-0000-000000000013.webp');
@@ -414,7 +415,7 @@ class CourseMediaTest extends TestCase
     {
         $body = '';
         foreach ($names as $n) {
-            $body .= '<img src="/courses/'.$this->course->id.'/media/'.$n.'">';
+            $body .= '<img src="/courses/'.$this->course->id.'/media/materials/'.$n.'">';
         }
 
         return Material::create([
@@ -427,7 +428,7 @@ class CourseMediaTest extends TestCase
     private function mediaExists(string $name): bool
     {
         return Storage::disk(CourseMedia::disk())
-            ->exists(CourseMedia::folder($this->course->id).'/'.$name);
+            ->exists(CourseMedia::materialsFolder($this->course->id).'/'.$name);
     }
 
     /**

@@ -40,6 +40,7 @@ class Course extends Model
         return Attribute::get(fn () => $this->banner_image
             ? route('course-media.show', [
                 'course' => $this->id,
+                'folder' => 'banners',
                 'file' => basename($this->banner_image),
             ])
             : null);

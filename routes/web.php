@@ -43,8 +43,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     // must stay stable — hence the course id rather than its slug, which
     // changes when a course is renamed. Grants nothing by itself: every hit is
     // authorised, then redirected to a short-lived signed URL.
-    Route::get('/courses/{course:id}/media/{file}', [CourseMediaController::class, 'show'])
+    Route::get('/courses/{course:id}/media/{folder}/{file}', [CourseMediaController::class, 'show'])
         ->whereNumber('course')
+        ->whereIn('folder', \App\Support\CourseMedia::SERVED_FOLDERS)
         ->where('file', '[A-Za-z0-9\-]+\.[A-Za-z0-9]+')
         ->name('course-media.show');
 

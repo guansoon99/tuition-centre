@@ -221,8 +221,11 @@ class SubmissionUploadTest extends TestCase
      */
     private function uploadedFile(string $name = 'My Essay.pdf'): SubmissionFile
     {
-        $path = 'submissions/'.$this->assignment->section->course_id
-            .'/'.$this->assignment->id.'/'.$this->student->id.'/'.\Illuminate\Support\Str::uuid().'.pdf';
+        $path = \App\Support\CourseMedia::assignmentFolder(
+            $this->assignment->section->course_id,
+            $this->assignment->id,
+            $this->student->id,
+        ).'/'.\Illuminate\Support\Str::uuid().'.pdf';
 
         Storage::disk(PrivateFile::disk())->put($path, '%PDF-1.4 content');
 
@@ -311,9 +314,11 @@ class SubmissionUploadTest extends TestCase
     {
         $user = $as ?? $this->student;
 
-        return 'submissions/'.$this->assignment->section->course_id
-            .'/'.$this->assignment->id
-            .'/'.$user->id;
+        return \App\Support\CourseMedia::assignmentFolder(
+            $this->assignment->section->course_id,
+            $this->assignment->id,
+            $user->id,
+        );
     }
 
     /** Put an object in storage as though the browser had PUT it to R2. */
@@ -404,7 +409,7 @@ class SubmissionUploadTest extends TestCase
 
     public function test_register_refuses_a_key_outside_the_submissions_tree(): void
     {
-        $key = $this->putObject('materials/1/1/secret.pdf', '%PDF-1.4 course material');
+        $key = $this->putObject('course-media/1/materials/secret.pdf', '%PDF-1.4 course material');
 
         $this->register($key)->assertForbidden();
 

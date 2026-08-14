@@ -60,17 +60,18 @@ class CourseMediaController extends Controller
      * the lesson containing it, and reusing the policy means the two can never
      * drift apart.
      */
-    public function show(Request $request, Course $course, string $file): RedirectResponse|StreamedResponse
+    public function show(Request $request, Course $course, string $folder, string $file): RedirectResponse|StreamedResponse
     {
         $this->authorize('view', $course);
 
-        // The route constrains this too, but the value becomes part of a
-        // storage path, so it is validated here rather than trusted.
-        if (! preg_match('/^[A-Za-z0-9\-]+\.[A-Za-z0-9]+$/', $file)) {
+        // The route constrains both, but they become part of a storage path,
+        // so they are validated here rather than trusted.
+        if (! in_array($folder, CourseMedia::SERVED_FOLDERS, true)
+            || ! preg_match('/^[A-Za-z0-9\-]+\.[A-Za-z0-9]+$/', $file)) {
             abort(404);
         }
 
-        $path = CourseMedia::folder($course->id).'/'.$file;
+        $path = CourseMedia::folder($course->id)."/{$folder}/{$file}";
 
         if (! CourseMedia::exists($path)) {
             abort(404);
@@ -101,7 +102,7 @@ class CourseMediaController extends Controller
         ]);
 
         // store() re-encodes to WebP and names the result itself.
-        $path = CourseMedia::store($request->file('image'), CourseMedia::folder($course->id));
+        $path = CourseMedia::store($request->file('image'), CourseMedia::materialsFolder($course->id));
 
         return $this->urlFor($course, basename($path));
     }
@@ -128,7 +129,7 @@ class CourseMediaController extends Controller
         ]);
 
         $name = Str::uuid().'.'.self::VIDEO_EXT[$validated['content_type']];
-        $key = CourseMedia::folder($course->id).'/'.$name;
+        $key = CourseMedia::materialsFolder($course->id).'/'.$name;
 
         $signed = CourseMedia::presignPut($key, $validated['size'], $validated['content_type']);
 
@@ -159,7 +160,7 @@ class CourseMediaController extends Controller
         ]);
 
         $name = $validated['name'];
-        $key = CourseMedia::folder($course->id).'/'.$name;
+        $key = CourseMedia::materialsFolder($course->id).'/'.$name;
 
         if (! CourseMedia::exists($key)) {
             return response()->json(['message' => 'Upload not found — please try again.'], 404);
@@ -212,7 +213,7 @@ class CourseMediaController extends Controller
         // Extension from the sniffed MIME type, never the client's filename.
         $name = Str::uuid().'.'.(self::VIDEO_EXT[$upload->getMimeType()] ?? 'mp4');
 
-        CourseMedia::storeAs($upload, CourseMedia::folder($course->id), $name);
+        CourseMedia::storeAs($upload, CourseMedia::materialsFolder($course->id), $name);
 
         return $this->urlFor($course, $name);
     }
@@ -233,7 +234,11 @@ class CourseMediaController extends Controller
     private function urlFor(Course $course, string $name): JsonResponse
     {
         return response()->json([
-            'url' => route('course-media.show', ['course' => $course->id, 'file' => $name]),
+            'url' => route('course-media.show', [
+                'course' => $course->id,
+                'folder' => 'materials',
+                'file' => $name,
+            ]),
         ]);
     }
 

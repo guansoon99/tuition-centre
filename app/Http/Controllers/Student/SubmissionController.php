@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
+use App\Support\CourseMedia;
 use App\Support\PrivateFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -370,7 +371,11 @@ class SubmissionController extends Controller
      */
     private function submissionPrefix(Material $material, int $userId): string
     {
-        return "submissions/{$material->section->course_id}/{$material->id}/{$userId}";
+        return CourseMedia::assignmentFolder(
+            $material->section->course_id,
+            $material->id,
+            $userId,
+        );
     }
 
     private function fileCountFor(Material $material, int $userId): int

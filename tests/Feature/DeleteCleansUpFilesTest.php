@@ -92,7 +92,7 @@ class DeleteCleansUpFilesTest extends TestCase
 
     public function test_deleting_a_material_removes_its_pdf(): void
     {
-        $path = $this->store(PrivateFile::disk(), 'materials/1/1/doc.pdf');
+        $path = $this->store(PrivateFile::disk(), CourseMedia::materialsFolder($this->course->id).'/doc.pdf');
         $m = Material::factory()->create([
             'section_id' => $this->section->id, 'type' => Material::TYPE_PDF, 'file_path' => $path,
         ]);
@@ -122,16 +122,16 @@ class DeleteCleansUpFilesTest extends TestCase
      */
     public function test_deleting_a_section_removes_every_file_beneath_it(): void
     {
-        $pdf = $this->store(PrivateFile::disk(), 'materials/9/9/lesson.pdf');
+        $pdf = $this->store(PrivateFile::disk(), CourseMedia::materialsFolder($this->course->id).'/lesson.pdf');
         $embedded = 'ffff1111-2222-3333-4444-555566667777.webp';
-        $this->store(PrivateFile::disk(), CourseMedia::folder($this->course->id).'/'.$embedded);
+        $this->store(PrivateFile::disk(), CourseMedia::materialsFolder($this->course->id).'/'.$embedded);
 
         Material::factory()->create([
             'section_id' => $this->section->id, 'type' => Material::TYPE_PDF, 'file_path' => $pdf,
         ]);
         Material::factory()->create([
             'section_id' => $this->section->id, 'type' => Material::TYPE_TEXT,
-            'body' => '<img src="/courses/'.$this->course->id.'/media/'.$embedded.'">',
+            'body' => '<img src="/courses/'.$this->course->id.'/media/materials/'.$embedded.'">',
         ]);
 
         [, $submissionFile] = $this->submissionFile();
@@ -142,7 +142,7 @@ class DeleteCleansUpFilesTest extends TestCase
 
         $disk = Storage::disk(PrivateFile::disk());
         $disk->assertMissing($pdf);
-        $disk->assertMissing(CourseMedia::folder($this->course->id).'/'.$embedded);
+        $disk->assertMissing(CourseMedia::materialsFolder($this->course->id).'/'.$embedded);
         $disk->assertMissing($submissionFile->file_path);
 
         // And the rows really are gone, not just hidden.
@@ -168,7 +168,7 @@ class DeleteCleansUpFilesTest extends TestCase
 
         $path = $this->store(
             PrivateFile::disk(),
-            'submissions/'.$this->course->id.'/'.$assignment->id.'/'.$student->id.'/work.pdf',
+            CourseMedia::assignmentFolder($this->course->id, $assignment->id, $student->id).'/work.pdf',
         );
 
         $submission = Submission::create([
