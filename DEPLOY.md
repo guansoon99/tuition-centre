@@ -241,6 +241,24 @@ PHP. Its ceiling is R2's own **5 GiB** single-part limit, and the app's
 proxied fallback, which is exactly when a student is most likely to be on a
 constrained network already.
 
+### R2 does not enforce a signed content length
+
+Verified against a live bucket, not assumed. A presigned PUT comes back with
+`X-Amz-SignedHeaders=host` — the host and nothing else. A URL signed for 100
+bytes accepted a 5,009-byte body and returned 200.
+
+So the size and MIME type sent to the presign endpoint only filter honest
+clients. Anyone willing to script a PUT can send whatever they like to a URL
+they were legitimately issued. `SubmissionController::register()` is what
+actually enforces both, by `HEAD`ing the stored object and sniffing its
+leading bytes — and deleting it when either fails.
+
+The consequence worth knowing: an oversized object **does briefly exist** in
+the bucket before it is rejected. It is removed within the same request when
+the browser calls register, and by `submissions:sweep-orphans` if it never
+does. Storage is metered, so a determined student could waste some until the
+nightly sweep. Bounded and cheap, but not zero.
+
 ### Orphaned objects
 
 A direct upload can succeed at R2 and then never be registered — closed tab,

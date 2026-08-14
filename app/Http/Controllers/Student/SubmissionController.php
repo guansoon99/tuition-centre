@@ -34,11 +34,14 @@ class SubmissionController extends Controller
      * Step 1 of a direct-to-R2 upload: hand the browser a URL it can PUT one
      * file to without the bytes passing through this server.
      *
-     * Everything enforceable up front is enforced here — due date, per-file
-     * size, declared type, and the file-count cap. Size and type are also
-     * pinned into the signature, so the client cannot exceed what it declared
-     * without invalidating the URL. None of that is trusted as final: see
-     * register(), which re-checks the object that actually landed.
+     * The checks here — due date, per-file size, declared type, file-count cap
+     * — filter honest clients early so a doomed upload never starts. None of
+     * them bind a dishonest one: R2 signs only the host, so the size and type
+     * passed to presignPut() are advisory (verified against a real bucket; see
+     * PrivateFile::presignPut). A client can PUT any bytes it likes to the URL
+     * it is given.
+     *
+     * register() is therefore not a second opinion, it is the only opinion.
      */
     public function presign(Request $request, Material $material): JsonResponse
     {

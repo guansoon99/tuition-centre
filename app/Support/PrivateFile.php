@@ -89,11 +89,18 @@ class PrivateFile extends StoredFile
      * A short-lived URL the browser can PUT one file to, bypassing this
      * server entirely.
      *
-     * ContentLength and ContentType are baked into the signature, so the
-     * client cannot upload more bytes than it declared or relabel the type
-     * without invalidating it. Treat that as the first line of defence only:
-     * R2's enforcement of signed ContentLength is not something we can verify
-     * from here, so the register step re-checks the stored object for real.
+     * ⚠ ContentLength and ContentType below do NOT constrain the upload.
+     *
+     * Tested against a real R2 bucket: the presigned URL comes back with
+     * `X-Amz-SignedHeaders=host` — only the host is covered. A URL signed for
+     * 100 bytes accepted a 5,009-byte body with a 200. So the declared size
+     * and type are advisory; a client is free to ignore both.
+     *
+     * They are still passed because they cost nothing and a future R2 change
+     * (or a move to S3, which does support this) would start honouring them.
+     * But nothing may depend on it. The size and type guarantees live entirely
+     * in SubmissionController::register(), which HEADs the stored object and
+     * sniffs its leading bytes after the fact.
      */
     public static function presignPut(
         string $path,
