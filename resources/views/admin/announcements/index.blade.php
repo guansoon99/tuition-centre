@@ -63,23 +63,15 @@
                                         All
                                     @endif
                                 </td>
-                                {{-- An em dash reads as "missing" here; these
-                                     are unbounded on purpose, so say which.
-                                     Same colour as a real date — the words are
-                                     the value, not a placeholder for one. --}}
-                                <td class="px-4 py-3 text-sm text-slate-800">
-                                    @if ($starts)
-                                        <span class="font-mono">{{ $starts->format('Y-m-d H:i') }}</span>
-                                    @else
-                                        Immediately
-                                    @endif
+                                {{-- Blank means unbounded: no start is live
+                                     immediately, no end runs until removed.
+                                     The create form spells that out; here it is
+                                     just a dash, matching the other columns. --}}
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">
+                                    {{ $starts?->format('Y-m-d H:i') ?? '—' }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-slate-800">
-                                    @if ($ends)
-                                        <span class="font-mono">{{ $ends->format('Y-m-d H:i') }}</span>
-                                    @else
-                                        Forever
-                                    @endif
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">
+                                    {{ $ends?->format('Y-m-d H:i') ?? '—' }}
                                 </td>
                                 <td class="px-4 py-3 font-mono text-sm">
                                     {{ $a->sent_at?->format('Y-m-d H:i') ?? '—' }}
