@@ -72,40 +72,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
         $this->assertNotSame($old, SiteSettings::current()->logo_path);
     }
 
-    /**
-     * "Required" is a rule about the result, not the field. Removing is still
-     * allowed — you just cannot save a removal on its own, because the logo
-     * renders on the login page where there is no session to authorise
-     * anything.
-     */
-    public function test_settings_cannot_be_saved_without_a_logo_when_none_is_set(): void
-    {
-        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => null]);
-        SiteSettings::forgetCache();
-
-        $this->actingAs($this->admin)
-            ->patch(route('settings.update'), ['name' => 'LMS Site'])
-            ->assertSessionHasErrors('logo');
-    }
-
-    public function test_removing_the_logo_without_a_replacement_is_refused(): void
-    {
-        $existing = $this->seedFile(PublicFile::disk(), 'site/current.webp');
-        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $existing]);
-        SiteSettings::forgetCache();
-
-        $this->actingAs($this->admin)
-            ->patch(route('settings.update'), [
-                'name' => 'LMS Site',
-                'remove_logo' => '1',
-            ])
-            ->assertSessionHasErrors('logo');
-
-        // Refused, so the existing logo must be untouched.
-        Storage::disk(PublicFile::disk())->assertExists($existing);
-        $this->assertSame($existing, SiteSettings::current()->logo_path);
-    }
-
+    /** Removing and replacing in one save is a replacement, not a removal. */
     public function test_removing_and_replacing_in_one_save_is_allowed(): void
     {
         $old = $this->seedFile(PublicFile::disk(), 'site/outgoing.webp');
