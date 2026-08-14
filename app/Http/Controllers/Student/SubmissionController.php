@@ -320,11 +320,16 @@ class SubmissionController extends Controller
     }
 
     /**
-     * Stream a submission file for download. Authorization:
+     * Hand over a submission file. Authorization:
      *   - the student who owns the submission, OR
      *   - a teacher of the course containing the assignment.
+     *
+     * Redirects to a signed URL rather than streaming. Streaming held a
+     * PHP-FPM worker for the whole transfer, which is fine for a student
+     * fetching their own file and not fine for a teacher opening thirty in a
+     * row during marking — on eight workers that is the whole pool.
      */
-    public function download(Request $request, SubmissionFile $file): StreamedResponse
+    public function download(Request $request, SubmissionFile $file): RedirectResponse|StreamedResponse
     {
         $submission = $file->submission;
         $material = $submission->material;
@@ -341,11 +346,11 @@ class SubmissionController extends Controller
             abort(404);
         }
 
-        // Authorised above — PrivateFile::response performs no checks itself.
-        return PrivateFile::response(
+        // Authorised above — PrivateFile::download performs no checks itself.
+        return PrivateFile::download(
             $file->file_path,
             $file->original_name,
-            $file->mime_type ?? 'application/octet-stream',
+            $file->mime_type,
         );
     }
 

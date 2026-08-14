@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -41,6 +43,62 @@ class PrivateFile extends StoredFile
             'Content-Type' => $mimeType,
             'Content-Disposition' => $disposition.'; filename="'.addslashes($downloadName).'"',
         ]);
+    }
+
+    /**
+     * Hand the file over, without pushing its bytes through PHP where that
+     * can be avoided.
+     *
+     * On a cloud disk this authorises nothing and simply redirects to a
+     * short-lived signed URL, so the transfer happens browser-to-R2 and the
+     * worker is released immediately. Streaming instead — which is what this
+     * replaced — held one of the eight workers for the whole download, and a
+     * teacher opening thirty submissions in a row held thirty.
+     *
+     * Call only after authorising: like response(), this checks nothing.
+     */
+    public static function download(
+        string $path,
+        string $downloadName,
+        ?string $mimeType = null,
+        string $disposition = 'attachment',
+        int $ttlMinutes = 15,
+    ): RedirectResponse|StreamedResponse {
+        $disk = static::disk();
+        $mimeType = $mimeType ?: 'application/octet-stream';
+
+        if (config('filesystems.disks.'.$disk.'.driver') === 's3') {
+            return redirect()->away(Storage::disk($disk)->temporaryUrl(
+                $path,
+                now()->addMinutes($ttlMinutes),
+                [
+                    // Without this the browser saves the object key — a UUID —
+                    // instead of the name the student uploaded.
+                    'ResponseContentDisposition' => static::dispositionHeader($disposition, $downloadName),
+                    'ResponseContentType' => $mimeType,
+                ],
+            ));
+        }
+
+        // Local disk (dev) cannot sign, so fall back to streaming.
+        return static::response($path, $downloadName, $mimeType, $disposition);
+    }
+
+    /**
+     * A Content-Disposition value that survives non-ASCII filenames.
+     *
+     * Material titles here are frequently Chinese, and a raw UTF-8 filename in
+     * this header is invalid — it needs RFC 5987 encoding plus an ASCII
+     * fallback for clients that ignore it. Symfony builds both correctly; the
+     * fallback just has to be sanitised first, since it rejects %, / and \.
+     */
+    public static function dispositionHeader(string $disposition, string $filename): string
+    {
+        $fallback = preg_replace('/[^\x20-\x7E]/', '_', $filename) ?? '';
+        $fallback = str_replace(['%', '/', '\\', '"'], '_', $fallback);
+        $fallback = trim($fallback) !== '' ? $fallback : 'download';
+
+        return HeaderUtils::makeDisposition($disposition, $filename, $fallback);
     }
 
     /**

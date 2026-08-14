@@ -210,6 +210,99 @@ class SubmissionUploadTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Downloading
+    // ------------------------------------------------------------------
+
+    /**
+     * Built directly rather than through the upload endpoint: posting first
+     * would establish a session as the student, and a later actingAs() for a
+     * different user does not displace it — the request just redirects to
+     * login, so an authorization assertion would pass for the wrong reason.
+     */
+    private function uploadedFile(string $name = 'My Essay.pdf'): SubmissionFile
+    {
+        $path = 'submissions/'.$this->assignment->section->course_id
+            .'/'.$this->assignment->id.'/'.$this->student->id.'/'.\Illuminate\Support\Str::uuid().'.pdf';
+
+        Storage::disk(PrivateFile::disk())->put($path, '%PDF-1.4 content');
+
+        $submission = Submission::create([
+            'material_id' => $this->assignment->id,
+            'user_id' => $this->student->id,
+            'submitted_at' => now(),
+        ]);
+
+        return $submission->files()->create([
+            'file_path' => $path,
+            'original_name' => $name,
+            'size_bytes' => 16,
+            'mime_type' => 'application/pdf',
+            'uploaded_at' => now(),
+        ]);
+    }
+
+    public function test_a_student_can_download_their_own_submission(): void
+    {
+        $file = $this->uploadedFile();
+
+        $this->actingAs($this->student)
+            ->get(route('submission-files.download', $file))
+            ->assertOk();
+    }
+
+    public function test_another_student_cannot_download_someone_elses_submission(): void
+    {
+        $file = $this->uploadedFile();
+
+        $outsider = User::factory()->create(['is_active' => true]);
+        $outsider->assignRole('student');
+
+        $this->actingAs($outsider)
+            ->get(route('submission-files.download', $file))
+            ->assertForbidden();
+    }
+
+    /**
+     * On a cloud disk this redirects to a signed URL instead of streaming, so
+     * the worker is not held for the transfer. The test disk cannot sign, so
+     * what is asserted here is that the fallback still serves the file — the
+     * redirect branch needs a real bucket.
+     */
+    public function test_downloads_still_work_on_a_disk_that_cannot_sign(): void
+    {
+        $file = $this->uploadedFile();
+
+        $this->actingAs($this->student)
+            ->get(route('submission-files.download', $file))
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename="My Essay.pdf"');
+    }
+
+    /**
+     * The filename is echoed into a Content-Disposition header. Raw UTF-8 is
+     * invalid there, and material titles in this app are routinely Chinese —
+     * so it has to be RFC 5987 encoded with an ASCII fallback, or downloads
+     * arrive mangled or fail outright.
+     */
+    public function test_the_download_filename_survives_non_ascii_and_quoting(): void
+    {
+        $cases = [
+            'essay.pdf' => 'attachment; filename=essay.pdf',
+            '中文.jpg' => "attachment; filename=______.jpg; filename*=utf-8''%E4%B8%AD%E6%96%87.jpg",
+        ];
+
+        foreach ($cases as $name => $expected) {
+            $this->assertSame($expected, PrivateFile::dispositionHeader('attachment', $name));
+        }
+
+        // Characters Symfony rejects in the fallback must be scrubbed, not
+        // passed through — they would throw.
+        $tricky = PrivateFile::dispositionHeader('attachment', 'my "report" 50%.pdf');
+        $this->assertStringContainsString('filename="my _report_ 50_.pdf"', $tricky);
+        $this->assertStringContainsString("filename*=utf-8''", $tricky);
+    }
+
+    // ------------------------------------------------------------------
     // Direct-to-R2 path
     // ------------------------------------------------------------------
 
