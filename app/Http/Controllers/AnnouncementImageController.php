@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Support\PrivateFile;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnnouncementImageController extends Controller
 {
     /**
-     * Stream an announcement's image.
+     * Serve an announcement's image.
      *
      * These live on the private disk, so there is no direct URL — this is the
      * only way to fetch one, and it authorises first. An announcement can be
@@ -22,7 +23,7 @@ class AnnouncementImageController extends Controller
      * means the image gate and the listing can never disagree — a narrower
      * audience rule applies here automatically.
      */
-    public function show(Request $request, Announcement $announcement): StreamedResponse
+    public function show(Request $request, Announcement $announcement): RedirectResponse|StreamedResponse
     {
         $user = $request->user();
 
@@ -38,8 +39,14 @@ class AnnouncementImageController extends Controller
 
         $extension = pathinfo($announcement->image_path, PATHINFO_EXTENSION) ?: 'webp';
 
+        // Redirect rather than stream. These render on the home page, several
+        // at a time, for every logged-in user — and PrivateFile does not
+        // re-encode, so an admin's phone photo is stored at full size. Piping
+        // that through PHP meant several workers held on the busiest page in
+        // the app. Now the worker only authorises.
+        //
         // Inline: this is rendered in an <img> tag, not downloaded.
-        return PrivateFile::response(
+        return PrivateFile::download(
             $announcement->image_path,
             ($announcement->title ?: 'announcement').'.'.$extension,
             match (strtolower($extension)) {
