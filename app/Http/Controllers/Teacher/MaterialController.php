@@ -140,11 +140,14 @@ class MaterialController extends Controller
             'max_files' => null,
         ];
 
+        // Superseded PDF is noted and deleted only after the row is saved —
+        // see the note in SettingsController::update. Deleting first loses the
+        // existing file if storing the replacement fails.
+        $replaced = null;
+
         if ($type === Material::TYPE_PDF) {
             if ($request->hasFile('file')) {
-                if ($material->file_path) {
-                    PrivateFile::forget($material->file_path);
-                }
+                $replaced = $material->file_path;
                 $upload = $request->file('file');
                 $courseId = $material->section->course_id;
                 $name = Str::uuid().'.pdf';
@@ -156,9 +159,9 @@ class MaterialController extends Controller
                 $data['file_size_bytes'] = $material->file_size_bytes;
             }
         } else {
-            // Switched away from PDF — clean up the orphaned file.
+            // Switched away from PDF — the file is no longer referenced.
             if ($wasPdf && $material->file_path) {
-                PrivateFile::forget($material->file_path);
+                $replaced = $material->file_path;
             }
 
             if ($type === Material::TYPE_TEXT || $type === Material::TYPE_PAGE) {
@@ -184,6 +187,8 @@ class MaterialController extends Controller
         );
 
         $material->update($data);
+
+        PrivateFile::forget($replaced);
 
         if ($dropped !== []) {
             CourseMedia::purgeUnreferenced(

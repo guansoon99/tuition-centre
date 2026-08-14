@@ -55,10 +55,12 @@ class BannerController extends Controller
     {
         $data = $request->validated();
 
+        // Old image deleted after the row is saved, not before — see the note
+        // in SettingsController::update.
+        $replaced = null;
+
         if ($request->hasFile('image')) {
-            if ($slide->image_path) {
-                PublicFile::forget($slide->image_path);
-            }
+            $replaced = $slide->image_path;
             $data['image_path'] = PublicFile::store($request->file('image'), 'banner-slides');
         }
 
@@ -67,6 +69,8 @@ class BannerController extends Controller
         unset($data['image']);
 
         $slide->update($data);
+
+        PublicFile::forget($replaced);
 
         $this->forgetCache();
 

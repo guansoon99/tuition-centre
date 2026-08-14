@@ -86,20 +86,22 @@ class AnnouncementController extends Controller
             'ends_at' => Carbon::createFromFormat('Y-m-d H:i', $request->input('ends_at')),
         ];
 
+        // Any superseded file is noted here and deleted only once the row has
+        // been saved — see the note in SettingsController::update. Deleting
+        // first destroys the existing image if the save never happens.
+        $replaced = null;
+
         if ($newType === Announcement::TYPE_TEXT) {
             $data['body'] = $request->input('body');
-            // Switching from image → text: delete the old image file and clear the path.
+            // Switching from image → text: the old image is no longer used.
             if ($announcement->type === Announcement::TYPE_IMAGE && $announcement->image_path) {
-                PrivateFile::forget($announcement->image_path);
+                $replaced = $announcement->image_path;
                 $data['image_path'] = null;
             }
         } else { // TYPE_IMAGE
             $data['body'] = '';
             if ($request->hasFile('image')) {
-                // New/replacement image: delete any old file first.
-                if ($announcement->image_path) {
-                    PrivateFile::forget($announcement->image_path);
-                }
+                $replaced = $announcement->image_path;
                 $data['image_path'] = PrivateImage::store($request->file('image'), 'announcement-images');
             }
             // Otherwise keep the existing image_path (validation ensures one
@@ -107,6 +109,8 @@ class AnnouncementController extends Controller
         }
 
         $announcement->update($data);
+
+        PrivateFile::forget($replaced);
 
         return redirect()
             ->route('announcements.index')

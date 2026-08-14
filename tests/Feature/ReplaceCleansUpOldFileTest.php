@@ -72,12 +72,43 @@ class ReplaceCleansUpOldFileTest extends TestCase
         $this->assertNotSame($old, SiteSettings::current()->logo_path);
     }
 
-    public function test_removing_the_site_logo_removes_the_file(): void
+    /**
+     * "Required" is a rule about the result, not the field. Removing is still
+     * allowed — you just cannot save a removal on its own, because the logo
+     * renders on the login page where there is no session to authorise
+     * anything.
+     */
+    public function test_settings_cannot_be_saved_without_a_logo_when_none_is_set(): void
     {
-        $old = $this->seedFile(PublicFile::disk(), 'site/bye-logo.webp');
-        // firstOrCreate, not query()->update(): the table is empty under
-        // RefreshDatabase, so an update would match nothing and the controller
-        // would then create a fresh row with no logo to replace.
+        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => null]);
+        SiteSettings::forgetCache();
+
+        $this->actingAs($this->admin)
+            ->patch(route('settings.update'), ['name' => 'LMS Site'])
+            ->assertSessionHasErrors('logo');
+    }
+
+    public function test_removing_the_logo_without_a_replacement_is_refused(): void
+    {
+        $existing = $this->seedFile(PublicFile::disk(), 'site/current.webp');
+        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $existing]);
+        SiteSettings::forgetCache();
+
+        $this->actingAs($this->admin)
+            ->patch(route('settings.update'), [
+                'name' => 'LMS Site',
+                'remove_logo' => '1',
+            ])
+            ->assertSessionHasErrors('logo');
+
+        // Refused, so the existing logo must be untouched.
+        Storage::disk(PublicFile::disk())->assertExists($existing);
+        $this->assertSame($existing, SiteSettings::current()->logo_path);
+    }
+
+    public function test_removing_and_replacing_in_one_save_is_allowed(): void
+    {
+        $old = $this->seedFile(PublicFile::disk(), 'site/outgoing.webp');
         SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $old]);
         SiteSettings::forgetCache();
 
@@ -85,10 +116,28 @@ class ReplaceCleansUpOldFileTest extends TestCase
             ->patch(route('settings.update'), [
                 'name' => 'LMS Site',
                 'remove_logo' => '1',
-            ])->assertSessionHasNoErrors()->assertRedirect();
+                'logo' => UploadedFile::fake()->image('incoming.png', 400, 400),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         Storage::disk(PublicFile::disk())->assertMissing($old);
-        $this->assertNull(SiteSettings::current()->logo_path);
+        $this->assertNotNull(SiteSettings::current()->logo_path);
+    }
+
+    public function test_saving_without_a_file_keeps_the_existing_logo(): void
+    {
+        $existing = $this->seedFile(PublicFile::disk(), 'site/keep-me.webp');
+        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $existing]);
+        SiteSettings::forgetCache();
+
+        $this->actingAs($this->admin)
+            ->patch(route('settings.update'), ['name' => 'Renamed'])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        Storage::disk(PublicFile::disk())->assertExists($existing);
+        $this->assertSame($existing, SiteSettings::current()->logo_path);
     }
 
     public function test_replacing_a_banner_image_removes_the_old_one(): void

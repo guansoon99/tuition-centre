@@ -42,6 +42,13 @@ class SettingsTest extends TestCase
 
     public function test_admin_can_save_centre_name_and_contact(): void
     {
+        // A logo is required, so one has to exist before anything else can be
+        // saved without attaching a file. See the logo tests below.
+        Storage::fake('public');
+        Storage::disk('public')->put('site/logo.png', 'fake');
+        SiteSettings::current()->update(['logo_path' => 'site/logo.png']);
+        SiteSettings::forgetCache();
+
         $this->actingAs($this->admin)
             ->patch('/settings', [
                 'name' => 'Qin Education',
@@ -73,13 +80,18 @@ class SettingsTest extends TestCase
         Storage::disk('public')->assertExists($settings->logo_path);
     }
 
-    public function test_admin_can_remove_logo_via_main_form(): void
+    /**
+     * Removal is still offered in the UI, but a save that would leave the site
+     * with no logo is refused — it renders on the login page, where there is
+     * no session to authorise anything. Removing and replacing in one save is
+     * covered in ReplaceCleansUpOldFileTest.
+     */
+    public function test_removing_the_logo_without_a_replacement_is_refused(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('site/old-logo.png', 'fake');
 
-        $settings = SiteSettings::current();
-        $settings->update(['logo_path' => 'site/old-logo.png']);
+        SiteSettings::current()->update(['logo_path' => 'site/old-logo.png']);
         SiteSettings::forgetCache();
 
         $this->actingAs($this->admin)
@@ -87,10 +99,10 @@ class SettingsTest extends TestCase
                 'name' => 'Centre',
                 'remove_logo' => '1',
             ])
-            ->assertRedirect('/settings');
+            ->assertSessionHasErrors('logo');
 
-        $this->assertNull(SiteSettings::current()->logo_path);
-        Storage::disk('public')->assertMissing('site/old-logo.png');
+        $this->assertSame('site/old-logo.png', SiteSettings::current()->logo_path);
+        Storage::disk('public')->assertExists('site/old-logo.png');
     }
 
     public function test_blank_centre_name_falls_back_to_app_name(): void

@@ -32,18 +32,28 @@ class SettingsController extends Controller
             'updated_at' => now(),
         ];
 
-        // Logo handling: a new file overrides remove_logo; otherwise remove_logo wins.
+        /*
+         * A new file always wins over remove_logo — clicking Remove and then
+         * picking a replacement is a replacement, not a removal. Validation
+         * has already refused any save that would leave no logo at all, so
+         * only the replace branch can actually run.
+         *
+         * The old file is noted here but deleted only after the row is saved.
+         * Deleting first meant a failure storing the replacement — R2
+         * unreachable, say — left the site with no logo and a row pointing at
+         * a path that no longer existed.
+         */
+        $replaced = null;
+
         if ($request->hasFile('logo')) {
-            if ($settings->logo_path) {
-                PublicFile::forget($settings->logo_path);
-            }
+            $replaced = $settings->logo_path;
             $data['logo_path'] = PublicFile::store($request->file('logo'), 'site');
-        } elseif ($request->boolean('remove_logo') && $settings->logo_path) {
-            PublicFile::forget($settings->logo_path);
-            $data['logo_path'] = null;
         }
 
         $settings->update($data);
+
+        // Nothing references it now. forget() is null-safe.
+        PublicFile::forget($replaced);
 
         SiteSettings::forgetCache();
 

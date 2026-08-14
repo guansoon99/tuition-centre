@@ -143,10 +143,13 @@ class CourseController extends Controller
     {
         $data = $request->validated();
 
+        // Old banner deleted only after the row is saved — see the note in
+        // SettingsController::update. Deleting first loses the existing image
+        // if storing the replacement fails.
+        $replaced = null;
+
         if ($request->hasFile('banner_image')) {
-            if ($course->banner_image) {
-                PublicFile::forget($course->banner_image);
-            }
+            $replaced = $course->banner_image;
             $data['banner_image'] = PublicFile::store($request->file('banner_image'), 'course-banners');
         } else {
             unset($data['banner_image']);
@@ -156,6 +159,8 @@ class CourseController extends Controller
         $data['slug'] = Str::slug($data['code']);
 
         $course->update($data);
+
+        PublicFile::forget($replaced);
 
         return redirect()
             ->route('courses.edit', $course)
