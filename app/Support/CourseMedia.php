@@ -60,11 +60,16 @@ class CourseMedia extends PrivateImage
      * object. Deleting on the first material's removal would blank the image
      * in the second, so every candidate is checked against the rest first.
      *
-     * $exceptMaterialId is the material being deleted or edited: its own
-     * (old) body must not count as a reference to itself.
+     * $exceptMaterialIds are the materials being deleted or edited: their own
+     * (old) bodies must not count as references to themselves. This matters
+     * more than it looks — the lookup below is withTrashed, so a material that
+     * has just been soft-deleted still counts unless it is named here, and
+     * nothing would ever be purged.
      */
-    public static function purgeUnreferenced(int $courseId, array $filenames, ?int $exceptMaterialId = null): int
+    public static function purgeUnreferenced(int $courseId, array $filenames, array|int|null $exceptMaterialIds = null): int
     {
+        $except = array_filter((array) $exceptMaterialIds);
+
         if ($filenames === []) {
             return 0;
         }
@@ -75,7 +80,7 @@ class CourseMedia extends PrivateImage
         // later, and until then its body is the only record of what it used.
         \App\Models\Material::withTrashed()
             ->whereNotNull('body')
-            ->when($exceptMaterialId, fn ($q) => $q->whereKeyNot($exceptMaterialId))
+            ->when($except !== [], fn ($q) => $q->whereKeyNot($except))
             ->select('id', 'body')
             ->chunkById(500, function ($rows) use (&$stillUsed) {
                 foreach ($rows as $row) {

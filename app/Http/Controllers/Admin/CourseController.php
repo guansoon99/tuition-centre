@@ -10,6 +10,8 @@ use App\Models\Section;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
 use App\Support\Cache\CacheKeys;
+use App\Support\CourseMedia;
+use Illuminate\Support\Facades\Storage;
 use App\Support\PrivateFile;
 use App\Support\PublicFile;
 use Illuminate\Contracts\View\View;
@@ -257,6 +259,15 @@ class CourseController extends Controller
 
         foreach ([...$materialPaths, ...$submissionPaths] as $path) {
             PrivateFile::forget($path);
+        }
+
+        // Images and video embedded in lesson text. These are not in any
+        // column — the only reference is a URL inside the rich-text body, so
+        // the path-collecting queries above never saw them. The whole course
+        // is gone, so the whole folder goes.
+        foreach ($courseIds as $courseId) {
+            Storage::disk(CourseMedia::disk())
+                ->deleteDirectory(CourseMedia::folder($courseId));
         }
 
         // Return to the exact filtered URL the admin was on — Laravel's

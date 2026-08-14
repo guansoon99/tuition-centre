@@ -49,19 +49,29 @@ class SweepOrphanedSubmissionFiles extends Command
         $objects = array_merge(
             $disk->allFiles('submissions'),
             $disk->allFiles('course-media'),
+            $disk->allFiles('materials'),
         );
 
         if ($objects === []) {
-            $this->info('No submission or course-media objects in storage.');
+            $this->info('Nothing in storage to reconcile.');
 
             return self::SUCCESS;
         }
 
-        // One query rather than one per object — a bucket with thousands of
-        // submissions would otherwise hammer the database.
+        // One query per table rather than one per object — a bucket with
+        // thousands of files would otherwise hammer the database.
         $known = SubmissionFile::whereIn('file_path', $objects)
             ->pluck('file_path')
             ->flip();
+
+        // Material PDFs. withTrashed so a soft-deleted material keeps its file
+        // for as long as the row could come back.
+        $known = $known->union(
+            Material::withTrashed()
+                ->whereIn('file_path', $objects)
+                ->pluck('file_path')
+                ->flip()
+        );
 
         // Course media has no table. A file's only link to a lesson is the URL
         // embedded in the rich-text body, so the bodies ARE the index — pull

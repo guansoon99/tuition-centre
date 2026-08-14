@@ -177,15 +177,25 @@ class TeacherCrudTest extends TestCase
         $this->assertSame('orig', $material->fresh()->title);
     }
 
-    public function test_section_delete_cascades_materials_via_soft_delete(): void
+    /**
+     * Hard delete, deliberately. A soft delete emits an UPDATE, and ON DELETE
+     * CASCADE is a database constraint that only fires on a real DELETE — so
+     * the section vanished from the UI while its materials stayed live and
+     * their files sat in storage referenced by nothing.
+     */
+    public function test_section_delete_removes_its_materials_for_real(): void
     {
         $section = Section::factory()->create(['course_id' => $this->course->id]);
-        Material::factory()->count(3)->create(['section_id' => $section->id]);
+        $materials = Material::factory()->count(3)->create(['section_id' => $section->id]);
 
         $this->actingAs($this->teacher)
             ->delete(route('sections.destroy', $section))
             ->assertRedirect();
 
-        $this->assertSoftDeleted($section);
+        $this->assertDatabaseMissing('sections', ['id' => $section->id]);
+
+        foreach ($materials as $material) {
+            $this->assertDatabaseMissing('materials', ['id' => $material->id]);
+        }
     }
 }

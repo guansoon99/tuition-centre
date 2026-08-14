@@ -7,6 +7,10 @@ use App\Http\Requests\Teacher\StoreSectionRequest;
 use App\Http\Requests\Teacher\UpdateSectionRequest;
 use App\Models\Course;
 use App\Models\Section;
+use App\Support\PrivateFile;
+use App\Support\CourseMedia;
+use App\Models\SubmissionFile;
+use App\Models\Submission;
 use App\Support\HtmlSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -127,7 +131,47 @@ class SectionController extends Controller
 
         $course = $section->course;
 
-        $section->delete();
+        /*
+         * forceDelete, not delete. Soft-deleting left the section's materials
+         * behind: the FK cascade is a database constraint and only fires on a
+         * real DELETE, so nothing downstream was removed and every file stayed
+         * in storage referenced by nothing.
+         *
+         * The cascade reaches further than it first appears:
+         *
+         *   sections -> materials -> submissions -> submission_files
+         *
+         * so deleting a section containing an assignment also destroys the
+         * work students submitted to it. That is the right outcome — the
+         * assignment no longer exists — but it means the files have to be
+         * collected BEFORE the rows disappear, because afterwards there is
+         * nothing left to say which objects belonged to this section.
+         */
+        $materials = $section->materials()->withTrashed()->get();
+        $embedded = [];
+        $paths = [];
+
+        foreach ($materials as $material) {
+            if ($material->file_path) {
+                $paths[] = $material->file_path;
+            }
+            $embedded = array_merge($embedded, CourseMedia::filenamesIn($material->body));
+        }
+
+        $paths = array_merge($paths, SubmissionFile::whereIn(
+            'submission_id',
+            Submission::whereIn('material_id', $materials->pluck('id'))->select('id'),
+        )->pluck('file_path')->all());
+
+        // Rows first: if this fails, nothing has been deleted from storage and
+        // the section is still intact.
+        $section->forceDelete();
+
+        foreach ($paths as $path) {
+            PrivateFile::forget($path);
+        }
+
+        CourseMedia::purgeUnreferenced($course->id, array_unique($embedded));
 
         return redirect()
             ->route('courses.edit', [$course, 'tab' => 'materials'])
