@@ -46,9 +46,8 @@ class AnnouncementController extends Controller
             'body' => $type === Announcement::TYPE_TEXT ? $request->input('body') : '',
             'audience' => $request->input('audience'),
             'course_id' => $request->integer('course_id') ?: null,
-            // Null means unbounded on that side — createFromFormat would
-            // throw on an empty string rather than give us that.
-            'starts_at' => $this->parseMoment($request->input('starts_at')),
+            // Start always has a value; a blank end means it never expires.
+            'starts_at' => $this->parseStart($request->input('starts_at')),
             'ends_at' => $this->parseMoment($request->input('ends_at')),
             // Auto-append to the end of the existing order.
             'sort_order' => (int) Announcement::max('sort_order') + 1,
@@ -84,9 +83,8 @@ class AnnouncementController extends Controller
             'type' => $newType,
             'audience' => $request->input('audience'),
             'course_id' => $request->integer('course_id') ?: null,
-            // Null means unbounded on that side — createFromFormat would
-            // throw on an empty string rather than give us that.
-            'starts_at' => $this->parseMoment($request->input('starts_at')),
+            // Start always has a value; a blank end means it never expires.
+            'starts_at' => $this->parseStart($request->input('starts_at')),
             'ends_at' => $this->parseMoment($request->input('ends_at')),
         ];
 
@@ -166,13 +164,27 @@ class AnnouncementController extends Controller
     /**
      * A datetime from the form, or null when the field was left blank.
      *
-     * Blank is meaningful here: no start means the announcement is live
-     * immediately, no end means it never expires.
+     * Blank is meaningful for the end date: null means the announcement never
+     * expires, which is what User::visibleAnnouncements() reads as no bound.
      */
     private function parseMoment(?string $value): ?Carbon
     {
         $value = trim((string) $value);
 
         return $value === '' ? null : Carbon::createFromFormat('Y-m-d H:i', $value);
+    }
+
+    /**
+     * The start, defaulting to now.
+     *
+     * The form pre-fills this, so it normally arrives populated; the fallback
+     * covers a cleared field and older rows saved before the default existed.
+     * A null start would work — the visibility query treats it as no bound —
+     * but storing the real moment keeps the list showing a date rather than a
+     * dash, and records when the announcement actually went up.
+     */
+    private function parseStart(?string $value): Carbon
+    {
+        return $this->parseMoment($value) ?? Carbon::now();
     }
 }

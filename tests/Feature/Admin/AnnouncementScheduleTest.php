@@ -9,12 +9,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Announcement scheduling, where both ends are optional.
+ * Announcement scheduling.
  *
- * A blank start means "live now" and a blank end means "until removed". Those
- * are stored as NULL, which User::visibleAnnouncements() already treats as an
- * absent bound — so the visibility half of this needs no new logic, only
- * proof that it behaves as claimed.
+ * The start defaults to now rather than being stored null, so the list always
+ * shows a date and the record says when the announcement actually went up.
+ * The end is genuinely optional: null there means it never expires, which
+ * User::visibleAnnouncements() already reads as an absent bound.
  */
 class AnnouncementScheduleTest extends TestCase
 {
@@ -51,8 +51,28 @@ class AnnouncementScheduleTest extends TestCase
         $this->submit()->assertSessionHasNoErrors()->assertRedirect();
 
         $a = Announcement::firstOrFail();
-        $this->assertNull($a->starts_at);
         $this->assertNull($a->ends_at);
+        $this->assertNotNull($a->starts_at, 'Start should fall back to now, not stay blank.');
+    }
+
+    public function test_an_omitted_start_is_stored_as_now(): void
+    {
+        $this->travelTo(now()->startOfMinute());
+
+        $this->submit()->assertSessionHasNoErrors();
+
+        $this->assertTrue(
+            Announcement::firstOrFail()->starts_at->equalTo(now()->startOfMinute()),
+            'A blank start should be saved as the current moment.',
+        );
+    }
+
+    public function test_the_create_form_pre_fills_the_start_with_now(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('announcements.create'))
+            ->assertOk()
+            ->assertSee('value="'.now()->format('Y-m-d H:i').'"', false);
     }
 
     public function test_a_blank_end_leaves_the_announcement_running(): void
@@ -70,9 +90,7 @@ class AnnouncementScheduleTest extends TestCase
         $this->submit(['ends_at' => now()->addDay()->format('Y-m-d H:i')])
             ->assertSessionHasNoErrors();
 
-        $a = Announcement::firstOrFail();
-        $this->assertNull($a->starts_at);
-        $this->assertTrue($this->visibleToStudent($a));
+        $this->assertTrue($this->visibleToStudent(Announcement::firstOrFail()));
     }
 
     public function test_an_unbounded_announcement_is_visible(): void
