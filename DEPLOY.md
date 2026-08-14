@@ -526,7 +526,52 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
-- [ ] Nightly `mysqldump` to a backup location
+- [ ] Nightly backup of **both** the database and `storage/app/public` — see
+      [Backups](#backups)
+
+## Backups
+
+Two things need backing up, and a database dump is only one of them.
+
+```bash
+#!/bin/sh
+# /usr/local/bin/tuition-backup  —  run nightly from cron
+set -e
+DEST=/var/backups/tuition
+STAMP=$(date +%F)
+mkdir -p "$DEST"
+
+mysqldump --single-transaction --quick tuition | gzip > "$DEST/db-$STAMP.sql.gz"
+
+# Branding lives on this disk, not in R2 — see UPLOADS_DISK in
+# .env.production.example. A database dump does not include it.
+tar czf "$DEST/storage-$STAMP.tar.gz" -C /var/www/tuition storage/app/public
+
+find "$DEST" -type f -mtime +14 -delete
+```
+
+```bash
+sudo chmod +x /usr/local/bin/tuition-backup
+sudo crontab -e
+# 30 2 * * * /usr/local/bin/tuition-backup
+```
+
+**Why `storage/app/public` specifically.** The site logo, banner slides and
+course banners are the only user uploads not in R2, because they render before
+login and R2 cannot expose part of a bucket. Everything else — submissions,
+material PDFs, lesson media, announcement images — is in R2 and outside the
+scope of this script.
+
+Restore that tarball whenever you rebuild the box, or the database will point
+at images that no longer exist and the login page will render a broken logo.
+It is a handful of files, so re-uploading by hand is a legitimate alternative;
+what is not legitimate is assuming the database dump covered them.
+
+⚠️ `--single-transaction` matters: without it, `mysqldump` locks tables for
+the duration and the site stalls behind it.
+
+Copy the backups off the droplet. A backup that only exists on the machine it
+is protecting is not a backup.
 
 ## Update procedure (zero-ish downtime)
 
