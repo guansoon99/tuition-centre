@@ -10,15 +10,13 @@ namespace App\Support;
  * caller can see the course first. Same guarantee the Moodle install this
  * replaces gives via pluginfile.php.
  *
- * One difference from PrivateFile: images ARE re-encoded to WebP. PrivateFile
- * refuses to touch bytes because a student's submitted work must come back
- * exactly as sent. That reasoning does not apply here — this is content the
- * school produced, and a teacher pasting an 8 MP phone photo into a lesson
- * should not ship 8 MP to every student who opens it.
+ * Extends PrivateImage rather than PrivateFile, so images are downscaled and
+ * re-encoded to WebP: a teacher pasting an 8 MP phone photo into a lesson
+ * should not ship 8 MP to every student who opens it. Video is untouched —
+ * compression only applies to formats StoredFile::shouldCompress accepts.
  */
-class CourseMedia extends PrivateFile
+class CourseMedia extends PrivateImage
 {
-    protected static bool $compressImages = true;
 
     /**
      * Storage prefix for one course's embedded media.

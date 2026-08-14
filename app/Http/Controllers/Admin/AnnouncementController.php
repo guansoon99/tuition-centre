@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\AnnouncementRequest;
 use App\Models\Announcement;
 use App\Models\Course;
 use App\Support\PrivateFile;
+use App\Support\PrivateImage;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -53,7 +54,7 @@ class AnnouncementController extends Controller
         ];
 
         if ($type === Announcement::TYPE_IMAGE && $request->hasFile('image')) {
-            $data['image_path'] = PrivateFile::store($request->file('image'), 'announcement-images');
+            $data['image_path'] = PrivateImage::store($request->file('image'), 'announcement-images');
         }
 
         Announcement::create($data);
@@ -99,7 +100,7 @@ class AnnouncementController extends Controller
                 if ($announcement->image_path) {
                     PrivateFile::forget($announcement->image_path);
                 }
-                $data['image_path'] = PrivateFile::store($request->file('image'), 'announcement-images');
+                $data['image_path'] = PrivateImage::store($request->file('image'), 'announcement-images');
             }
             // Otherwise keep the existing image_path (validation ensures one
             // exists when switching text → image).
