@@ -46,8 +46,10 @@ class AnnouncementController extends Controller
             'body' => $type === Announcement::TYPE_TEXT ? $request->input('body') : '',
             'audience' => $request->input('audience'),
             'course_id' => $request->integer('course_id') ?: null,
-            'starts_at' => Carbon::createFromFormat('Y-m-d H:i', $request->input('starts_at')),
-            'ends_at' => Carbon::createFromFormat('Y-m-d H:i', $request->input('ends_at')),
+            // Null means unbounded on that side — createFromFormat would
+            // throw on an empty string rather than give us that.
+            'starts_at' => $this->parseMoment($request->input('starts_at')),
+            'ends_at' => $this->parseMoment($request->input('ends_at')),
             // Auto-append to the end of the existing order.
             'sort_order' => (int) Announcement::max('sort_order') + 1,
             'created_by_user_id' => $request->user()->id,
@@ -82,8 +84,10 @@ class AnnouncementController extends Controller
             'type' => $newType,
             'audience' => $request->input('audience'),
             'course_id' => $request->integer('course_id') ?: null,
-            'starts_at' => Carbon::createFromFormat('Y-m-d H:i', $request->input('starts_at')),
-            'ends_at' => Carbon::createFromFormat('Y-m-d H:i', $request->input('ends_at')),
+            // Null means unbounded on that side — createFromFormat would
+            // throw on an empty string rather than give us that.
+            'starts_at' => $this->parseMoment($request->input('starts_at')),
+            'ends_at' => $this->parseMoment($request->input('ends_at')),
         ];
 
         // Any superseded file is noted here and deleted only once the row has
@@ -157,5 +161,18 @@ class AnnouncementController extends Controller
             ->where('is_active', true)
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
+    }
+
+    /**
+     * A datetime from the form, or null when the field was left blank.
+     *
+     * Blank is meaningful here: no start means the announcement is live
+     * immediately, no end means it never expires.
+     */
+    private function parseMoment(?string $value): ?Carbon
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : Carbon::createFromFormat('Y-m-d H:i', $value);
     }
 }

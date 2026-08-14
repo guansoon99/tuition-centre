@@ -101,19 +101,26 @@
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {{-- Both optional: blank start means live immediately, blank end means
+             it runs until removed. The placeholders carry that, since an empty
+             date field says nothing on its own. --}}
         <div class="min-w-0">
-            <label class="mb-1 block text-sm font-medium text-slate-700">Start</label>
-            <input type="text" name="starts_at" required readonly size="1"
-                   placeholder="2026-05-21 09:00"
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                Start <span class="font-normal text-slate-600">(optional)</span>
+            </label>
+            <input type="text" name="starts_at" readonly size="1"
+                   placeholder="Immediately"
                    value="{{ old('starts_at', $announcement?->starts_at?->format('Y-m-d H:i')) }}"
                    data-flatpickr
                    class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
             @error('starts_at') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
         <div class="min-w-0">
-            <label class="mb-1 block text-sm font-medium text-slate-700">End</label>
-            <input type="text" name="ends_at" required readonly size="1"
-                   placeholder="2026-05-21 17:00"
+            <label class="mb-1 block text-sm font-medium text-slate-700">
+                End <span class="font-normal text-slate-600">(optional)</span>
+            </label>
+            <input type="text" name="ends_at" readonly size="1"
+                   placeholder="No end date"
                    value="{{ old('ends_at', $announcement?->ends_at?->format('Y-m-d H:i')) }}"
                    data-flatpickr
                    class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />

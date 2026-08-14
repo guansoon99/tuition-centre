@@ -29,8 +29,18 @@ class AnnouncementRequest extends FormRequest
             'type' => ['required', Rule::in(array_keys(Announcement::TYPES))],
             'audience' => ['required', Rule::in($allowedAudience)],
             'course_id' => ['nullable', 'integer', 'exists:courses,id'],
-            'starts_at' => ['required', 'date_format:Y-m-d H:i'],
-            'ends_at' => ['required', 'date_format:Y-m-d H:i', 'after_or_equal:starts_at'],
+            /*
+             * Both ends are optional and mean "unbounded on that side":
+             *
+             *   no start -> live immediately
+             *   no end   -> runs until someone deletes or edits it
+             *
+             * Stored as NULL rather than a timestamp, which is what
+             * User::visibleAnnouncements() already tests for — it treats a null
+             * bound as no bound, so nothing downstream needed changing.
+             */
+            'starts_at' => ['nullable', 'date_format:Y-m-d H:i'],
+            'ends_at' => ['nullable', 'date_format:Y-m-d H:i', 'after_or_equal:starts_at'],
         ];
 
         // Body — required whenever the (new) type is text.

@@ -63,11 +63,21 @@
                                         All
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 font-mono text-sm">
-                                    {{ $starts ? $starts->format('Y-m-d H:i') : '—' }}
+                                {{-- An em dash reads as "missing" here; these
+                                     are unbounded on purpose, so say which. --}}
+                                <td class="px-4 py-3 text-sm">
+                                    @if ($starts)
+                                        <span class="font-mono">{{ $starts->format('Y-m-d H:i') }}</span>
+                                    @else
+                                        <span class="text-slate-600">Immediately</span>
+                                    @endif
                                 </td>
-                                <td class="px-4 py-3 font-mono text-sm">
-                                    {{ $ends ? $ends->format('Y-m-d H:i') : '—' }}
+                                <td class="px-4 py-3 text-sm">
+                                    @if ($ends)
+                                        <span class="font-mono">{{ $ends->format('Y-m-d H:i') }}</span>
+                                    @else
+                                        <span class="text-slate-600">No end date</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 font-mono text-sm">
                                     {{ $a->sent_at?->format('Y-m-d H:i') ?? '—' }}
