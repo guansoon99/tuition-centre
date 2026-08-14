@@ -17,6 +17,11 @@ class Kernel extends ConsoleKernel
         // row references. Nothing else will ever notice those — see
         // SweepOrphanedSubmissionFiles. Needs a cron entry for schedule:run.
         $schedule->command('submissions:sweep-orphans')->dailyAt('03:30');
+
+        // Database + local uploads to R2. Off this machine on purpose: a
+        // backup on the droplet dies with the droplet, which is the failure
+        // it is supposed to survive.
+        $schedule->command('backup:run')->dailyAt('02:30')->withoutOverlapping();
     }
 
     /**

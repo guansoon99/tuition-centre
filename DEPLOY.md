@@ -526,52 +526,63 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
-- [ ] Nightly backup of **both** the database and `storage/app/public` — see
-      [Backups](#backups)
+- [ ] `php artisan backup:run --dry-run` reports both artefacts, and
+      `php artisan schedule:list` shows `backup:run` — see [Backups](#backups)
+- [ ] **Restore one backup onto a scratch database before going live.** An
+      untested backup is a hypothesis
 
 ## Backups
 
-Two things need backing up, and a database dump is only one of them.
+`php artisan backup:run`, scheduled nightly at 02:30 by the same `schedule:run`
+cron as the orphan sweep. Nothing else to install.
+
+It writes **to R2**, not to the droplet. That distinction is the whole point: a
+backup in `/var/backups` shares the fate of the machine it protects. It covers
+the common failure — a course deleted by mistake, a migration gone wrong — and
+none of the total ones: disk failure, the droplet being destroyed, a
+compromise that wipes local files too. Those are the cases you keep backups
+for.
+
+Two artefacts, because a database dump alone is not enough:
+
+| Artefact | Contains | Why |
+| --- | --- | --- |
+| `backups/db-<stamp>.sql` | the database | rows only — every uploaded file is already in R2 |
+| `backups/uploads-<stamp>.zip` | `storage/app/public` | the logo and banners, which are NOT in R2 and exist nowhere else |
+
+Submissions, material PDFs and lesson media are already in R2 and are not
+copied again.
 
 ```bash
-#!/bin/sh
-# /usr/local/bin/tuition-backup  —  run nightly from cron
-set -e
-DEST=/var/backups/tuition
-STAMP=$(date +%F)
-mkdir -p "$DEST"
-
-mysqldump --single-transaction --quick tuition | gzip > "$DEST/db-$STAMP.sql.gz"
-
-# Branding lives on this disk, not in R2 — see UPLOADS_DISK in
-# .env.production.example. A database dump does not include it.
-tar czf "$DEST/storage-$STAMP.tar.gz" -C /var/www/tuition storage/app/public
-
-find "$DEST" -type f -mtime +14 -delete
+php artisan backup:run --dry-run   # report, upload nothing
+php artisan backup:run --keep=30   # change retention from the default 14 days
 ```
+
+Old backups are pruned by the same command, so they do not accumulate. At
+current data volumes a dump is a few hundred KB, so a fortnight costs a
+fraction of a cent in R2 storage.
+
+The command **refuses to run** when `FILESYSTEM_DISK` is not R2/S3, rather than
+quietly writing a backup onto the same disk it is meant to protect.
+
+### Restoring
 
 ```bash
-sudo chmod +x /usr/local/bin/tuition-backup
-sudo crontab -e
-# 30 2 * * * /usr/local/bin/tuition-backup
+# List what is available.
+php artisan tinker --execute="print_r(Storage::disk('r2')->files('backups'));"
+
+# Pull one down, then restore it.
+php artisan tinker --execute="file_put_contents('/tmp/db.sql', Storage::disk('r2')->get('backups/db-<stamp>.sql'));"
+mysql tuition < /tmp/db.sql
+
+# And the local uploads, if the droplet was rebuilt.
+unzip -o /tmp/uploads-<stamp>.zip -d /var/www/tuition/storage/app/public
+php artisan storage:link
 ```
 
-**Why `storage/app/public` specifically.** The site logo, banner slides and
-course banners are the only user uploads not in R2, because they render before
-login and R2 cannot expose part of a bucket. Everything else — submissions,
-material PDFs, lesson media, announcement images — is in R2 and outside the
-scope of this script.
-
-Restore that tarball whenever you rebuild the box, or the database will point
-at images that no longer exist and the login page will render a broken logo.
-It is a handful of files, so re-uploading by hand is a legitimate alternative;
-what is not legitimate is assuming the database dump covered them.
-
-⚠️ `--single-transaction` matters: without it, `mysqldump` locks tables for
-the duration and the site stalls behind it.
-
-Copy the backups off the droplet. A backup that only exists on the machine it
-is protecting is not a backup.
+⚠️ **A backup you have never restored is a hypothesis.** Do the restore once,
+onto a scratch database, before you need it — that is when you find out the
+dump was empty, or the credentials were wrong, or the cron never fired.
 
 ## Update procedure (zero-ish downtime)
 
