@@ -267,6 +267,8 @@
                                 input.onchange = async () => {
                                     const file = input.files[0];
                                     if (!file) return;
+
+                                    const ui = window.courseMediaOverlay(editor.root, 'Uploading image…');
                                     const form = new FormData();
                                     form.append('image', file);
                                     try {
@@ -276,6 +278,20 @@
                                                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
                                                 'Accept': 'application/json',
                                             },
+                                            body: form,
+                                        });
+                                        if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
+                                        const data = await res.json();
+                                        const range = editor.getSelection(true);
+                                        editor.insertEmbed(range.index, 'image', data.url, 'user');
+                                        editor.setSelection(range.index + 1);
+                                    } catch (e) {
+                                        alert('Image upload failed: ' + e.message);
+                                    } finally {
+                                        ui.done();
+                                    }
+                                };
+                            },
                                             body: form,
                                         });
                                         if (!res.ok) throw new Error('Upload failed (' + res.status + ')');
@@ -297,20 +313,14 @@
                                     const file = input.files[0];
                                     if (!file) return;
 
-                                    // Quill has no progress UI, so the toolbar
-                                    // button doubles as one — a long upload
-                                    // with no feedback reads as a hang.
-                                    const btn = document.querySelector('.ql-video');
-                                    const label = btn ? btn.innerHTML : null;
-                                    const show = (pct) => { if (btn) btn.textContent = pct + '%'; };
-
+                                    const ui = window.courseMediaOverlay(editor.root, 'Uploading video…');
                                     try {
                                         const url = await window.uploadCourseVideo({
                                             presign:  '{{ route('course-media.presign-video', $course) }}',
                                             register: '{{ route('course-media.register-video', $course) }}',
                                             upload:   '{{ route('course-media.upload-video', $course) }}',
                                             maxMb:    {{ \App\Http\Controllers\CourseMediaController::MAX_VIDEO_MB }},
-                                        }, file, show);
+                                        }, file, ui.progress);
 
                                         const range = editor.getSelection(true);
                                         const html = '<p><video controls src="' + url + '" style="max-width:100%;"></video></p>';
@@ -318,7 +328,7 @@
                                     } catch (e) {
                                         alert('Video upload failed: ' + e.message);
                                     } finally {
-                                        if (btn && label !== null) btn.innerHTML = label;
+                                        ui.done();
                                     }
                                 };
                             },

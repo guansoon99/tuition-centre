@@ -8,6 +8,7 @@ use App\Http\Requests\Teacher\UpdateMaterialRequest;
 use App\Models\Material;
 use App\Models\Section;
 use App\Support\HtmlSanitizer;
+use App\Support\CourseMedia;
 use App\Support\PrivateFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -174,7 +175,23 @@ class MaterialController extends Controller
             }
         }
 
+        // Media the teacher removed from the body while editing. Worked out
+        // before the update, since afterwards the old body is gone and the
+        // only record of what it referenced would be the object itself.
+        $dropped = array_diff(
+            CourseMedia::filenamesIn($material->body),
+            CourseMedia::filenamesIn($data['body'] ?? null),
+        );
+
         $material->update($data);
+
+        if ($dropped !== []) {
+            CourseMedia::purgeUnreferenced(
+                $material->section->course_id,
+                $dropped,
+                $material->id,
+            );
+        }
 
         return redirect()
             ->route('courses.edit', [$material->section->course, 'tab' => 'materials'])
@@ -226,6 +243,17 @@ class MaterialController extends Controller
         if ($material->file_path) {
             PrivateFile::forget($material->file_path);
         }
+
+        // Images and video embedded in the body are files too — they were
+        // just never cleaned up, because unlike file_path they live inside
+        // the HTML rather than in a column. Deleted here for the same reason
+        // and at the same moment as the PDF above.
+        CourseMedia::purgeUnreferenced(
+            $course->id,
+            CourseMedia::filenamesIn($material->body),
+            $material->id,
+        );
+
         $material->delete();
 
         return redirect()

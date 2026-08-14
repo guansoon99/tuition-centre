@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Material;
 use App\Models\SubmissionFile;
+use App\Support\CourseMedia;
 use App\Support\PrivateFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -120,18 +121,22 @@ class SweepOrphanedSubmissionFiles extends Command
     {
         $found = [];
 
-        // chunkById, not chunk: offset-based paging can skip rows, and a
-        // skipped body means its media looks unreferenced and gets deleted.
-        Material::whereNotNull('body')
+        // withTrashed, and chunkById rather than chunk.
+        //
+        // Soft-deleted materials must still count: their media is removed
+        // deliberately by MaterialController::destroy, so anything left here
+        // belonging to a trashed material got there some other way and is not
+        // this command's to guess about. Without it, a soft delete would let
+        // this sweep destroy media that a restore would need.
+        //
+        // chunkById because offset paging can skip a row, and a skipped body
+        // makes its media look unreferenced — i.e. deletes a live file.
+        Material::withTrashed()
+            ->whereNotNull('body')
             ->select('id', 'body')
             ->chunkById(500, function ($rows) use (&$found) {
                 foreach ($rows as $row) {
-                    preg_match_all(
-                        '#/media/([A-Za-z0-9\-]+\.[A-Za-z0-9]+)#',
-                        (string) $row->body,
-                        $m,
-                    );
-                    foreach ($m[1] as $name) {
+                    foreach (CourseMedia::filenamesIn($row->body) as $name) {
                         $found[$name] = true;
                     }
                 }

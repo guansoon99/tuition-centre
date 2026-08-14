@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\CourseMediaController;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\Material;
 use App\Models\Section;
 use App\Models\User;
 use App\Support\CourseMedia;
@@ -228,6 +229,89 @@ class CourseMediaTest extends TestCase
             ->post(route('course-media.upload-video', $this->course), [
                 'video' => UploadedFile::fake()->create('sneaky.mp4', 10, 'application/x-php'),
             ])->assertSessionHasErrors('video');
+    }
+
+    // ---------------- cleanup ----------------
+
+    private function materialEmbedding(array $names): Material
+    {
+        $body = '';
+        foreach ($names as $n) {
+            $body .= '<img src="/courses/'.$this->course->id.'/media/'.$n.'">';
+        }
+
+        return Material::create([
+            'section_id' => $this->course->sections()->first()->id,
+            'title' => 'Lesson', 'type' => Material::TYPE_TEXT, 'body' => $body,
+            'sort_order' => 1, 'is_published' => true, 'published_at' => now(),
+        ]);
+    }
+
+    private function mediaExists(string $name): bool
+    {
+        return Storage::disk(CourseMedia::disk())
+            ->exists(CourseMedia::folder($this->course->id).'/'.$name);
+    }
+
+    /**
+     * The gap this covers: PDFs were cleaned up on delete because they live in
+     * a column, but media embedded in the body never was — there was nothing
+     * hooked to it.
+     */
+    public function test_deleting_a_material_deletes_the_media_embedded_in_it(): void
+    {
+        $name = 'aaaa0000-0000-0000-0000-00000000000a.webp';
+        $this->putMedia($name);
+        $material = $this->materialEmbedding([$name]);
+
+        $this->actingAs($this->teacher)
+            ->delete(route('materials.destroy', $material))
+            ->assertRedirect();
+
+        $this->assertFalse($this->mediaExists($name));
+    }
+
+    /**
+     * A teacher copy-pasting a diagram between two lessons leaves both bodies
+     * pointing at one object. Deleting the first lesson must not blank the
+     * image in the second.
+     */
+    public function test_media_still_used_by_another_material_is_kept(): void
+    {
+        $shared = 'aaaa0000-0000-0000-0000-00000000000b.webp';
+        $solo = 'aaaa0000-0000-0000-0000-00000000000c.webp';
+        $this->putMedia($shared);
+        $this->putMedia($solo);
+
+        $this->materialEmbedding([$shared]);                       // the other lesson
+        $doomed = $this->materialEmbedding([$shared, $solo]);
+
+        $this->actingAs($this->teacher)
+            ->delete(route('materials.destroy', $doomed))
+            ->assertRedirect();
+
+        $this->assertTrue($this->mediaExists($shared), 'Shared media must survive.');
+        $this->assertFalse($this->mediaExists($solo));
+    }
+
+    public function test_removing_an_image_while_editing_deletes_it(): void
+    {
+        $kept = 'aaaa0000-0000-0000-0000-00000000000d.webp';
+        $removed = 'aaaa0000-0000-0000-0000-00000000000e.webp';
+        $this->putMedia($kept);
+        $this->putMedia($removed);
+
+        $material = $this->materialEmbedding([$kept, $removed]);
+
+        $this->actingAs($this->teacher)
+            ->patch(route('materials.update', $material), [
+                'title' => 'Lesson',
+                'type' => Material::TYPE_TEXT,
+                'body' => '<img src="/courses/'.$this->course->id.'/media/'.$kept.'">',
+            ])->assertRedirect();
+
+        $this->assertTrue($this->mediaExists($kept));
+        $this->assertFalse($this->mediaExists($removed));
     }
 
     // ---------------- direct-to-R2 video ----------------

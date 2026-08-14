@@ -35,4 +35,69 @@ class CourseMedia extends PrivateFile
     {
         return "course-media/{$courseId}";
     }
+
+    /**
+     * Filenames of course media embedded in a rich-text body.
+     *
+     * Matches on the /media/<file> portion rather than the whole URL, so a
+     * change of domain does not stop these being recognised — which would
+     * otherwise make every embedded file look unreferenced at once.
+     */
+    public static function filenamesIn(?string $html): array
+    {
+        if (! $html) {
+            return [];
+        }
+
+        preg_match_all('#/media/([A-Za-z0-9\-]+\.[A-Za-z0-9]+)#', $html, $m);
+
+        return array_values(array_unique($m[1]));
+    }
+
+    /**
+     * Delete the given files unless some other material still embeds them.
+     *
+     * The same file can legitimately appear in two lessons — a teacher
+     * copy-pastes a diagram between materials and both bodies reference one
+     * object. Deleting on the first material's removal would blank the image
+     * in the second, so every candidate is checked against the rest first.
+     *
+     * $exceptMaterialId is the material being deleted or edited: its own
+     * (old) body must not count as a reference to itself.
+     */
+    public static function purgeUnreferenced(int $courseId, array $filenames, ?int $exceptMaterialId = null): int
+    {
+        if ($filenames === []) {
+            return 0;
+        }
+
+        $stillUsed = [];
+
+        // withTrashed: a soft-deleted material can still be force-deleted
+        // later, and until then its body is the only record of what it used.
+        \App\Models\Material::withTrashed()
+            ->whereNotNull('body')
+            ->when($exceptMaterialId, fn ($q) => $q->whereKeyNot($exceptMaterialId))
+            ->select('id', 'body')
+            ->chunkById(500, function ($rows) use (&$stillUsed) {
+                foreach ($rows as $row) {
+                    foreach (static::filenamesIn($row->body) as $name) {
+                        $stillUsed[$name] = true;
+                    }
+                }
+            });
+
+        $deleted = 0;
+
+        foreach ($filenames as $name) {
+            if (isset($stillUsed[$name])) {
+                continue;
+            }
+
+            static::forget(static::folder($courseId).'/'.$name);
+            $deleted++;
+        }
+
+        return $deleted;
+    }
 }
