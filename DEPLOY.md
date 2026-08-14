@@ -342,39 +342,48 @@ sudo ln -s /etc/nginx/sites-available/tuition /etc/nginx/sites-enabled/
 sudo certbot --nginx -d your-domain.tld
 ```
 
-## Cloudflare R2 — two buckets
+## Cloudflare R2 — one bucket, never public
 
-**Create two, not one.** The split is a security boundary, not tidiness:
+Everything a user uploaded lives in a single bucket that has **no public
+access at all**: material PDFs, student submissions, lesson images and video,
+announcement images. Each is reached through a controller that authorises the
+caller and then redirects to a signed URL valid for 15 minutes.
 
-| Bucket           | Holds                                                       | Exposure                                     |
-| ---------------- | ----------------------------------------------------------- | -------------------------------------------- |
-| `tuition-prod`   | material PDFs, **student submissions**                       | Private forever. Signed URLs only.            |
-| `tuition-public` | banners, announcement images, inline editor images, videos    | Public, behind a custom domain                |
+⚠️ **Never enable public access on this bucket** — no custom domain, no
+`r2.dev` subdomain. R2 exposes a bucket **all-or-nothing**; there is no
+per-object or per-prefix visibility. One domain here publishes every student
+submission it holds, at a URL whose shape is guessable
+(`/submissions/{course}/{material}/{user}/{uuid}.pdf`).
 
-The public bucket needs a world-readable custom domain — that is what lets
-Cloudflare cache it, and what makes video delivery permitted under their CDN
-terms. Put that domain on a bucket that also holds submissions and you publish
-every student's work. There is no prefix-based version of this that is safe.
+### Branding is not in R2
+
+The site logo, banner slides and course banners stay on this server's own
+disk (`UPLOADS_DISK=public`), served by nginx via the `storage:link` symlink.
+
+They render *before* login, so they cannot be gated. Putting them in R2 would
+mean either a second bucket, or making this one public — and the second is
+what the warning above forbids. Keeping them local sidesteps the question.
+
+The trade-off: they do not survive a server rebuild. They are a logo and a few
+banners, so re-uploading is a small price against publishing schoolwork. An
+`r2_public` disk already exists in `config/filesystems.php` if you later add a
+second app server, where local files stop being shared between them.
 
 ### Setup
 
-1. Create both buckets in the Cloudflare dashboard.
-2. Generate one R2 API token (Account → R2 → Manage R2 API tokens). It can
-   reach both buckets, so `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` are
-   shared.
-3. Attach a custom domain to **`tuition-public` only**: bucket → Settings →
-   Public access → Connect Domain, e.g. `cdn.your-domain.tld`. Set
-   `R2_PUBLIC_URL` to it.
-
-    ⚠️ Leave `tuition-prod` with public access **disabled**. It has no
-    `url` configured in `config/filesystems.php` precisely so that nothing can
-    accidentally start linking to it.
-
-4. Set the `R2_*` vars in `.env` — see `.env.production.example`.
-5. **CORS on `tuition-prod` is required.** Student submissions PUT straight
-   from the browser to the private bucket via signed URLs. Without CORS every
-   direct upload fails and silently falls back to the slower proxied path,
-   which still works — so this is easy to miss. Bucket → Settings → CORS:
+1. Create the bucket in the Cloudflare dashboard.
+2. Generate an R2 API token (Account → R2 → Manage R2 API tokens) with
+   **Object Read & Write**. Admin permissions let it create and delete
+   *buckets*, which this app never does.
+3. Set `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` and
+   `R2_BUCKET` in `.env` — see `.env.production.example`.
+4. Confirm public access is **off**: bucket → Settings → Public access should
+   show no connected domain and r2.dev not allowed. A bucket is private by
+   default, so this is normally just a check.
+5. **CORS is required.** Student submissions and teacher video PUT straight
+   from the browser to R2 via signed URLs. Without CORS every direct upload
+   fails and silently falls back to the slower proxied path — which still
+   works, so the misconfiguration is easy to miss. Bucket → Settings → CORS:
 
     ```json
     [
@@ -387,22 +396,29 @@ every student's work. There is no prefix-based version of this that is safe.
     ]
     ```
 
-6. Verify before trusting any of it:
+    `AllowedOrigins` must match the browser's origin exactly — scheme, host and
+    port. `http://` and `https://`, and `www` and bare, are different origins.
+    Add staging as a second entry rather than replacing production.
+
+6. Verify:
 
     ```bash
     php artisan storage:check
     ```
 
-### Why `R2_PUBLIC_URL` is not optional
+### Confirming the bucket really is private
 
-Without it, the S3 driver builds URLs from the API endpoint
-(`https://<account>.r2.cloudflarestorage.com/<bucket>/<path>`). That address
-requires SigV4 authentication, so **every banner, announcement image and video
-returns 403** — with no exception thrown and nothing written to the log. The
-page renders fine; the pictures are just missing.
+There is no public/private toggle to read — private is the absence of a
+public domain, not a setting. To check from outside, request an object with no
+credentials:
 
-`storage:check` catches this, and `PublicFile::url()` logs an error if it ever
-gets that far in production.
+```bash
+curl -s -o /dev/null -w '%{http_code}
+'   "https://<account_id>.r2.cloudflarestorage.com/<bucket>/<any-key>"
+```
+
+A private bucket answers **400/403** (`InvalidArgument`/`Authorization`). A
+200 means public access is enabled and student work is exposed.
 
 ## Cloudflare CDN/WAF (free tier)
 
@@ -437,43 +453,42 @@ student's page to another. There is no version of this worth the risk.
 ### Video — do NOT add `*.mp4` to the rules above
 
 It looks like the obvious next entry in the cache list. It is the one
-extension that belongs somewhere else, for two independent reasons.
+extension that belongs nowhere, and the reason changed once lesson media went
+private.
 
-**1. It would match nothing.** Teacher video uploads go through
-`SectionController::uploadVideo` → `PublicFile` → `uploads_disk`, which is
-`r2` in production. The videos are already on R2 and are never served from
-this droplet, so a `*.mp4` rule on your own zone has nothing to act on.
+**1. It would match nothing.** Teacher video goes to R2 via `CourseMedia`, so
+it is never served from this droplet. A `*.mp4` rule on your own zone has
+nothing to act on.
 
-**2. If it did match, it would be the restricted case.** Cloudflare's CDN
-terms allow serving video only when the content is hosted on a Cloudflare
-service — Stream, Images, or R2. Video sitting on your origin and pulled
-through the orange cloud is exactly what the restriction covers. Because your
-videos live on R2, you are on the right side of this — but only for as long as
-they are served *from* R2.
+**2. It cannot be cached anywhere else either.** Video is served through
+`CourseMediaController`, which authorises the viewer and redirects to a signed
+R2 URL. Cloudflare's docs are explicit that "presigned URLs work with the S3
+API domain and cannot be used with custom domains", and caching only applies to
+custom domains — so the two are mutually exclusive by construction, not by
+configuration.
 
-**So configure caching on the R2 custom domain instead.** Binding a custom
-domain (e.g. `cdn.your-domain.tld`) to the bucket puts Cloudflare's cache in
-front of R2, is explicitly permitted for video, and costs nothing in egress
-because R2-to-edge traffic is internal to Cloudflare. Byte-range requests work
-through it, which is what makes seeking in a `<video>` element usable.
+That is a deliberate trade. Access control was worth more than caching here:
+the Moodle install this replaces gates course files behind a login, and serving
+them publicly would have been a downgrade. The cost is small at this geography
+— an uncached fetch travels Kuala Lumpur → Cloudflare backbone → R2 in
+Singapore, a short hop that adds milliseconds, and R2 egress is $0 either way.
 
-⚠️ **Cap video uploads below 512 MB.** That is Cloudflare's maximum cacheable
-object size on Free, Pro *and* Business alike — only Enterprise raises it, to
-5 GB. Anything larger is fetched from R2 on every single view and never cached
-at the edge. `SectionController::uploadVideo` is currently unbounded by
-design, so a teacher can upload a 700 MB lecture that permanently misses the
-cache. Egress is still $0, but every viewer pays the full origin round-trip.
+If students outside the region ever enrol, that calculus shifts. Getting
+caching back **with** access control then means Cloudflare Pro plus WAF HMAC
+token validation, or a Worker in front of the bucket — not making the bucket
+public.
+
+⚠️ Video is capped at **500 MB** (`CourseMediaController::MAX_VIDEO_MB`),
+checked in the browser before the upload starts and again on the stored object.
+It used to be unbounded, which was never true in practice — the proxied path
+simply failed at whatever limit it hit first.
 
 ### How much is the CDN actually buying you?
 
 Be clear-eyed: **it can only ever cache static assets**, because none of the
-HTML is cacheable. Your entire static payload is four content-hashed build
-files plus a handful of icons — small, and already served once per student per
-deploy.
-
-Video is the exception, and it is the one case where a CDN genuinely earns its
-keep — a 50 MB lesson watched by 200 students is 10 GB that the edge serves
-instead of R2. But that happens on the R2 custom domain, not here.
+HTML is cacheable and every user upload is behind a signed URL. Your entire
+cacheable payload is four content-hashed build files plus a handful of icons —
+small, and already served once per student per deploy.
 
 The CDN is worth configuring for TLS, WAF, login rate-limiting and DDoS
 absorption. It is not what makes the app fast. [OPcache](#opcache--verify-its-actually-on)
@@ -492,13 +507,17 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
       direct path failed and it fell back silently; check the bucket CORS
       policy first
 - [ ] An oversized file is refused _before_ the upload starts, not after
-- [ ] `php artisan storage:check` passes — two separate buckets, and the
-      public one has a custom domain. Do this before the first upload of
+- [ ] `php artisan storage:check` passes. Do this before the first upload of
       anything
-- [ ] Fetch a banner image URL directly: it must be `cdn.your-domain.tld/...`,
-      not `*.r2.cloudflarestorage.com`, and must return 200
-- [ ] Fetch a submission path on the public domain and confirm it **404s** —
-      student work must not be reachable there
+- [ ] **The R2 bucket has no public access** — no connected domain, r2.dev not
+      allowed. Confirm from outside with an unauthenticated request; it must
+      answer 400/403, never 200:
+
+      curl -s -o /dev/null -w '%{http_code}
+'         "https://<account_id>.r2.cloudflarestorage.com/<bucket>/anything"
+
+- [ ] The site logo and banners load on the login page — those come from this
+      server's disk, so `php artisan storage:link` must have run
 - [ ] `php artisan schedule:list` shows `submissions:sweep-orphans`
 - [ ] `php artisan submissions:sweep-orphans --dry-run` runs without error
       against the real bucket

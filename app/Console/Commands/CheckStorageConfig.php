@@ -55,9 +55,11 @@ class CheckStorageConfig extends Command
         }
 
         if ($publicDisk === $privateDisk && ($public['driver'] ?? null) === 's3') {
-            $problems[] = "UPLOADS_DISK and FILESYSTEM_DISK are both [{$publicDisk}]. Public "
-                .'assets and student submissions would share one bucket. Set '
-                .'UPLOADS_DISK=r2_public.';
+            $problems[] = "UPLOADS_DISK and FILESYSTEM_DISK are both [{$publicDisk}]. Branding "
+                .'and student submissions would share one bucket, and R2 exposes a bucket '
+                .'all-or-nothing — so making the branding reachable would publish the '
+                .'submissions with it. Use UPLOADS_DISK=public (this server\'s disk), or a '
+                .'separate public bucket via UPLOADS_DISK=r2_public.';
         }
 
         // A private disk with a public URL is a contradiction worth catching.
