@@ -526,7 +526,7 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
 - [ ] Nothing is being served by `php artisan serve` — nginx owns port 80/443
 - [ ] Cloudflare is in front (DNS resolves to Cloudflare IPs)
 - [ ] HTTPS via certbot, auto-renew installed
-- [ ] `php artisan backup:run --dry-run` reports both artefacts, and
+- [ ] `php artisan backup:run --dry-run` reports a dump, and
       `php artisan schedule:list` shows `backup:run` — see [Backups](#backups)
 - [ ] **Restore one backup onto a scratch database before going live.** An
       untested backup is a hypothesis
@@ -543,15 +543,13 @@ none of the total ones: disk failure, the droplet being destroyed, a
 compromise that wipes local files too. Those are the cases you keep backups
 for.
 
-Two artefacts, because a database dump alone is not enough:
+**The database only.** Every uploaded file — submissions, material PDFs,
+lesson media, banners, the logo — already lives in R2, so copying them back
+into R2 would buy nothing. The database is the one thing that exists solely on
+the droplet.
 
-| Artefact | Contains | Why |
-| --- | --- | --- |
-| `backups/db-<stamp>.sql` | the database | rows only — every uploaded file is already in R2 |
-| `backups/uploads-<stamp>.zip` | `storage/app/public` | the logo and banners, which are NOT in R2 and exist nowhere else |
-
-Submissions, material PDFs and lesson media are already in R2 and are not
-copied again.
+It holds rows, not files, so a dump stays small: a few hundred KB today, and
+still modest at a few thousand students.
 
 ```bash
 php artisan backup:run --dry-run   # report, upload nothing
@@ -575,9 +573,6 @@ php artisan tinker --execute="print_r(Storage::disk('r2')->files('backups'));"
 php artisan tinker --execute="file_put_contents('/tmp/db.sql', Storage::disk('r2')->get('backups/db-<stamp>.sql'));"
 mysql tuition < /tmp/db.sql
 
-# And the local uploads, if the droplet was rebuilt.
-unzip -o /tmp/uploads-<stamp>.zip -d /var/www/tuition/storage/app/public
-php artisan storage:link
 ```
 
 ⚠️ **A backup you have never restored is a hypothesis.** Do the restore once,

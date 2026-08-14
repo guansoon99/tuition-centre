@@ -6,7 +6,6 @@ use App\Support\PrivateFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
-use ZipArchive;
 
 /**
  * Nightly backup, written off this machine.
@@ -17,18 +16,13 @@ use ZipArchive;
  * ones: disk failure, the droplet being destroyed, a compromise that wipes
  * local files too. Those are the cases backups exist for.
  *
- * So both artefacts go to R2, which is already configured, already private,
- * and costs fractions of a cent for a fortnight of dumps.
+ * So the dump goes to R2, which is already configured, already private, and
+ * costs fractions of a cent for a fortnight.
  *
- * Two things are backed up, because a database dump alone is not enough:
- *
- *   the database        rows only — every uploaded file lives in R2
- *   storage/app/public  the site logo and banners, which are NOT in R2 (they
- *                       render before login; see UPLOADS_DISK) and would
- *                       otherwise exist nowhere else
- *
- * Everything else — submissions, material PDFs, lesson media — is already in
- * R2 and is not copied again.
+ * Only the database is dumped. Every uploaded file — submissions, material
+ * PDFs, lesson media, and now branding too — already lives in R2, so copying
+ * them into R2 again would buy nothing. The database is the one thing that
+ * exists solely on this machine.
  */
 class BackupToR2 extends Command
 {
@@ -36,7 +30,7 @@ class BackupToR2 extends Command
                             {--keep=14 : Delete backups older than this many days}
                             {--dry-run : Report what would happen, upload nothing}';
 
-    protected $description = 'Back up the database and local uploads to R2';
+    protected $description = 'Back up the database to R2';
 
     private const PREFIX = 'backups';
 
@@ -63,10 +57,6 @@ class BackupToR2 extends Command
 
         try {
             $artefacts[] = $this->dumpDatabase($temp, $stamp);
-
-            if ($uploads = $this->zipLocalUploads($temp, $stamp)) {
-                $artefacts[] = $uploads;
-            }
 
             foreach ($artefacts as $file) {
                 $key = self::PREFIX.'/'.basename($file);
@@ -146,53 +136,6 @@ class BackupToR2 extends Command
         }
 
         $this->line('dumped    mysql database');
-
-        return $out;
-    }
-
-    /**
-     * Zip storage/app/public — the logo and banners, which live only here.
-     *
-     * Returns null when there is nothing to back up, so a fresh install does
-     * not upload an empty archive every night.
-     */
-    private function zipLocalUploads(string $temp, string $stamp): ?string
-    {
-        $source = storage_path('app/public');
-
-        if (! is_dir($source)) {
-            return null;
-        }
-
-        $out = "{$temp}/uploads-{$stamp}.zip";
-        $zip = new ZipArchive();
-
-        if ($zip->open($out, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new \RuntimeException("Could not create {$out}");
-        }
-
-        $count = 0;
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS)
-        );
-
-        foreach ($files as $file) {
-            if (! $file->isFile()) {
-                continue;
-            }
-            $zip->addFile($file->getPathname(), substr($file->getPathname(), strlen($source) + 1));
-            $count++;
-        }
-
-        $zip->close();
-
-        if ($count === 0) {
-            @unlink($out);
-
-            return null;
-        }
-
-        $this->line("zipped    {$count} local upload(s)");
 
         return $out;
     }
