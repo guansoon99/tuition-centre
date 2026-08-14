@@ -76,7 +76,7 @@
                                     @if ($ends)
                                         <span class="font-mono">{{ $ends->format('Y-m-d H:i') }}</span>
                                     @else
-                                        <span class="text-slate-600">No end date</span>
+                                        <span class="text-slate-600">Forever</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 font-mono text-sm">

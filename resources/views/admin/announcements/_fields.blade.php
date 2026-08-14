@@ -120,7 +120,7 @@
                 End <span class="font-normal text-slate-600">(optional)</span>
             </label>
             <input type="text" name="ends_at" readonly size="1"
-                   placeholder="No end date"
+                   placeholder="Forever"
                    value="{{ old('ends_at', $announcement?->ends_at?->format('Y-m-d H:i')) }}"
                    data-flatpickr
                    class="w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-mono" />
