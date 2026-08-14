@@ -64,19 +64,21 @@
                                     @endif
                                 </td>
                                 {{-- An em dash reads as "missing" here; these
-                                     are unbounded on purpose, so say which. --}}
-                                <td class="px-4 py-3 text-sm">
+                                     are unbounded on purpose, so say which.
+                                     Same colour as a real date — the words are
+                                     the value, not a placeholder for one. --}}
+                                <td class="px-4 py-3 text-sm text-slate-800">
                                     @if ($starts)
                                         <span class="font-mono">{{ $starts->format('Y-m-d H:i') }}</span>
                                     @else
-                                        <span class="text-slate-600">Immediately</span>
+                                        Immediately
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-sm">
+                                <td class="px-4 py-3 text-sm text-slate-800">
                                     @if ($ends)
                                         <span class="font-mono">{{ $ends->format('Y-m-d H:i') }}</span>
                                     @else
-                                        <span class="text-slate-600">Forever</span>
+                                        Forever
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 font-mono text-sm">
