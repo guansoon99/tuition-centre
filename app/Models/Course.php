@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\PublicFile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,9 +27,22 @@ class Course extends Model
         'is_active' => 'boolean',
     ];
 
+    /**
+     * The banner is private, like the rest of a course's media, so this is a
+     * gated app URL rather than a link to the object store.
+     *
+     * Only ever rendered to someone already looking at the course — the home
+     * page uses scopeVisibleTo, which is a subset of what CoursePolicy::view
+     * allows, so a card can never appear with a banner its viewer is refused.
+     */
     protected function bannerImageUrl(): Attribute
     {
-        return Attribute::get(fn () => PublicFile::url($this->banner_image));
+        return Attribute::get(fn () => $this->banner_image
+            ? route('course-media.show', [
+                'course' => $this->id,
+                'file' => basename($this->banner_image),
+            ])
+            : null);
     }
 
     public function getRouteKeyName(): string

@@ -9,6 +9,7 @@ use App\Models\Material;
 use App\Models\Section;
 use App\Models\SiteSettings;
 use App\Models\User;
+use App\Support\CourseMedia;
 use App\Support\PrivateFile;
 use App\Support\PublicFile;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -125,8 +126,10 @@ class ReplaceCleansUpOldFileTest extends TestCase
 
     public function test_replacing_a_course_banner_removes_the_old_one(): void
     {
-        $old = $this->seedFile(PublicFile::disk(), 'course-banners/old.webp');
-        $course = Course::factory()->create(['is_active' => true, 'banner_image' => $old]);
+        // Private now, and filed under the course id like the rest of its media.
+        $course = Course::factory()->create(['is_active' => true]);
+        $old = $this->seedFile(PrivateFile::disk(), CourseMedia::folder($course->id).'/old.webp');
+        $course->update(['banner_image' => $old]);
 
         $this->actingAs($this->admin)
             ->patch(route('courses.update', $course), [
@@ -136,7 +139,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
                 'is_active' => '1',
             ])->assertSessionHasNoErrors()->assertRedirect();
 
-        Storage::disk(PublicFile::disk())->assertMissing($old);
+        Storage::disk(PrivateFile::disk())->assertMissing($old);
     }
 
     public function test_replacing_a_material_pdf_removes_the_old_one(): void

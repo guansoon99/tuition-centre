@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Course;
 use App\Models\Material;
 use App\Models\SubmissionFile;
 use App\Support\CourseMedia;
@@ -121,15 +122,31 @@ class SweepOrphanedSubmissionFiles extends Command
     }
 
     /**
-     * Every course-media filename that appears in a lesson body.
+     * Every course-media filename something still points at.
      *
      * Returned as a lookup keyed by filename. Matching on the filename rather
      * than the whole URL keeps this working if the app's domain ever changes,
      * which would otherwise silently orphan every embedded file at once.
+     *
+     * Two sources, because course-media holds two kinds of file:
+     *
+     *   lesson bodies         images and video embedded in rich text
+     *   courses.banner_image  the course banner, which is in a column
+     *
+     * The banner is easy to forget — it lives in the same folder but is not
+     * mentioned in any body, so leaving it out here would have this command
+     * delete every course banner on its first run.
      */
     private function filenamesReferencedInLessons(): array
     {
         $found = [];
+
+        Course::withTrashed()
+            ->whereNotNull('banner_image')
+            ->pluck('banner_image')
+            ->each(function ($path) use (&$found) {
+                $found[basename($path)] = true;
+            });
 
         // withTrashed, and chunkById rather than chunk.
         //

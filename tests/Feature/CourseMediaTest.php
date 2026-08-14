@@ -332,6 +332,60 @@ class CourseMediaTest extends TestCase
             ->assertSee('data-no-spinner', false);
     }
 
+    // ---------------- course banner ----------------
+
+    /**
+     * The banner moved from the public bucket to here, so it now goes through
+     * the same gate as lesson media. Its URL must point at this app, never at
+     * an object-store address anyone could fetch.
+     */
+    public function test_a_course_banner_is_served_through_the_gated_route(): void
+    {
+        $file = $this->putMedia('bbbb0000-0000-0000-0000-00000000000f.webp');
+        $this->course->update([
+            'banner_image' => CourseMedia::folder($this->course->id).'/'.$file,
+        ]);
+
+        $url = $this->course->fresh()->banner_image_url;
+
+        $this->assertStringContainsString('/courses/'.$this->course->id.'/media/', $url);
+        $this->assertStringNotContainsString('r2.cloudflarestorage.com', $url);
+        $this->assertStringNotContainsString('r2.dev', $url);
+
+        $this->actingAs($this->student)->get($url)->assertOk();
+    }
+
+    public function test_a_course_banner_is_refused_to_someone_not_on_the_course(): void
+    {
+        $file = $this->putMedia('bbbb0000-0000-0000-0000-000000000010.webp');
+        $this->course->update([
+            'banner_image' => CourseMedia::folder($this->course->id).'/'.$file,
+        ]);
+
+        $outsider = User::factory()->create(['is_active' => true]);
+        $outsider->assignRole('student');
+
+        $this->actingAs($outsider)
+            ->get($this->course->fresh()->banner_image_url)
+            ->assertForbidden();
+    }
+
+    /**
+     * The banner sits in course-media/ but is referenced by a column, not by
+     * any lesson body — so the sweep would treat it as an orphan and delete
+     * every course banner on its first run.
+     */
+    public function test_the_orphan_sweep_does_not_delete_a_course_banner(): void
+    {
+        $file = $this->putMedia('bbbb0000-0000-0000-0000-000000000011.webp');
+        $path = CourseMedia::folder($this->course->id).'/'.$file;
+        $this->course->update(['banner_image' => $path]);
+
+        $this->artisan('submissions:sweep-orphans', ['--hours' => 0])->assertSuccessful();
+
+        Storage::disk(CourseMedia::disk())->assertExists($path);
+    }
+
     // ---------------- cleanup ----------------
 
     private function materialEmbedding(array $names): Material

@@ -13,7 +13,6 @@ use App\Support\Cache\CacheKeys;
 use App\Support\CourseMedia;
 use Illuminate\Support\Facades\Storage;
 use App\Support\PrivateFile;
-use App\Support\PublicFile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,15 +57,23 @@ class CourseController extends Controller
     public function store(CourseRequest $request): RedirectResponse
     {
         $data = $request->validated();
-
-        if ($request->hasFile('banner_image')) {
-            $data['banner_image'] = PublicFile::store($request->file('banner_image'), 'course-banners');
-        }
+        unset($data['banner_image']);
 
         $data['is_active'] = $request->boolean('is_active', true);
         $data['slug'] = Str::slug($data['code']);
 
         $course = Course::create($data);
+
+        // Stored after the insert: the banner is filed under the course id,
+        // which does not exist until the row does.
+        if ($request->hasFile('banner_image')) {
+            $course->update([
+                'banner_image' => CourseMedia::store(
+                    $request->file('banner_image'),
+                    CourseMedia::folder($course->id),
+                ),
+            ]);
+        }
 
         return redirect()
             ->route('courses.edit', $course)
@@ -150,7 +157,10 @@ class CourseController extends Controller
 
         if ($request->hasFile('banner_image')) {
             $replaced = $course->banner_image;
-            $data['banner_image'] = PublicFile::store($request->file('banner_image'), 'course-banners');
+            $data['banner_image'] = CourseMedia::store(
+                $request->file('banner_image'),
+                CourseMedia::folder($course->id),
+            );
         } else {
             unset($data['banner_image']);
         }
@@ -160,7 +170,7 @@ class CourseController extends Controller
 
         $course->update($data);
 
-        PublicFile::forget($replaced);
+        CourseMedia::forget($replaced);
 
         return redirect()
             ->route('courses.edit', $course)
@@ -226,7 +236,6 @@ class CourseController extends Controller
         // still a real row that the cascade will remove, and its file is
         // still on disk. Miss it here and the row vanishes with the only
         // reference to that file — it leaks forever.
-        $bannerPaths = $courses->pluck('banner_image')->filter()->all();
 
         $sectionIds = Section::withTrashed()
             ->whereIn('course_id', $courseIds)
@@ -258,10 +267,6 @@ class CourseController extends Controller
         // --- 4. DB is committed — now free the disk. ---
         // Banners live on the public uploads disk; materials and submissions
         // are private and live on the default disk.
-        foreach ($bannerPaths as $path) {
-            PublicFile::forget($path);
-        }
-
         foreach ([...$materialPaths, ...$submissionPaths] as $path) {
             PrivateFile::forget($path);
         }
