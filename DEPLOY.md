@@ -6,8 +6,24 @@ only HTML, and files stream from Cloudflare R2 rather than the droplet. See
 
 ## Server prerequisites
 
+**Use Ubuntu 24.04 LTS.** Not for any deep technical reason — Debian is
+slightly lighter and just as capable — but because when something breaks at
+11pm, the search result that matches your error will have been written for
+Ubuntu. At this scale that is worth more than the differences between distros.
+
+⚠️ **24.04 specifically, not 22.04.** The PHP version is the whole reason:
+
+| | Ships PHP |
+| --- | --- |
+| Ubuntu 22.04 LTS | 8.1 — `apt-get install php8.3-fpm` fails outright |
+| **Ubuntu 24.04 LTS** | **8.3** — everything below just works |
+
+On 22.04 you would need `sudo add-apt-repository ppa:ondrej/php` first, which
+is a well-maintained third-party repo but one more thing to trust and keep
+current. 24.04 avoids it entirely, and is supported to 2029.
+
 ```bash
-# Ubuntu 22.04 / 24.04
+# Ubuntu 24.04 LTS
 sudo apt-get update
 sudo apt-get install -y nginx mysql-server certbot python3-certbot-nginx \
     php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml \
