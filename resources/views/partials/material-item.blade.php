@@ -17,6 +17,16 @@
 @once
     @push('head')
         <style>
+            /*
+                A pasted URL or any other long unbreakable run would otherwise
+                set this block's minimum width to the length of that run, which
+                the row cannot shrink below — so the row grows and pushes the
+                edit button out of view. Breaking mid-word is the lesser evil.
+                Chinese text already wraps anywhere and is unaffected.
+            */
+            .prose-section { overflow-wrap: break-word; word-break: break-word; }
+            /* Wide tables scroll inside the row rather than stretching it. */
+            .prose-section table { display: block; overflow-x: auto; max-width: 100%; }
             .prose-section h1 { font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; color: rgb(15 23 42); }
             .prose-section h2 { font-size: 1.125rem; font-weight: 600; margin: 0.5rem 0; color: rgb(15 23 42); }
             .prose-section h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0; color: rgb(15 23 42); }

@@ -21,6 +21,7 @@ use App\Http\Controllers\Student\MaterialController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\Teacher\MaterialController as TeacherMaterialController;
 use App\Http\Controllers\Teacher\SectionController as TeacherSectionController;
+use App\Http\Controllers\Teacher\FeedbackFileController as TeacherFeedbackFileController;
 use App\Http\Controllers\Teacher\SubmissionController as TeacherSubmissionController;
 use Illuminate\Support\Facades\Route;
 
@@ -78,6 +79,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('submission-files.destroy');
     Route::get('/submission-files/{file}/download', [SubmissionController::class, 'download'])
         ->name('submission-files.download');
+    // Feedback the teacher returned. Readable by the student it belongs to,
+    // which is why it is here rather than in the staff-only group below.
+    Route::get('/feedback-files/{file}/download', [TeacherFeedbackFileController::class, 'download'])
+        ->name('feedback-files.download');
 
     // -----------------------------------------------------------------
     // Courses
@@ -159,8 +164,19 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         Route::patch('/submissions/{submission}/grade', [TeacherSubmissionController::class, 'grade'])
             ->name('submissions.grade');
+        // Fragment for the grading modal — loaded on open, so a large roster
+        // does not ship one copy of the form per student.
+        Route::get('/submissions/{submission}/grade-modal', [TeacherSubmissionController::class, 'gradeModal'])
+            ->name('submissions.grade-modal');
         Route::get('/assignments/{material}/download-all', [TeacherSubmissionController::class, 'downloadAll'])
             ->name('submissions.download-all');
+        Route::get('/assignments/{material}/download-status', [TeacherSubmissionController::class, 'downloadStatus'])
+            ->name('submissions.download-status');
+
+        Route::post('/submissions/{submission}/feedback-files', [TeacherFeedbackFileController::class, 'store'])
+            ->name('feedback-files.store');
+        Route::delete('/feedback-files/{file}', [TeacherFeedbackFileController::class, 'destroy'])
+            ->name('feedback-files.destroy');
     });
 
     // Course staff management — admins only.

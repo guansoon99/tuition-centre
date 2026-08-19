@@ -15,6 +15,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubmissionController extends Controller
@@ -29,7 +30,13 @@ class SubmissionController extends Controller
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/webp' => 'webp',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-powerpoint' => 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
     ];
+
+    private const REJECTED = 'Only PDF, image (jpg/png/webp), Word or PowerPoint files are allowed.';
 
     /**
      * Step 1 of a direct-to-R2 upload: hand the browser a URL it can PUT one
@@ -53,6 +60,10 @@ class SubmissionController extends Controller
             return response()->json(['message' => 'Submissions are closed for this assignment.'], 422);
         }
 
+        if ($this->isGraded($material, $request->user()->id)) {
+            return response()->json(['message' => 'This assignment has been graded and can no longer be changed.'], 422);
+        }
+
         $maxBytes = $material->maxFileSizeBytes();
         $maxMb = $material->max_file_size_mb ?: Material::DEFAULT_MAX_FILE_SIZE_MB;
 
@@ -61,7 +72,7 @@ class SubmissionController extends Controller
             'content_type' => ['required', 'string', Rule::in(Material::SUBMISSION_MIME_TYPES)],
         ], [
             'size.max' => "Each file must be under {$maxMb}MB.",
-            'content_type.in' => 'Only PDF and image files (jpg/png/webp) are allowed.',
+            'content_type.in' => self::REJECTED,
         ]);
 
         $user = $request->user();
@@ -132,6 +143,13 @@ class SubmissionController extends Controller
             return response()->json(['message' => 'Submissions are closed for this assignment.'], 422);
         }
 
+        // A teacher can mark the work between presigning and registering.
+        if ($this->isGraded($material, $user->id)) {
+            PrivateFile::forget($key);
+
+            return response()->json(['message' => 'This assignment has been graded and can no longer be changed.'], 422);
+        }
+
         $size = PrivateFile::sizeOf($key);
 
         if ($size > $material->maxFileSizeBytes()) {
@@ -144,12 +162,20 @@ class SubmissionController extends Controller
         // The client's declared Content-Type is a claim, not evidence. Sniff
         // the stored bytes — the same magic-byte check the `mimetypes:` rule
         // performed back when uploads went through PHP.
-        $mime = PrivateFile::sniffMimeType($key);
+        //
+        // The extension comes off the key, which this server built at presign
+        // from a whitelisted Content-Type — it is not the student's filename.
+        // Material::resolveSubmissionMime explains why the extension is needed
+        // at all: Word and PowerPoint cannot be told apart from bytes alone.
+        $mime = Material::resolveSubmissionMime(
+            PrivateFile::sniffMimeType($key),
+            pathinfo($key, PATHINFO_EXTENSION),
+        );
 
-        if (! in_array($mime, Material::SUBMISSION_MIME_TYPES, true)) {
+        if ($mime === null) {
             PrivateFile::forget($key);
 
-            return response()->json(['message' => 'Only PDF and image files (jpg/png/webp) are allowed.'], 422);
+            return response()->json(['message' => self::REJECTED], 422);
         }
 
         try {
@@ -172,6 +198,8 @@ class SubmissionController extends Controller
                     'mime_type' => $mime,
                     'uploaded_at' => now(),
                 ]);
+
+                $submission->markModified();
             });
         } catch (\Throwable $e) {
             // Lost the cap race, or the insert failed. Either way the row
@@ -206,6 +234,10 @@ class SubmissionController extends Controller
             return back()->withErrors(['files' => 'Submissions are closed for this assignment.']);
         }
 
+        if ($this->isGraded($material, $request->user()->id)) {
+            return back()->withErrors(['files' => 'This assignment has been graded and can no longer be changed.']);
+        }
+
         $maxMb = $material->max_file_size_mb ?: Material::DEFAULT_MAX_FILE_SIZE_MB;
         $maxSizeKb = $maxMb * 1024;
         $maxFiles = $material->maxFiles();
@@ -214,11 +246,14 @@ class SubmissionController extends Controller
             'files' => ['required', 'array', 'min:1'],
             'files.*' => [
                 'file',
-                'mimetypes:'.implode(',', Material::SUBMISSION_MIME_TYPES),
+                // Container types are allowed through here and narrowed
+                // per-file below; the rule alone cannot tell a .docx from any
+                // other zip, so it must not be the last word.
+                'mimetypes:'.implode(',', Material::sniffableSubmissionMimeTypes()),
                 "max:{$maxSizeKb}",
             ],
         ], [
-            'files.*.mimetypes' => 'Only PDF and image files (jpg/png/webp) are allowed.',
+            'files.*.mimetypes' => self::REJECTED,
             'files.*.max' => "Each file must be under {$maxMb}MB.",
         ]);
 
@@ -249,7 +284,21 @@ class SubmissionController extends Controller
 
         try {
             foreach ($uploads as $upload) {
-                $ext = self::EXT_BY_MIME[$upload->getMimeType()] ?? 'bin';
+                // Same two-part decision as register(): sniffed bytes, plus the
+                // extension to separate Word from PowerPoint. Here the
+                // extension is the student's, since there is no presigned key
+                // to take it from — so a renamed archive is accepted as the
+                // Office type it claims, exactly as on the direct path.
+                $mime = Material::resolveSubmissionMime(
+                    $upload->getMimeType(),
+                    $upload->getClientOriginalExtension(),
+                );
+
+                if ($mime === null) {
+                    throw ValidationException::withMessages(['files' => self::REJECTED]);
+                }
+
+                $ext = self::EXT_BY_MIME[$mime] ?? 'bin';
                 $name = Str::uuid().'.'.$ext;
 
                 // PrivateFile: student work must never be reachable by URL,
@@ -258,7 +307,7 @@ class SubmissionController extends Controller
                     'file_path' => PrivateFile::storeAs($upload, $folder, $name),
                     'original_name' => $this->safeName($upload->getClientOriginalName()),
                     'size_bytes' => $upload->getSize(),
-                    'mime_type' => $upload->getMimeType(),
+                    'mime_type' => $mime,
                     'uploaded_at' => now(),
                 ];
             }
@@ -278,6 +327,7 @@ class SubmissionController extends Controller
                 }
 
                 $submission->files()->createMany($stored);
+                $submission->markModified();
             });
         } catch (\Throwable $e) {
             // --- 3. Rows didn't land, so the files shouldn't either. ---
@@ -312,8 +362,13 @@ class SubmissionController extends Controller
             return back()->withErrors(['files' => 'Submissions are closed — files cannot be removed.']);
         }
 
+        if ($submission->isGraded()) {
+            return back()->withErrors(['files' => 'This assignment has been graded and can no longer be changed.']);
+        }
+
         PrivateFile::forget($file->file_path);
         $file->delete();
+        $submission->markModified();
 
         return redirect()
             ->route('materials.view', $material)
@@ -353,6 +408,24 @@ class SubmissionController extends Controller
             $file->original_name,
             $file->mime_type,
         );
+    }
+
+    /**
+     * Has this student's work already been marked?
+     *
+     * Marked work is closed to the student. Editing it afterwards changes what
+     * the grade refers to, and nothing re-opens the grade — the teacher would
+     * have no signal that the thing they marked is no longer there.
+     *
+     * Checked at every write path rather than only in the view: hiding a
+     * control is a courtesy, the request is what has to be refused.
+     */
+    private function isGraded(Material $material, int $userId): bool
+    {
+        return Submission::where('material_id', $material->id)
+            ->where('user_id', $userId)
+            ->whereNotNull('graded_at')
+            ->exists();
     }
 
     private function assertIsAssignment(Material $material): void

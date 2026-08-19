@@ -46,7 +46,10 @@ class MaterialController extends Controller
                     ->orderBy('users.name')
                     ->get();
 
-                $submissions = Submission::with(['files' => fn ($q) => $q->orderBy('uploaded_at')])
+                $submissions = Submission::with([
+                    'files' => fn ($q) => $q->orderBy('uploaded_at'),
+                    'feedbackFiles' => fn ($q) => $q->orderBy('uploaded_at'),
+                ])
                     ->where('material_id', $material->id)
                     ->get()
                     ->keyBy('user_id');
@@ -58,7 +61,10 @@ class MaterialController extends Controller
                 ]);
             }
 
-            $submission = Submission::with(['files' => fn ($q) => $q->orderBy('uploaded_at')])
+            $submission = Submission::with([
+                'files' => fn ($q) => $q->orderBy('uploaded_at'),
+                'feedbackFiles' => fn ($q) => $q->orderBy('uploaded_at'),
+            ])
                 ->where('material_id', $material->id)
                 ->where('user_id', $user->id)
                 ->first();

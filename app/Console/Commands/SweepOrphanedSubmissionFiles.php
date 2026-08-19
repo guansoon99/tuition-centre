@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Course;
 use App\Models\Material;
+use App\Models\FeedbackFile;
 use App\Models\SubmissionFile;
 use App\Support\CourseMedia;
 use App\Support\PrivateFile;
@@ -68,6 +69,15 @@ class SweepOrphanedSubmissionFiles extends Command
         $known = SubmissionFile::whereIn('file_path', $objects)
             ->pluck('file_path')
             ->flip();
+
+        // Files a teacher returned to a student. These sit under course-media
+        // like everything else, so leaving them out of the referenced set
+        // would have the sweep delete every one of them.
+        $known = $known->union(
+            FeedbackFile::whereIn('file_path', $objects)
+                ->pluck('file_path')
+                ->flip()
+        );
 
         // Material PDFs. withTrashed so a soft-deleted material keeps its file
         // for as long as the row could come back.

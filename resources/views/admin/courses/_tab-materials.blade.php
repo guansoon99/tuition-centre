@@ -122,7 +122,12 @@
                                                     <path d="M7 4a1 1 0 100 2 1 1 0 000-2zM7 9a1 1 0 100 2 1 1 0 000-2zM7 14a1 1 0 100 2 1 1 0 000-2zM13 4a1 1 0 100 2 1 1 0 000-2zM13 9a1 1 0 100 2 1 1 0 000-2zM13 14a1 1 0 100 2 1 1 0 000-2z" />
                                                 </svg>
                                             </button>
-                                            <div class="flex-1">@include('partials.material-item', ['material' => $material])</div>
+                                            {{-- min-w-0 is load-bearing: a flex item defaults to
+                                                 min-width:auto, so without it this refuses to shrink
+                                                 below its content's intrinsic width and a long
+                                                 unbreakable run of text pushes the edit button off
+                                                 the row. --}}
+                                            <div class="min-w-0 flex-1">@include('partials.material-item', ['material' => $material])</div>
                                             <button type="button"
                                                     @click="openMaterial = {{ $material->id }}"
                                                     title="Edit material"

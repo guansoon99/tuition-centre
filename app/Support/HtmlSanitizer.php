@@ -29,12 +29,19 @@ class HtmlSanitizer
             // below for the whitelist.
             $config->set(
                 'HTML.Allowed',
-                'p[class],br,strong,em,u,s,h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel],img[src|alt|width|height],blockquote[class],code,pre,hr,'
+                'p[class],br,strong[style],em[style],u[style],s[style],h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel|style],img[src|alt|width|height],blockquote[class],code[style],pre,hr,'
                 .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col,'
                 .'video[src|controls|width|height|preload|poster],source[src|type],'
-                // <span style="color:..."> and <span style="background-color:..."> are
-                // what Quill emits for text color + highlight. CSS whitelist below
-                // limits the style properties to just those two.
+                // Quill emits colour/highlight as an inline style, but NOT always
+                // on a <span>: when the text already carries an inline format it
+                // puts the style on that element instead, so bold red text is
+                // <strong style="color:...">, never <span><strong>. Every inline
+                // tag Quill can attach a style to therefore needs [style], or the
+                // colour is silently stripped on save while the bold survives.
+                // Block formats (headings, lists, blockquotes) still wrap in a
+                // span. CSS.AllowedProperties below limits the properties to
+                // colour and background-colour, so [style] cannot smuggle
+                // anything else in.
                 .'span[style]'
             );
             $config->set('Attr.AllowedClasses', [

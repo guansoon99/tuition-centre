@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Material;
 use App\Models\Section;
 use App\Models\Submission;
+use App\Models\FeedbackFile;
 use App\Models\SubmissionFile;
 use App\Support\Cache\CacheKeys;
 use App\Support\CourseMedia;
@@ -251,13 +252,19 @@ class CourseController extends Controller
             ->pluck('file_path')
             ->all();
 
-        $submissionPaths = SubmissionFile::whereIn(
-            'submission_id',
-            Submission::whereIn('material_id', $materialIds)->select('id')
-        )
+        $submissionIds = Submission::whereIn('material_id', $materialIds)->select('id');
+
+        $submissionPaths = SubmissionFile::whereIn('submission_id', $submissionIds)
             ->whereNotNull('file_path')
             ->pluck('file_path')
             ->all();
+
+        // Feedback files are stored per course too, and nothing else will
+        // reclaim them once the course rows are gone.
+        $submissionPaths = array_merge($submissionPaths, FeedbackFile::whereIn('submission_id', $submissionIds)
+            ->whereNotNull('file_path')
+            ->pluck('file_path')
+            ->all());
 
         // --- 3. Drop the rows. The FK chain clears everything downstream. ---
         DB::transaction(function () use ($courseIds) {

@@ -4,11 +4,16 @@
 
 @section('content')
     @php
-        $due = $material->due_date;
         $isPastDue = $material->isPastDue();
         $maxFiles = $material->max_files ?? 5;
         $files = $submission?->files ?? collect();
         $slotsLeft = max(0, $maxFiles - $files->count());
+
+        // A submission row with no files is an abandoned upload, which is not
+        // a submission — the same rule the teacher's list and the status
+        // export use, so all three agree about who has handed in.
+        $hasSubmitted = $files->isNotEmpty();
+        $feedbackFiles = $submission?->feedbackFiles ?? collect();
     @endphp
 
     <div class="mx-auto max-w-6xl space-y-4">
@@ -20,211 +25,73 @@
             </a>
         </div>
 
-        {{-- Header --}}
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <h1 class="text-xl font-semibold text-slate-900">
-                        {{ $material->title ?: 'Assignment' }}
-                    </h1>
-                    @if ($due)
-                        <p class="mt-1 text-sm text-slate-900">
-                            Due: <span class="font-mono">{{ $due->format('Y-m-d H:i') }}</span>
-                        </p>
-                    @else
-                        <p class="mt-1 text-sm italic text-slate-900">No due date.</p>
-                    @endif
-                </div>
+        @include('partials.assignment-title')
 
-                @if ($due)
-                    <div class="flex-shrink-0">
-                        @if ($isPastDue)
-                            <span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                                Submissions closed
-                            </span>
-                        @else
-                            <span x-data="{
-                                    target: {{ $due->getTimestamp() * 1000 }},
-                                    remaining: '',
-                                    tick() {
-                                        const diff = this.target - Date.now();
-                                        if (diff <= 0) { this.remaining = 'Past due'; return; }
-                                        const d = Math.floor(diff / 86400000);
-                                        const h = Math.floor((diff % 86400000) / 3600000);
-                                        const m = Math.floor((diff % 3600000) / 60000);
-                                        this.remaining = (d > 0 ? d + 'd ' : '') + h + 'h ' + m + 'm';
-                                    },
-                                }"
-                                x-init="tick(); setInterval(() => tick(), 30000)"
-                                class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                                <span x-text="'In ' + remaining"></span>
-                            </span>
-                        @endif
-                    </div>
-                @endif
-            </div>
+        {{-- Deadline, a rule, then what the student has been asked to do. --}}
+        @include('partials.assignment-description', ['showDue' => true])
 
-        </div>
+        @include('partials.detail-table-styles')
 
-        {{-- Grade + comment card (shown once teacher grades) --}}
-        @if ($submission?->isGraded())
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <div class="flex items-baseline gap-2">
-                    <h2 class="text-sm font-semibold text-emerald-900">Grade:</h2>
-                    <span class="text-lg font-bold text-emerald-900">{{ $submission->grade }}</span>
-                </div>
-                @if ($submission->comment)
-                    <p class="mt-2 whitespace-pre-wrap text-sm text-emerald-900">{{ $submission->comment }}</p>
-                @endif
-                <p class="mt-2 text-xs text-emerald-700">
-                    Graded on {{ $submission->graded_at->format('Y-m-d H:i') }}
-                </p>
-            </div>
-        @endif
+        {{-- Shared with the teacher's grading modal, so both sides describe
+             one submission the same way. canUpload is what makes this the
+             student's copy: the files are theirs to add to and remove. --}}
+        @include('partials.submission-status-table', ['canUpload' => true])
 
-        {{-- Upload UI (hidden if past due) --}}
-        @if (! $isPastDue)
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-                <h2 class="mb-2 text-base font-semibold text-slate-900">Upload Files</h2>
+        {{-- Feedback, in the same table as the status above it.
+             Shown once there is feedback of any kind — a mark, or a file
+             returned. Keying it on the mark alone hid files a teacher sent
+             back before deciding a grade, which is a normal way to work.
+             Still hidden entirely when there is neither, so an unmarked
+             assignment carries no empty section. --}}
+        @if ($submission && ($submission->isGraded() || $feedbackFiles->isNotEmpty()))
+            <h2 class="text-xl font-semibold text-slate-900">Feedback</h2>
 
-                @if ($errors->any())
-                    <div class="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                        <ul class="list-inside list-disc space-y-1">
-                            @foreach ($errors->all() as $err)
-                                <li>{{ $err }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                @if ($slotsLeft > 0)
-                    {{--
-                        The form posts to submissions.upload, which proxies the
-                        bytes through PHP. When the disk can presign, the Alpine
-                        component below intercepts submit and sends each file
-                        straight to R2 instead — and falls back to this same
-                        form if that fails, which is what keeps a student on a
-                        network that blocks the R2 endpoint able to submit.
-                    --}}
-                    <form method="POST" action="{{ route('submissions.upload', $material) }}"
-                          enctype="multipart/form-data"
-                          x-data="submissionUploader({
-                              direct: {{ \App\Support\PrivateFile::canPresign() ? 'true' : 'false' }},
-                              presignUrl: '{{ route('submissions.presign', $material) }}',
-                              registerUrl: '{{ route('submissions.register', $material) }}',
-                              csrf: '{{ csrf_token() }}',
-                              maxBytes: {{ $material->maxFileSizeBytes() }},
-                              maxMb: {{ $material->max_file_size_mb ?: \App\Models\Material::DEFAULT_MAX_FILE_SIZE_MB }},
-                              slotsLeft: {{ $slotsLeft }},
-                              accept: @js(\App\Models\Material::SUBMISSION_MIME_TYPES),
-                          })"
-                          @submit="onSubmit($event)"
-                          {{-- Has its own per-file progress bar below; the
-                               layout's generic submit spinner would only
-                               duplicate it, and would still fire on the
-                               proxied fallback path. --}}
-                          data-no-spinner
-                          class="space-y-3">
-                        @csrf
-                        <input type="file" name="files[]" multiple
-                               accept="application/pdf,image/jpeg,image/png,image/webp"
-                               @change="pick($event)"
-                               {{-- Deliberately NOT disabled while busy: a disabled
-                                    input is omitted from form submission, which would
-                                    silently break the fallback path below. --}}
-                               class="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white" />
-
-                        {{-- Client-side rejections, shown the moment a file is
-                             picked rather than after a doomed upload. --}}
-                        <template x-if="problems.length > 0">
-                            <div class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                                <ul class="list-inside list-disc space-y-1">
-                                    <template x-for="p in problems" :key="p">
-                                        <li x-text="p"></li>
-                                    </template>
-                                </ul>
-                            </div>
-                        </template>
-
-                        <template x-if="chosen.length > 0 && problems.length === 0">
-                            <ul class="space-y-1 text-sm text-slate-600">
-                                <template x-for="f in chosen" :key="f.name + f.size">
-                                    <li>
-                                        <span class="font-mono" x-text="f.name"></span>
-                                        (<span x-text="human(f.size)"></span>)
-                                    </li>
-                                </template>
-                            </ul>
-                        </template>
-
-                        <template x-if="busy">
-                            <div class="space-y-1">
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                                    <div class="h-full bg-slate-900 transition-all" :style="`width: ${progress}%`"></div>
-                                </div>
-                                <p class="text-sm text-slate-600">
-                                    Uploading <span x-text="done + 1"></span> of <span x-text="chosen.length"></span>:
-                                    <span class="font-mono" x-text="currentName"></span>
-                                </p>
-                            </div>
-                        </template>
-
-                        <button type="submit"
-                                :disabled="chosen.length === 0 || problems.length > 0 || busy"
-                                class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                            <span x-text="busy ? 'Uploading…' : 'Upload'"></span>
-                        </button>
-                    </form>
-                @else
-                    <p class="rounded-md bg-slate-100 p-3 text-sm text-slate-600">
-                        You've reached the max of {{ $maxFiles }} files. Remove a file below to upload another.
-                    </p>
-                @endif
+            <div class="overflow-hidden rounded-lg border border-slate-200">
+                <table class="detail-table">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Grade</th>
+                            <td>{{ $submission->grade ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Graded on</th>
+                            {{-- Nullable now: files can arrive before a mark. --}}
+                            <td>{{ $submission->graded_at?->format('Y-m-d H:i') ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Comment</th>
+                            {{-- Always shown, so the section reads as a fixed set
+                                 of fields rather than rows that come and go.
+                                 pre-wrap because teachers type across lines and
+                                 the breaks otherwise collapse into one. --}}
+                            <td class="whitespace-pre-wrap">{{ $submission->comment ?: '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Feedback files</th>
+                            <td>
+                                @if ($feedbackFiles->isEmpty())
+                                    —
+                                @else
+                                    <ul class="divide-y divide-slate-100">
+                                        @foreach ($feedbackFiles as $feedbackFile)
+                                            <li class="py-2 first:pt-0 last:pb-0">
+                                                <a href="{{ route('feedback-files.download', $feedbackFile) }}"
+                                                   class="text-sky-700 hover:underline">
+                                                    {{ $feedbackFile->original_name }}
+                                                </a>
+                                                <p class="text-sm">
+                                                    {{ $feedbackFile->uploaded_at->format('Y-m-d H:i') }}
+                                                </p>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         @endif
-
-        {{-- Submitted files --}}
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-            <h2 class="mb-2 text-base font-semibold text-slate-900">
-                My Files ({{ $files->count() }})
-            </h2>
-
-            @if ($files->isEmpty())
-                <p class="text-sm italic text-slate-700">
-                    @if ($isPastDue)
-                        You did not submit any files before the deadline.
-                    @else
-                        No files uploaded yet.
-                    @endif
-                </p>
-            @else
-                <ul class="divide-y divide-slate-100">
-                    @foreach ($files as $file)
-                        <li class="flex items-center justify-between gap-3 py-2">
-                            <div class="min-w-0">
-                                <a href="{{ route('submission-files.download', $file) }}"
-                                   class="truncate text-sm text-sky-700 hover:underline">
-                                    {{ $file->original_name }}
-                                </a>
-                                <p class="text-sm text-slate-900">
-                                    {{ $file->uploaded_at->format('Y-m-d H:i') }}
-                                </p>
-                            </div>
-                            @if (! $isPastDue)
-                                <form method="POST" action="{{ route('submission-files.destroy', $file) }}"
-                                      onsubmit="return confirm('Remove {{ addslashes($file->original_name) }}?');">
-                                    @csrf @method('DELETE')
-                                    <button type="submit"
-                                            class="text-sm text-red-600 hover:underline">
-                                        Remove
-                                    </button>
-                                </form>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-        </div>
     </div>
 @endsection
 
@@ -243,6 +110,8 @@ function submissionUploader(config) {
         done: 0,
         progress: 0,
         currentName: '',
+        // Exposed so the markup can tell a real progress bar from a form post.
+        direct: config.direct,
 
         human(bytes) {
             return bytes >= 1048576
@@ -257,15 +126,12 @@ function submissionUploader(config) {
          * through an upload that was always going to be rejected.
          */
         pick(event) {
+            if (this.busy) {
+                return;
+            }
+
             this.chosen = Array.from(event.target.files);
             this.problems = [];
-
-            if (this.chosen.length > config.slotsLeft) {
-                this.problems.push(
-                    `You picked ${this.chosen.length} files but only have ` +
-                    `${config.slotsLeft} slot(s) left.`
-                );
-            }
 
             for (const f of this.chosen) {
                 if (f.size > config.maxBytes) {
@@ -274,12 +140,58 @@ function submissionUploader(config) {
                         `${config.maxMb} MB. If it's a scan, most scanner apps ` +
                         `have a "compress" or "smaller file size" option.`
                     );
-                } else if (!config.accept.includes(f.type)) {
+                } else if (!this.mimeFor(f)) {
                     this.problems.push(
-                        `"${f.name}" is not a PDF or an image (jpg/png/webp).`
+                        `"${f.name}" is not a PDF, image, Word or PowerPoint file.`
                     );
                 }
             }
+
+            // Picking the file IS the action — there is no Upload button to
+            // press. Only start once the checks above have passed, so a file
+            // that was never going to be accepted costs no upload at all.
+            if (this.chosen.length > 0 && this.problems.length === 0) {
+                this.start();
+            }
+        },
+
+        /*
+         * Begin the upload the student just triggered by choosing a file.
+         *
+         * Without presigning there is nothing to do here but post the form and
+         * let PHP take the bytes — the same fallback the direct path drops to
+         * when R2 is unreachable. Note this is the DOM submit(), which fires no
+         * submit event, so onSubmit() below does not run twice.
+         */
+        start() {
+            if (!config.direct) {
+                this.busy = true;
+                this.currentName = this.chosen[0]?.name ?? '';
+                // $root, not $el: Alpine binds $el to the element the
+                // expression ran on, which here is the <input> that fired
+                // @change, and an input has no submit(). $root is the
+                // component's root element — the form.
+                this.$root.submit();
+
+                return;
+            }
+
+            this.uploadAll();
+        },
+
+        /*
+         * What we will tell the server this file is.
+         *
+         * Deliberately the extension and not file.type: browsers disagree
+         * about Office documents (Chrome names them, some report an empty
+         * string), and an empty content_type fails the presign whitelist —
+         * the upload would be rejected before it started. The server does not
+         * trust this value either way; it re-checks the stored bytes.
+         */
+        mimeFor(file) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+            return config.types[ext] || null;
         },
 
         onSubmit(event) {
@@ -324,14 +236,14 @@ function submissionUploader(config) {
                  * Submit the form so the bytes go through this server instead.
                  * Slower and capped by Cloudflare/nginx/PHP, but it works.
                  */
-                this.$el.submit();
+                this.$root.submit();
             }
         },
 
         async uploadOne(file) {
             const signed = await this.post(config.presignUrl, {
                 size: file.size,
-                content_type: file.type,
+                content_type: this.mimeFor(file),
             });
 
             await this.put(signed, file);

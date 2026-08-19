@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\Section;
 use App\Support\PrivateFile;
 use App\Support\CourseMedia;
+use App\Models\FeedbackFile;
 use App\Models\SubmissionFile;
 use App\Models\Submission;
 use App\Support\HtmlSanitizer;
@@ -158,10 +159,14 @@ class SectionController extends Controller
             $embedded = array_merge($embedded, CourseMedia::filenamesIn($material->body));
         }
 
-        $paths = array_merge($paths, SubmissionFile::whereIn(
-            'submission_id',
-            Submission::whereIn('material_id', $materials->pluck('id'))->select('id'),
-        )->pluck('file_path')->all());
+        $submissionIds = Submission::whereIn('material_id', $materials->pluck('id'))->select('id');
+
+        $paths = array_merge($paths, SubmissionFile::whereIn('submission_id', $submissionIds)
+            ->pluck('file_path')->all());
+
+        // Feedback the teacher returned goes with the work it was about.
+        $paths = array_merge($paths, FeedbackFile::whereIn('submission_id', $submissionIds)
+            ->pluck('file_path')->all());
 
         // Rows first: if this fails, nothing has been deleted from storage and
         // the section is still intact.

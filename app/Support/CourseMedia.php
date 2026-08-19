@@ -68,6 +68,21 @@ class CourseMedia extends PrivateImage
         return static::folder($courseId)."/assignments/{$materialId}/{$userId}";
     }
 
+    /**
+     * Files a teacher returns to one student.
+     *
+     * A SIBLING of assignments/, never a subfolder of it. The student's
+     * register step accepts any object key beginning with their own
+     * assignment prefix, so feedback stored at
+     * assignments/{material}/{user}/feedback/ would sit inside that prefix
+     * and could be registered by the student as their own submission.
+     * Keeping it on its own branch puts it out of that check's reach.
+     */
+    public static function feedbackFolder(int $courseId, int $materialId, int $userId): string
+    {
+        return static::folder($courseId)."/feedback/{$materialId}/{$userId}";
+    }
+
     /** Subfolders reachable through CourseMediaController. */
     public const SERVED_FOLDERS = ['banners', 'materials'];
 
