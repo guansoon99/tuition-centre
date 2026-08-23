@@ -10,13 +10,14 @@
 
         <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm">
             <p class="font-medium">Expected file format</p>
-            <ul class="mt-2 max-w-[14rem] list-disc space-y-0.5 pl-6 text-slate-600">
-                <li><span class="flex justify-between gap-4"><span>Name</span><span class="text-slate-500">(required)</span></span></li>
-                <li><span class="flex justify-between gap-4"><span>Phone</span><span class="text-slate-600">(optional)</span></span></li>
-                <li><span class="flex justify-between gap-4"><span>IC Number</span><span class="text-slate-600">(optional)</span></span></li>
-                <li><span class="flex justify-between gap-4"><span>Candidate Number</span><span class="text-slate-600">(optional)</span></span></li>
-                <li><span class="flex justify-between gap-4"><span>Course Code</span><span class="text-slate-600">(optional)</span></span></li>
-                <li><span class="flex justify-between gap-4"><span>Expires At</span><span class="text-slate-600">(optional)</span></span></li>
+            <ul class="mt-2 max-w-[14rem] list-disc space-y-0.5 pl-6">
+                <li><span class="flex justify-between gap-4"><span>Name</span><span>(required)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>Phone</span><span>(optional)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>Email</span><span>(optional)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>IC Number</span><span>(optional)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>Candidate Number</span><span>(optional)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>Course Code</span><span>(optional)</span></span></li>
+                <li><span class="flex justify-between gap-4"><span>Expires At</span><span>(optional)</span></span></li>
             </ul>
             <a href="{{ route('import.sample') }}"
                class="mt-3 inline-flex items-center rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">

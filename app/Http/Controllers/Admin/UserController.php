@@ -200,6 +200,7 @@ class UserController extends Controller
         $user->fill([
             'username' => $data['username'],
             'name' => $data['name'],
+            'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
             'ic_number' => $data['ic_number'] ?? null,
             'candidate_number' => $data['candidate_number'] ?? null,

@@ -25,6 +25,10 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
             'Username',
             'Password',
             'Phone',
+            // Keep this list and map() in the same order — they are positional,
+            // so inserting into one alone shifts every later column's data
+            // under the wrong heading without any error.
+            'Email',
             'IC Number',
             'Candidate Number',
             'Role',
@@ -45,6 +49,7 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
             // admin passwords etc. never leak into the export.
             $roleName === 'student' ? $user->plain_password : null,
             $user->phone,
+            $user->email,
             $user->ic_number,
             $user->candidate_number,
             ucfirst($roleName ?? ''),

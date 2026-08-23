@@ -39,11 +39,16 @@
                            class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900" />
                 </div>
                 <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                    <input type="text" value="{{ $user->email ?: '—' }}" disabled
+                           class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900" />
+                </div>
+                <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">IC Number</label>
                     <input type="text" value="{{ $user->ic_number ?: '—' }}" disabled
                            class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900" />
                 </div>
-                <div class="sm:col-span-2">
+                <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">Candidate Number</label>
                     <input type="text" value="{{ $user->candidate_number ?: '—' }}" disabled
                            class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900" />

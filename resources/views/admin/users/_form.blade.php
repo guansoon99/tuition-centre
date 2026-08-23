@@ -62,13 +62,23 @@
         </div>
         <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">
+                Email <span class="font-normal text-slate-600">(optional)</span>
+            </label>
+            <input type="email" name="email" value="{{ old('email', $user?->email) }}"
+                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+            @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">
                 IC Number <span class="font-normal text-slate-600">(optional)</span>
             </label>
             <input type="text" name="ic_number" value="{{ old('ic_number', $user?->ic_number) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
             @error('ic_number') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
-        <div class="sm:col-span-2">
+        {{-- Six fields now fill three even rows, so this no longer spans both
+             columns the way it did as the odd one out. --}}
+        <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">
                 Candidate Number <span class="font-normal text-slate-600">(optional)</span>
             </label>

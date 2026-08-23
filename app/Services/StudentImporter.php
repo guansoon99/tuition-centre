@@ -140,6 +140,18 @@ class StudentImporter
             ->flip();
         $seenInBatch = [];
 
+        // Emails, unlike names, are a hard database constraint — and it is a
+        // UNIQUE index, which sees soft-deleted rows. withTrashed() is what
+        // keeps a trashed student's address from getting past this check and
+        // blowing up the INSERT instead of being reported as a bad row.
+        $existingEmails = User::withTrashed()
+            ->whereNotNull('email')
+            ->pluck('email')
+            ->map(fn ($e) => mb_strtolower(trim((string) $e)))
+            ->filter()
+            ->flip();
+        $seenEmails = [];
+
         foreach ($records as $idx => $row) {
             $line = $idx + 2;
 
@@ -181,6 +193,47 @@ class StudentImporter
                 continue;
             }
 
+            // Email is optional, so a blank cell is simply no email. When one
+            // is given it has to be usable, and it has to be free — checked
+            // here rather than at INSERT so a bad address costs one row
+            // instead of throwing mid-import.
+            //
+            // Note this runs before the dry-run branch: the preview is where
+            // an admin should find out, not after the import has run.
+            $email = trim((string) ($row['email'] ?? ''));
+            $email = $email !== '' ? $email : null;
+
+            if ($email !== null && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $results['errors'][] = [
+                    'line' => $line,
+                    'name' => $name,
+                    'reason' => "Invalid email '{$email}'.",
+                ];
+                continue;
+            }
+
+            $emailKey = $email !== null ? mb_strtolower($email) : null;
+
+            if ($emailKey !== null && isset($existingEmails[$emailKey])) {
+                $results['errors'][] = [
+                    'line' => $line,
+                    'name' => $name,
+                    // Deliberately vague about *who* holds it: the match may
+                    // be a soft-deleted account the admin cannot see.
+                    'reason' => "Email '{$email}' is already in use.",
+                ];
+                continue;
+            }
+
+            if ($emailKey !== null && isset($seenEmails[$emailKey])) {
+                $results['errors'][] = [
+                    'line' => $line,
+                    'name' => $name,
+                    'reason' => "Duplicate email in this file (first seen at line {$seenEmails[$emailKey]}).",
+                ];
+                continue;
+            }
+
             // Detect duplicate names — either against existing users or
             // against earlier rows in the same file. When $allowDuplicates
             // is true (admin picked "Create everyone anyway"), we still
@@ -209,6 +262,14 @@ class StudentImporter
             }
             $seenInBatch[$nameKey] = $line;
 
+            // Claimed only once the row is going ahead, so a row dropped for a
+            // duplicate name does not reserve its address against later rows.
+            // Recorded in dry runs too — otherwise the preview would pass a
+            // file that the real import then rejects halfway through.
+            if ($emailKey !== null) {
+                $seenEmails[$emailKey] = $line;
+            }
+
             if ($dryRun) {
                 $results['ok'][] = [
                     'line' => $line,
@@ -228,6 +289,7 @@ class StudentImporter
             $user = User::create([
                 'username' => $username,
                 'name' => $name,
+                'email' => $email,
                 'phone' => $phone !== '' ? $phone : null,
                 'ic_number' => $icNumber !== '' ? $icNumber : null,
                 'candidate_number' => $candidateNumber !== '' ? $candidateNumber : null,
