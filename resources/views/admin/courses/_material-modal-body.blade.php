@@ -22,14 +22,14 @@
 </div>
 
 @php
-    $matDisplayType = $material->type === 'page' ? 'text' : $material->type;
+    $matDisplayType = $material->type === 'page' ? 'media' : $material->type;
     $matAsPage = $material->type === 'page';
 @endphp
 <form method="POST" action="{{ route('materials.update', $material) }}" enctype="multipart/form-data"
       x-data="{ matType: '{{ $matDisplayType }}', matAsPage: {{ $matAsPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.matQuillContainer_{{ $material->id }}, $refs.matQuillInput_{{ $material->id }});
-          const needsQuill = v => v === 'text' || v === 'assignment';
+          const needsQuill = v => v === 'media' || v === 'assignment';
           if (needsQuill(matType)) $nextTick(tryInit);
           $watch('matType', v => { if (needsQuill(v)) $nextTick(tryInit); });
       "
@@ -47,7 +47,7 @@
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
         <div class="flex flex-wrap gap-2">
-            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown', 'assignment' => 'Assignment'] as $val => $lbl)
+            @foreach (['pdf' => 'PDF', 'external_link' => 'Link', 'media' => 'Media', 'assignment' => 'Assignment', 'countdown' => 'Countdown'] as $val => $lbl)
                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                     <input type="radio" x-model="matType" value="{{ $val }}" class="sr-only">
                     {{ $lbl }}
@@ -55,9 +55,9 @@
             @endforeach
         </div>
         <input type="hidden" name="type"
-               x-bind:value="matType === 'text' && matAsPage ? 'page' : matType">
+               x-bind:value="matType === 'media' && matAsPage ? 'page' : matType">
 
-        <label x-show="matType === 'text'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
+        <label x-show="matType === 'media'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" x-model="matAsPage" class="rounded border-slate-300">
             Open on a separate page
         </label>
@@ -87,9 +87,9 @@
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
     </div>
 
-    <div x-show="matType === 'text' || matType === 'assignment'" x-cloak>
+    <div x-show="matType === 'media' || matType === 'assignment'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">
-            <span x-show="matType === 'text'">Body</span>
+            <span x-show="matType === 'media'">Body</span>
             <span x-show="matType === 'assignment'" x-cloak>Description</span>
         </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
@@ -99,7 +99,7 @@
         </div>
         <textarea name="body"
                   x-ref="matQuillInput_{{ $material->id }}"
-                  x-bind:disabled="matType !== 'text' && matType !== 'assignment'"
+                  x-bind:disabled="matType !== 'media' && matType !== 'assignment'"
                   class="hidden">{{ $material->body }}</textarea>
     </div>
 

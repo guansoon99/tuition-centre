@@ -420,7 +420,7 @@ class CourseMediaTest extends TestCase
 
         return Material::create([
             'section_id' => $this->course->sections()->first()->id,
-            'title' => 'Lesson', 'type' => Material::TYPE_TEXT, 'body' => $body,
+            'title' => 'Lesson', 'type' => Material::TYPE_MEDIA, 'body' => $body,
             'sort_order' => 1, 'is_published' => true, 'published_at' => now(),
         ]);
     }
@@ -484,7 +484,7 @@ class CourseMediaTest extends TestCase
         $this->actingAs($this->teacher)
             ->patch(route('materials.update', $material), [
                 'title' => 'Lesson',
-                'type' => Material::TYPE_TEXT,
+                'type' => Material::TYPE_MEDIA,
                 'body' => '<img src="/courses/'.$this->course->id.'/media/'.$kept.'">',
             ])->assertRedirect();
 

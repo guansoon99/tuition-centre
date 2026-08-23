@@ -3,18 +3,22 @@
 @include('partials.course-video-uploader')
 
 @php
-    // The stored type may be 'page', but in the UI we present that as
-    // "Text" + a checkbox — so split the persisted type into a display type
-    // and an asPage flag.
-    $storedType = old('type', $material?->type ?? 'text');
-    $displayType = $storedType === 'page' ? 'text' : $storedType;
+    // The stored type may be 'page', but in the UI that is "Media" with a
+    // checkbox ticked — so split the persisted type into a display type and an
+    // asPage flag.
+    //
+    // A new material starts on PDF: the first pill in the row and the most
+    // common thing a teacher adds. Only a fallback — an existing material opens
+    // on its own type, and old() wins after a failed submit.
+    $storedType = old('type', $material?->type ?? 'pdf');
+    $displayType = $storedType === 'page' ? 'media' : $storedType;
     $asPage = $storedType === 'page';
 @endphp
 <form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="space-y-4"
       x-data="{ type: '{{ $displayType }}', asPage: {{ $asPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.quillContainer, $refs.quillInput);
-          const needsQuill = v => v === 'text' || v === 'assignment';
+          const needsQuill = v => v === 'media' || v === 'assignment';
           if (needsQuill(type)) $nextTick(tryInit);
           $watch('type', v => { if (needsQuill(v)) $nextTick(tryInit); });
       ">
@@ -36,19 +40,19 @@
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
         <div class="flex flex-wrap gap-2">
-            @foreach (['text' => 'Text', 'pdf' => 'PDF', 'external_link' => 'Link', 'countdown' => 'Countdown', 'assignment' => 'Assignment'] as $val => $lbl)
+            @foreach (['pdf' => 'PDF', 'external_link' => 'Link', 'media' => 'Media', 'assignment' => 'Assignment', 'countdown' => 'Countdown'] as $val => $lbl)
                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                     <input type="radio" x-model="type" value="{{ $val }}" class="sr-only">
                     {{ $lbl }}
                 </label>
             @endforeach
         </div>
-        {{-- Hidden input carries the actual submitted type. When Text + "Open on
-             a separate page" is checked, we submit 'page' instead of 'text'. --}}
+        {{-- Hidden input carries the actual submitted type. When Media + "Open on
+             a separate page" is checked, we submit 'page' instead of 'media'. --}}
         <input type="hidden" name="type"
-               x-bind:value="type === 'text' && asPage ? 'page' : type">
+               x-bind:value="type === 'media' && asPage ? 'page' : type">
 
-        <label x-show="type === 'text'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
+        <label x-show="type === 'media'" x-cloak class="mt-2 flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" x-model="asPage" class="rounded border-slate-300">
             Open on a separate page
         </label>
@@ -86,10 +90,10 @@
         @error('external_url')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    {{-- Text / Assignment body (shared Quill instance) --}}
-    <div x-show="type === 'text' || type === 'assignment'" x-cloak>
+    {{-- Media / Assignment body (shared Quill instance) --}}
+    <div x-show="type === 'media' || type === 'assignment'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">
-            <span x-show="type === 'text'">Body</span>
+            <span x-show="type === 'media'">Body</span>
             <span x-show="type === 'assignment'" x-cloak>Description</span>
         </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
@@ -98,7 +102,7 @@
                  class="min-h-[280px] bg-white"></div>
         </div>
         <textarea name="body" x-ref="quillInput"
-                  x-bind:disabled="type !== 'text' && type !== 'assignment'"
+                  x-bind:disabled="type !== 'media' && type !== 'assignment'"
                   class="hidden">{{ old('body', $material?->body) }}</textarea>
         @error('body')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>

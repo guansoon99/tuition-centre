@@ -35,7 +35,7 @@ class MaterialEditModalTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    private function makeMaterial(Course $course, string $type = Material::TYPE_TEXT): Material
+    private function makeMaterial(Course $course, string $type = Material::TYPE_MEDIA): Material
     {
         $section = Section::factory()->create([
             'course_id' => $course->id, 'is_published' => true, 'scheduled_at' => null,
@@ -132,7 +132,7 @@ class MaterialEditModalTest extends TestCase
             'course_id' => $course->id, 'is_published' => true, 'scheduled_at' => null,
         ]);
         Material::factory()->count(6)->create([
-            'section_id' => $section->id, 'type' => Material::TYPE_TEXT, 'is_published' => true,
+            'section_id' => $section->id, 'type' => Material::TYPE_MEDIA, 'is_published' => true,
         ]);
 
         $html = $this->actingAs($this->admin)
@@ -168,13 +168,13 @@ class MaterialEditModalTest extends TestCase
         $url = "/courses/{$course->slug}/edit?tab=materials";
 
         Material::factory()->count(5)->create([
-            'section_id' => $section->id, 'type' => Material::TYPE_TEXT,
+            'section_id' => $section->id, 'type' => Material::TYPE_MEDIA,
             'body' => str_repeat('content ', 50), 'is_published' => true,
         ]);
         $small = strlen($this->actingAs($this->admin)->get($url)->getContent());
 
         Material::factory()->count(55)->create([
-            'section_id' => $section->id, 'type' => Material::TYPE_TEXT,
+            'section_id' => $section->id, 'type' => Material::TYPE_MEDIA,
             'body' => str_repeat('content ', 50), 'is_published' => true,
         ]);
         $large = strlen($this->actingAs($this->admin)->get($url)->getContent());

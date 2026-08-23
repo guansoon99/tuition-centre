@@ -130,7 +130,7 @@ class DeleteCleansUpFilesTest extends TestCase
             'section_id' => $this->section->id, 'type' => Material::TYPE_PDF, 'file_path' => $pdf,
         ]);
         Material::factory()->create([
-            'section_id' => $this->section->id, 'type' => Material::TYPE_TEXT,
+            'section_id' => $this->section->id, 'type' => Material::TYPE_MEDIA,
             'body' => '<img src="/courses/'.$this->course->id.'/media/materials/'.$embedded.'">',
         ]);
 

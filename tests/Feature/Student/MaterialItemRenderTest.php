@@ -38,7 +38,7 @@ class MaterialItemRenderTest extends TestCase
 
         Material::factory()->count($count)->create([
             'section_id' => $section->id,
-            'type' => Material::TYPE_TEXT,
+            'type' => Material::TYPE_MEDIA,
             'body' => '<p>Some <strong>rich</strong> text.</p>',
             'is_published' => true,
         ]);

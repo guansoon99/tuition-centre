@@ -60,7 +60,7 @@ class MaterialColorSurvivesSaveTest extends TestCase
     {
         $this->actingAs($this->teacher)
             ->post(route('materials.store', $this->section), [
-                'title' => 'Coloured', 'type' => Material::TYPE_TEXT, 'body' => self::BODY,
+                'title' => 'Coloured', 'type' => Material::TYPE_MEDIA, 'body' => self::BODY,
             ])->assertSessionHasNoErrors();
 
         $body = Material::firstOrFail()->body;
@@ -74,12 +74,12 @@ class MaterialColorSurvivesSaveTest extends TestCase
     public function test_colour_survives_updating_a_material(): void
     {
         $material = Material::factory()->create([
-            'section_id' => $this->section->id, 'type' => Material::TYPE_TEXT, 'body' => '<p>plain</p>',
+            'section_id' => $this->section->id, 'type' => Material::TYPE_MEDIA, 'body' => '<p>plain</p>',
         ]);
 
         $this->actingAs($this->teacher)
             ->patch(route('materials.update', $material), [
-                'title' => 'Coloured', 'type' => Material::TYPE_TEXT, 'body' => self::BODY,
+                'title' => 'Coloured', 'type' => Material::TYPE_MEDIA, 'body' => self::BODY,
             ])->assertSessionHasNoErrors();
 
         $this->assertStringContainsString(

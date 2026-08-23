@@ -60,7 +60,7 @@
 @endonce
 
 {{-- TEXT BLOCK — render the rich HTML inline. --}}
-@if ($type === \App\Models\Material::TYPE_TEXT)
+@if ($type === \App\Models\Material::TYPE_MEDIA)
     @php
         // Quill leaves `<p><br></p>` or `<p>&nbsp;</p>` behind when the editor is
         // emptied — treat any tag/entity-only shell as empty. But an image-only

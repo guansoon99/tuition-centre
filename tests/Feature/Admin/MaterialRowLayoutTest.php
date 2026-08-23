@@ -42,7 +42,7 @@ class MaterialRowLayoutTest extends TestCase
             'course_id' => $course->id, 'is_published' => true, 'scheduled_at' => null,
         ]);
         Material::factory()->create([
-            'section_id' => $section->id, 'type' => Material::TYPE_TEXT, 'body' => $body,
+            'section_id' => $section->id, 'type' => Material::TYPE_MEDIA, 'body' => $body,
         ]);
 
         return $this->actingAs($admin)

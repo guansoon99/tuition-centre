@@ -14,7 +14,14 @@ class Material extends Model
 
     public const TYPE_PDF = 'pdf';
     public const TYPE_EXTERNAL_LINK = 'external_link';
-    public const TYPE_TEXT = 'text';
+    /**
+     * Called "Media" in the UI. Stored as 'text' until 2026-08-24, when the
+     * label and the value were brought back into line — see the
+     * rename_material_text_type_to_media migration, which rewrites existing
+     * rows. Section::TYPE_TEXT and Announcement::TYPE_TEXT are different
+     * things and still hold 'text'.
+     */
+    public const TYPE_MEDIA = 'media';
     public const TYPE_PAGE = 'page';
     public const TYPE_COUNTDOWN = 'countdown';
     public const TYPE_ASSIGNMENT = 'assignment';
