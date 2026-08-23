@@ -110,6 +110,10 @@
                             {{-- Radio pills same pattern as course material types. --}}
                             @foreach (['pill' => 'Bar', 'background' => 'Highlight'] as $val => $lbl)
                                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white"
+                                       {{-- Highlight is never disabled: on a day
+                                            that already has one, picking it loads
+                                            that event for editing rather than
+                                            making a second. --}}
                                        :class="canModify ? '' : 'opacity-60 cursor-not-allowed pointer-events-none'">
                                     <input type="radio" x-model="modal.displayStyle" value="{{ $val }}" class="sr-only">
                                     {{ $lbl }}
@@ -226,8 +230,18 @@
         .fc .fc-daygrid-day.fc-day-has-holiday {
             background-color: #fef2f2;                    /* rose-50 wash */
         }
-        .fc .fc-daygrid-day.fc-day-has-holiday .fc-daygrid-day-number {
-            color: rgb(220 38 38);                        /* red-600 */
+        /* A marked day — holiday or user highlight — reads with a heavier date
+           number. The weight lives here because it is the same for both; the
+           colour does not, because a user highlight's is chosen per event and
+           no stylesheet can know it. eventDidMount paints it inline from the
+           event's own palette entry.
+
+           This rule used to hardcode red-600 and apply to holidays only, which
+           caused both bugs at once: user highlights got no weight, and an auto
+           holiday (red-600, #dc2626) sat next to a hand-made red highlight
+           (COLOR_TEXTS['red'], #b91c1c) in two visibly different reds. */
+        .fc .fc-daygrid-day.fc-day-has-holiday .fc-daygrid-day-number,
+        .fc .fc-daygrid-day.fc-day-has-user-bg .fc-daygrid-day-number {
             font-weight: 600;
         }
         /* Hide the raw background-event pill since we've styled the cell
@@ -250,8 +264,12 @@
             color: rgb(185 28 28);                        /* red-700 */
         }
         /* User background events set their cell background + text color
-           inline based on the chosen palette slug. Cursor hints it's clickable. */
-        .fc .fc-day-has-user-bg { cursor: pointer; }
+           inline based on the chosen palette slug. Cursor hints it's clickable —
+           so only emit it for someone the click will actually do something for.
+           Without this a student gets a pointer over a cell that ignores them. */
+        @if ($canCreate || $canEdit || $canDelete)
+            .fc .fc-day-has-user-bg { cursor: pointer; }
+        @endif
     </style>
 @endpush
 
@@ -291,7 +309,68 @@
                     return this.modal.id ? this.canEdit : this.canCreate;
                 },
 
+                /** The day's single highlight, if it has one. Holidays excluded. */
+                userHighlightOn(dateStr) {
+                    if (! this.calendar || ! dateStr) return null;
+
+                    return this.calendar.getEvents().find(e =>
+                        e.startStr === dateStr
+                        && e.display === 'background'
+                        && ! e.extendedProps?.isHoliday
+                    ) || null;
+                },
+
+                /**
+                 * Type doubles as a mode switch on a day that already has a
+                 * highlight.
+                 *
+                 * A day holds only one highlight, so choosing Highlight there
+                 * cannot mean "make another" — it means "edit that one", and
+                 * the existing title and colour load in. Choosing Bar again
+                 * means "create a bar here instead", so the form empties back
+                 * out rather than converting the highlight into a bar.
+                 */
+                watchTypeSwitch() {
+                    this.$watch('modal.displayStyle', (style, previous) => {
+                        if (! this.modal.open || style === previous) return;
+
+                        const existing = this.userHighlightOn(this.modal.date);
+                        if (! existing) return;
+
+                        const isLoaded = String(existing.id) === String(this.modal.id ?? '');
+
+                        if (style === 'background' && ! isLoaded) {
+                            this.modal.id = existing.id;
+                            this.modal.title = existing.title;
+                            this.modal.color = existing.extendedProps?.color || this.defaultColor;
+                            this.errors = {};
+                            return;
+                        }
+
+                        if (style === 'pill' && isLoaded) {
+                            this.modal.id = null;
+                            this.modal.title = '';
+                            this.modal.color = this.defaultColor;
+                            this.errors = {};
+                        }
+                    });
+                },
+
+                get canOpenModal() {
+                    // The calendar is readable by everyone, but the modal is an
+                    // editing surface. Opened by someone with no write permission
+                    // it is a dead end — every field disabled and nothing to do
+                    // but close it — so it should not open at all.
+                    //
+                    // Delete counts as a write: a delete-only role still needs a
+                    // way to reach that button. A student has none of the three,
+                    // which is the case this exists for.
+                    return this.canCreate || this.canEdit || this.canDelete;
+                },
+
                 init() {
+                    this.watchTypeSwitch();
+
                     this.calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                         initialView: 'dayGridMonth',
                         firstDay: 1, // Monday
@@ -321,19 +400,39 @@
                         events: this.feedUrl,
                         dateClick: (info) => {
                             // Background events (holidays + user highlights) don't
-                            // fire eventClick. If the clicked date has a user
-                            // background event, treat as view/edit; if only a
-                            // holiday, treat as read-only view; otherwise fall
-                            // through to create.
-                            const bgEvent = this.calendar.getEvents().find(e =>
+                            // fire eventClick, so a click on a tinted cell lands
+                            // here instead.
+                            const bgEvents = this.calendar.getEvents().filter(e =>
                                 e.startStr === info.dateStr && e.display === 'background'
                             );
-                            if (bgEvent) {
-                                this.openView(bgEvent);
+
+                            // A day holds at most one highlight, so if there is
+                            // one here the click can only mean that event —
+                            // open it for editing. Adding a bar to the same day
+                            // is still one step away: switching Type to Bar in
+                            // the modal turns it into a new-bar form (see the
+                            // displayStyle watcher in init).
+                            //
+                            // Background events never fire eventClick of their
+                            // own, so this cell click is the only way in.
+                            const userBg = bgEvents.find(e => ! e.extendedProps?.isHoliday);
+                            if (userBg) {
+                                this.openView(userBg);
                                 return;
                             }
-                            if (! this.canCreate) return;
-                            this.openCreate(info.dateStr);
+
+                            // Nothing of ours on this day. Holidays don't take
+                            // the click — they are read-only and reserve
+                            // nothing — so fall through to create.
+                            if (this.canCreate) {
+                                this.openCreate(info.dateStr);
+                                return;
+                            }
+
+                            // Can't create: the holiday is all there is to show.
+                            if (bgEvents.length) {
+                                this.openView(bgEvents[0]);
+                            }
                         },
                         eventClick: (info) => {
                             info.jsEvent.preventDefault();
@@ -385,11 +484,24 @@
                             // identically to an auto-fetched public holiday.
                             cell.style.setProperty('background-color', info.event.backgroundColor);
 
+                            // Tint the date number to match the event. Both kinds
+                            // go through here, from the same field, so a holiday
+                            // and a hand-made red highlight land on exactly the
+                            // same red — the feed sends COLOR_TEXTS['red'] for
+                            // holidays too. Inline because a user's colour is
+                            // per-event, and it also beats the Sunday rose rule
+                            // that would otherwise win on Sundays.
+                            const dayNumber = cell.querySelector('.fc-daygrid-day-number');
+                            if (dayNumber) {
+                                dayNumber.style.setProperty('color', info.event.extendedProps.textHex);
+                            }
+
                             let label = cell.querySelector('.' + labelClass);
                             if (! label) {
                                 label = document.createElement('div');
                                 label.className = labelClass;
                                 label.style.color = info.event.extendedProps.textHex;
+
                                 const frame = cell.querySelector('.fc-daygrid-day-frame');
                                 (frame || cell).appendChild(label);
                             }
@@ -453,6 +565,11 @@
                         cell.classList.remove('fc-day-has-holiday', 'fc-day-has-user-bg');
                         cell.style.removeProperty('background-color');
                         cell.removeAttribute('title');
+                        // The date number's colour is set inline for user
+                        // highlights, so it has to be cleared here too —
+                        // otherwise deleting a highlight leaves its colour on
+                        // the number after the cell itself has gone plain.
+                        cell.querySelector('.fc-daygrid-day-number')?.style.removeProperty('color');
                     });
                 },
 
@@ -467,12 +584,17 @@
                 },
 
                 openCreate(dateStr) {
+                    if (! this.canCreate) return;
                     this.modal = { open: true, id: null, title: '', date: dateStr, color: this.defaultColor, displayStyle: 'pill', isHoliday: false };
                     this.errors = {};
                     this.$nextTick(() => { this.initDatePicker(); this.fp?.setDate(dateStr, false); });
                 },
 
                 openView(fcEvent) {
+                    // Guarded here rather than only at the call sites, so the
+                    // two entry points (dateClick's background branch and
+                    // eventClick) cannot drift apart — and neither can a third.
+                    if (! this.canOpenModal) return;
                     const date = fcEvent.startStr.substring(0, 10);
                     const isHoliday = !! fcEvent.extendedProps?.isHoliday;
                     // extendedProps carry the slug + style the server sent; fall back
