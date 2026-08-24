@@ -7,7 +7,7 @@
         /* One editor height for every material type.
            On .ql-editor, not the wrapper: Quill mounts its toolbar and editor
            inside the container, so a height on the outer div leaves the typing
-           area its default size. Hand-written rather than a min-h-[…] utility
+           area its default size. Hand-written rather than an arbitrary-value utility
            because those arbitrary values are absent from the committed CSS
            build and silently do nothing. */
         .ql-editor { min-height: 280px; }

@@ -92,9 +92,9 @@
 
     {{-- Body (shared Quill instance).
 
-         Every type but Countdown has one. For Media it *is* the material and
-         is required; for PDF and Link it is an optional note shown under the
-         row, so those get a shorter editor and a hint saying so. --}}
+         Every type but Countdown has one, all the same height. For Media it
+         *is* the material and is required; everywhere else it is optional —
+         a description on an Assignment, a note under a PDF or Link row. --}}
     <div x-show="type !== 'countdown'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">
             Body
@@ -179,7 +179,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
     <style>
         /* One editor height for every material type — see the note in
-           admin/courses/_styles.blade.php for why this is not a min-h-[…]
+           admin/courses/_styles.blade.php for why this is not an arbitrary-value
            utility class. */
         .ql-editor { min-height: 280px; }
         .ql-editor img { max-width: 100%; height: auto; }
