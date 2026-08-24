@@ -18,7 +18,7 @@
       x-data="{ type: '{{ $displayType }}', asPage: {{ $asPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.quillContainer, $refs.quillInput);
-          const needsQuill = v => v === 'media' || v === 'assignment';
+          const needsQuill = v => v !== 'countdown';
           if (needsQuill(type)) $nextTick(tryInit);
           $watch('type', v => { if (needsQuill(v)) $nextTick(tryInit); });
       ">
@@ -90,19 +90,26 @@
         @error('external_url')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    {{-- Media / Assignment body (shared Quill instance) --}}
-    <div x-show="type === 'media' || type === 'assignment'" x-cloak>
+    {{-- Body (shared Quill instance).
+
+         Every type but Countdown has one. For Media it *is* the material and
+         is required; for PDF and Link it is an optional note shown under the
+         row, so those get a shorter editor and a hint saying so. --}}
+    <div x-show="type !== 'countdown'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">
-            <span x-show="type === 'media'">Body</span>
-            <span x-show="type === 'assignment'" x-cloak>Description</span>
+            Body
+            {{-- Required for Media and Page; optional everywhere else. --}}
+            <span x-show="type !== 'media'" x-cloak class="font-normal text-slate-600">(optional)</span>
         </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
             <div x-ref="quillContainer"
                  data-initial-html="{{ old('body', $material?->body) }}"
-                 class="min-h-[280px] bg-white"></div>
+                 class="bg-white"></div>
         </div>
+        {{-- Disabled so Countdown does not submit a stale body and wipe one
+             that belongs to the type the teacher switched away from. --}}
         <textarea name="body" x-ref="quillInput"
-                  x-bind:disabled="type !== 'media' && type !== 'assignment'"
+                  x-bind:disabled="type === 'countdown'"
                   class="hidden">{{ old('body', $material?->body) }}</textarea>
         @error('body')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
@@ -171,6 +178,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
     <style>
+        /* One editor height for every material type — see the note in
+           admin/courses/_styles.blade.php for why this is not a min-h-[…]
+           utility class. */
+        .ql-editor { min-height: 280px; }
         .ql-editor img { max-width: 100%; height: auto; }
         .ql-editor .ql-align-center img { display: block; margin-left: auto; margin-right: auto; }
         .ql-editor .ql-align-right img  { display: block; margin-left: auto; margin-right: 0; }

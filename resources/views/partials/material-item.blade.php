@@ -136,11 +136,23 @@
         $href = $isExternal
             ? $material->external_url
             : route('materials.view', $material);
+
+        // Optional note under a PDF or Link row. Page keeps its body for the
+        // separate page it opens, so it is not repeated here.
+        $noteBody = ($isPdf || $isExternal) ? ($material->body ?? '') : '';
+        $noteHasMedia = (bool) preg_match('/<(img|video|iframe|audio|source|embed)\b/i', $noteBody);
+        $noteText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($noteBody, ENT_QUOTES | ENT_HTML5)));
+        $hasNote = $noteText !== '' || $noteHasMedia;
     @endphp
 
+    {{-- The note sits outside the anchor on purpose: the sanitizer allows
+         links in a body, and an <a> inside an <a> is invalid — browsers close
+         the outer one early and the row stops working. Wrapping both in a
+         hover container keeps the row looking like one thing. --}}
+    <div class="rounded-md hover:bg-slate-100">
     <a href="{{ $href }}"
        @if ($isExternal) target="_blank" rel="noopener" @endif
-       class="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
+       class="flex items-center gap-3 px-3 py-2 text-sm">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
             @if ($type === \App\Models\Material::TYPE_PDF)
                 <img src="{{ asset('images/icons/pdf.webp') }}" alt="PDF"
@@ -164,4 +176,16 @@
             <p class="truncate text-sm text-black">{{ $material->title }}</p>
         </div>
     </a>
+
+    @if ($hasNote)
+        {{-- Empty span mirrors the icon so the note lines up under the title
+             rather than under the icon. --}}
+        <div class="flex gap-3 px-3 py-2 text-sm">
+            <span class="h-10 w-10 flex-shrink-0"></span>
+            <div class="prose-section min-w-0 flex-1 text-black">
+                {!! $noteBody !!}
+            </div>
+        </div>
+    @endif
+    </div>
 @endif

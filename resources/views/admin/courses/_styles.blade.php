@@ -4,6 +4,13 @@
     <style>
         /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
            no vertical gap between wrapped rows. */
+        /* One editor height for every material type.
+           On .ql-editor, not the wrapper: Quill mounts its toolbar and editor
+           inside the container, so a height on the outer div leaves the typing
+           area its default size. Hand-written rather than a min-h-[…] utility
+           because those arbitrary values are absent from the committed CSS
+           build and silently do nothing. */
+        .ql-editor { min-height: 280px; }
         .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
         .ql-toolbar.ql-snow .ql-formats { display: inline-flex; flex-wrap: wrap; align-items: center; vertical-align: middle; margin: 0 8px 0 0; row-gap: 4px; }
         .ql-editor table { border-collapse: collapse; margin: 0.75rem 0; width: 100%; }

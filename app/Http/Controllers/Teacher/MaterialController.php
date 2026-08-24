@@ -56,6 +56,10 @@ class MaterialController extends Controller
 
             $data['file_path'] = $path;
             $data['file_size_bytes'] = $upload->getSize();
+            // PDFs and links may carry a body too — an optional note shown
+            // under the row. Unlike Media the body is not required, so an
+            // empty editor just stores nothing.
+            $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } elseif ($type === Material::TYPE_MEDIA || $type === Material::TYPE_PAGE) {
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } elseif ($type === Material::TYPE_COUNTDOWN) {
@@ -67,6 +71,7 @@ class MaterialController extends Controller
             $data['max_files'] = $request->integer('max_files') ?: Material::DEFAULT_MAX_FILES;
         } else {
             $data['external_url'] = $request->input('external_url');
+            $data['body'] = HtmlSanitizer::clean($request->input('body'));
         }
 
         Material::create($data);
@@ -158,6 +163,12 @@ class MaterialController extends Controller
                 $data['file_path'] = $material->file_path;
                 $data['file_size_bytes'] = $material->file_size_bytes;
             }
+
+            // The optional note under the row. Set on both paths so the
+            // dropped-media diff below always has a new body to compare
+            // against — leave it unset and every embedded image would look
+            // removed and get purged.
+            $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } else {
             // Switched away from PDF — the file is no longer referenced.
             if ($wasPdf && $material->file_path) {
@@ -175,6 +186,7 @@ class MaterialController extends Controller
                 $data['max_files'] = $request->integer('max_files') ?: Material::DEFAULT_MAX_FILES;
             } else {
                 $data['external_url'] = $request->input('external_url');
+                $data['body'] = HtmlSanitizer::clean($request->input('body'));
             }
         }
 

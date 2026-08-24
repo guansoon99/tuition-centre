@@ -29,7 +29,7 @@
       x-data="{ matType: '{{ $matDisplayType }}', matAsPage: {{ $matAsPage ? 'true' : 'false' }} }"
       x-init="
           const tryInit = () => initQuillEditor($refs.matQuillContainer_{{ $material->id }}, $refs.matQuillInput_{{ $material->id }});
-          const needsQuill = v => v === 'media' || v === 'assignment';
+          const needsQuill = v => v !== 'countdown';
           if (needsQuill(matType)) $nextTick(tryInit);
           $watch('matType', v => { if (needsQuill(v)) $nextTick(tryInit); });
       "
@@ -87,19 +87,21 @@
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
     </div>
 
-    <div x-show="matType === 'media' || matType === 'assignment'" x-cloak>
+    {{-- Every type but Countdown has a body. Required for Media, an optional
+         note under the row for PDF and Link. --}}
+    <div x-show="matType !== 'countdown'" x-cloak>
         <label class="mb-1 block text-sm font-medium text-slate-700">
-            <span x-show="matType === 'media'">Body</span>
-            <span x-show="matType === 'assignment'" x-cloak>Description</span>
+            Body
+            <span x-show="matType !== 'media'" x-cloak class="font-normal text-slate-600">(optional)</span>
         </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
             <div x-ref="matQuillContainer_{{ $material->id }}"
                  data-initial-html="{{ $material->body }}"
-                 class="min-h-[200px] bg-white"></div>
+                 class="bg-white"></div>
         </div>
         <textarea name="body"
                   x-ref="matQuillInput_{{ $material->id }}"
-                  x-bind:disabled="matType !== 'media' && matType !== 'assignment'"
+                  x-bind:disabled="matType === 'countdown'"
                   class="hidden">{{ $material->body }}</textarea>
     </div>
 
