@@ -112,4 +112,43 @@ class MaterialItemRenderTest extends TestCase
         // lives on the assignment page itself, not in the list.
         $this->assertStringContainsString('Answer all questions.', $html);
     }
+
+    /**
+     * An assignment description renders outside the row's link.
+     *
+     * The sanitizer allows links in a body, and an <a> inside an <a> is
+     * invalid — the parser closes the outer one where the inner begins, so
+     * everything after it drops out of the link, stops being clickable and
+     * escapes the flex column. The description has to be a sibling of the
+     * anchor, not a child.
+     */
+    public function test_an_assignment_description_is_not_nested_inside_the_row_link(): void
+    {
+        [$course, $student] = $this->courseWithMaterials(1);
+        $section = Section::where('course_id', $course->id)->firstOrFail();
+
+        $assignment = Material::factory()->create([
+            'section_id' => $section->id, 'title' => 'Linky Assignment',
+            'type' => Material::TYPE_ASSIGNMENT, 'is_published' => true,
+            'body' => '<p>See <a href="https://other.test">this</a> first.</p>',
+        ]);
+
+        $html = $this->actingAs($student)
+            ->get("/courses/{$course->slug}")
+            ->assertOk()
+            ->getContent();
+
+        $rowHref = route('materials.view', $assignment);
+        $rowStart = strpos($html, $rowHref);
+        $innerLink = strpos($html, 'https://other.test');
+
+        $this->assertNotFalse($rowStart, 'The assignment row should link to the material.');
+        $this->assertNotFalse($innerLink, 'The description link should render.');
+
+        $this->assertStringContainsString(
+            '</a>',
+            substr($html, $rowStart, $innerLink - $rowStart),
+            'The row link must close before the description begins, or the two anchors nest.',
+        );
+    }
 }

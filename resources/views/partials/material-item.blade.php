@@ -109,23 +109,37 @@
         $bodyText = preg_replace('/\s+/u', '', strip_tags(html_entity_decode($body, ENT_QUOTES | ENT_HTML5)));
         $hasBody = $bodyText !== '' || $hasMedia;
     @endphp
-    <a href="{{ route('materials.view', $material) }}"
-       class="flex gap-3 rounded-md px-3 py-2 text-sm hover:bg-slate-100">
-        <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
-            <img src="{{ asset('images/icons/assignment.webp') }}" alt="Assignment"
-                 class="h-7 w-7 object-contain" />
-        </span>
-        <div class="min-w-0 flex-1">
-            <p class="truncate text-black">
-                {{ $material->title ?: 'Assignment' }}
-            </p>
-            @if ($hasBody)
-                <div class="prose-section mt-1 text-black">
+    {{-- The description sits outside the anchor, same as the PDF/Link note.
+         The sanitizer allows links in a body, and an <a> inside an <a> is
+         invalid: the parser closes the outer one where the inner begins, so
+         the rest of the row falls out of the link, stops being clickable and
+         escapes the flex column. Icon and title stay the link; the hover
+         wrapper keeps the two reading as one row. --}}
+    <div class="rounded-md hover:bg-slate-100">
+        <a href="{{ route('materials.view', $material) }}"
+           class="flex gap-3 px-3 py-2 text-sm">
+            <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
+                <img src="{{ asset('images/icons/assignment.webp') }}" alt="Assignment"
+                     class="h-7 w-7 object-contain" />
+            </span>
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-black">
+                    {{ $material->title ?: 'Assignment' }}
+                </p>
+            </div>
+        </a>
+
+        @if ($hasBody)
+            {{-- Empty span mirrors the icon so the description lines up under
+                 the title rather than under the icon. --}}
+            <div class="flex gap-3 px-3 py-2 text-sm">
+                <span class="h-10 w-10 flex-shrink-0"></span>
+                <div class="prose-section min-w-0 flex-1 text-black">
                     {!! $body !!}
                 </div>
-            @endif
-        </div>
-    </a>
+            </div>
+        @endif
+    </div>
 
 {{-- PDF / PAGE / EXTERNAL LINK — clickable row. --}}
 @else
