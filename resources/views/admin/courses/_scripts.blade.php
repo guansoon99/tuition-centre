@@ -1,7 +1,5 @@
 @include('partials.course-video-uploader')
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    @vite('resources/js/sortable.js')
     <script>
         // Initialize a Quill rich-text editor on the given container, syncing
         // its HTML output back into the hidden textarea so the form submits

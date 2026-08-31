@@ -1,4 +1,8 @@
 {
+  "__commonjsHelpers-Cpj98o6Y.js": {
+    "file": "assets/_commonjsHelpers-Cpj98o6Y.js",
+    "name": "_commonjsHelpers"
+  },
   "_flatpickr-CksuuEqD.css": {
     "file": "assets/flatpickr-CksuuEqD.css",
     "src": "_flatpickr-CksuuEqD.css"
@@ -37,6 +41,36 @@
     "isEntry": true,
     "imports": [
       "_flatpickr.min-Cc3t1Oke.js"
+    ]
+  },
+  "resources/js/quill.js": {
+    "file": "assets/quill-DKgO3A95.js",
+    "name": "quill",
+    "src": "resources/js/quill.js",
+    "isEntry": true,
+    "imports": [
+      "__commonjsHelpers-Cpj98o6Y.js"
+    ],
+    "css": [
+      "assets/quill-MPWXhL5q.css"
+    ]
+  },
+  "resources/js/sortable.js": {
+    "file": "assets/sortable-BBLNiDZK.js",
+    "name": "sortable",
+    "src": "resources/js/sortable.js",
+    "isEntry": true
+  },
+  "resources/js/tom-select.js": {
+    "file": "assets/tom-select-BidCakEh.js",
+    "name": "tom-select",
+    "src": "resources/js/tom-select.js",
+    "isEntry": true,
+    "imports": [
+      "__commonjsHelpers-Cpj98o6Y.js"
+    ],
+    "css": [
+      "assets/tom-select-BcZYJ2Oj.css"
     ]
   }
 }

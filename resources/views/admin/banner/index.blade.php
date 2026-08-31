@@ -81,7 +81,7 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    @vite('resources/js/sortable.js')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const list = document.querySelector('[data-sortable-slides]');

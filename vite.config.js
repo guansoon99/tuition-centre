@@ -10,10 +10,14 @@ export default defineConfig({
                 // Separate entry so FullCalendar loads only on /calendar —
                 // folding it into app.js would make every page pay for it.
                 'resources/js/calendar.js',
-                // Same reasoning: the date picker is admin/teacher only, so
-                // the pages that need it pull this in rather than every page
-                // carrying it. Replaces the jsdelivr copy.
+                // Same reasoning for the rest: all admin/teacher only, so the
+                // pages that need them pull them in rather than every page
+                // carrying the weight. Each replaces a jsdelivr copy that was
+                // loading without an integrity hash.
                 'resources/js/flatpickr.js',
+                'resources/js/quill.js',
+                'resources/js/tom-select.js',
+                'resources/js/sortable.js',
             ],
             refresh: true,
         }),

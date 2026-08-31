@@ -18,6 +18,9 @@
         "@fullcalendar/interaction": "^6.1.21",
         "@fullcalendar/list": "^6.1.21",
         "alpinejs": "^3.16.1",
-        "flatpickr": "^4.6.13"
+        "flatpickr": "^4.6.13",
+        "quill": "^2.0.2",
+        "sortablejs": "^1.15.2",
+        "tom-select": "^2.3.1"
     }
 }

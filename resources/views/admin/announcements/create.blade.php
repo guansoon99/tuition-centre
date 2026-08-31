@@ -29,7 +29,7 @@
 
 @push('head')
     @vite('resources/js/flatpickr.js')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
+    @vite('resources/js/tom-select.js')
     <style>
         /* Kill Tom Select's default wrapper border/padding — we style .ts-control instead. */
         .ts-wrapper { padding: 0 !important; border: 0 !important; background: transparent !important; }
@@ -58,7 +58,6 @@
 @endpush
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             flatpickr('[data-flatpickr]', {

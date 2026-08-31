@@ -1,6 +1,6 @@
     @vite('resources/js/flatpickr.js')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
+    @vite('resources/js/tom-select.js')
+    @vite('resources/js/quill.js')
     <style>
         /* Toolbar wraps to the next row when it doesn't fit — no scrollbar,
            no vertical gap between wrapped rows. */
