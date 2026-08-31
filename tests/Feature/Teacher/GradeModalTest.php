@@ -151,7 +151,12 @@ class GradeModalTest extends TestCase
         $this->submission(files: 2, feedback: 1);
         $html = $this->roster();
 
-        $this->assertStringContainsString($this->student->name, $html);
+        // e(), not the raw name: Blade escapes `{{ }}`, so a faker name
+        // carrying an apostrophe — O'Connell, D'Angelo — renders as
+        // `O&#039;Connell` and a raw comparison misses it. That made this
+        // test fail roughly one run in nine, on nothing but the generated
+        // name, which is a miserable thing to chase.
+        $this->assertStringContainsString(e($this->student->name), $html);
         $this->assertStringNotContainsString('2 files', $html);
         $this->assertStringNotContainsString('1 feedback', $html);
         $this->assertStringNotContainsString('('.$this->student->username.')', $html,
@@ -165,7 +170,8 @@ class GradeModalTest extends TestCase
         $html = $this->roster();
 
         $this->assertMatchesRegularExpression(
-            '/justify-between.*?'.preg_quote($this->student->name, '/').'.*?openGradeFor === \d+/s',
+            // e() for the same reason as above — the haystack is escaped HTML.
+            '/justify-between.*?'.preg_quote(e($this->student->name), '/').'.*?openGradeFor === \d+/s',
             $html,
             'The button should sit opposite the name in the same flex row.',
         );

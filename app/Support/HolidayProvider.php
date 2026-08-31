@@ -62,12 +62,19 @@ class HolidayProvider
         }
 
         try {
-            // withoutVerifying: Windows PHP typically ships without a CA
-            // bundle and cURL then can't verify Google's cert (cURL error 60).
-            // The feed is public, read-only data — MITM risk is negligible.
-            // On Linux prod the OS cert store works out of the box and this
-            // call is still correct.
-            $response = Http::withoutVerifying()->timeout(10)->get(self::FEED_URL);
+            // TLS verification stays on. This used to call withoutVerifying()
+            // because Windows PHP ships without a CA bundle and cURL then
+            // fails with error 60 — but php.ini now sets curl.cainfo and
+            // openssl.cafile to C:\cacert.pem, and Linux uses the OS trust
+            // store, so the workaround has no reason to exist on either.
+            //
+            // Without verification the connection is still encrypted but the
+            // certificate is unchecked, so anything able to intercept can
+            // impersonate the feed. That is survivable here — the names are
+            // written with textContent, never innerHTML — but a disabled
+            // security check is the kind of thing that gets copied into the
+            // next HTTP call, where it would not be survivable.
+            $response = Http::timeout(10)->get(self::FEED_URL);
             if (! $response->ok()) {
                 Log::warning('HolidayProvider: feed returned '.$response->status());
                 Cache::put(self::CACHE_KEY, [], 300);
