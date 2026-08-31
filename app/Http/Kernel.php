@@ -21,6 +21,9 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        // Global rather than in the `web` group so the file-serving and
+        // download responses carry nosniff too.
+        \App\Http\Middleware\SecurityHeaders::class,
     ];
 
     /**

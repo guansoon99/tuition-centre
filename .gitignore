@@ -25,9 +25,14 @@
 /public/images/{*
 /storage/*.key
 /vendor
-.env
-.env.backup
-.env.production
+# Every .env variant, however it is suffixed. The old list named `.env`,
+# `.env.backup` and `.env.production` one by one, which meant a file like
+# `.env-r2` — real R2 credentials, and one of those exists on the staging
+# box — matched none of them and would have gone up with a `git add -A`.
+# The two examples below are the only ones meant to be tracked.
+.env*
+!.env.example
+!.env.production.example
 Homestead.json
 Homestead.yaml
 auth.json
