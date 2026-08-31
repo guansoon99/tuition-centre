@@ -21,9 +21,6 @@ class CourseController extends Controller
         $user = $request->user();
         $canManage = $user->can('manageContent', $course);
 
-        // Auto-publish any sections whose scheduled release time has passed.
-        $course->releaseScheduledSections();
-
         // Loaded straight from the DB rather than cached. Benchmarked at a
         // full school-year course (30 sections x 10 materials) the cache saved
         // under 2ms, while costing ~1.4MB of file-cache per course, three
@@ -31,6 +28,16 @@ class CourseController extends Controller
         // stale object graph after a migration. Not a trade worth making —
         // this is three indexed queries.
         $course->load(['sections.materials']);
+
+        // Auto-publish any sections whose scheduled release time has passed.
+        // There is no cron for this — the lazy check on page load IS the
+        // feature, so it cannot simply be dropped.
+        //
+        // Ordered after the load on purpose: sections() is unscoped, so the
+        // collection above already contains the unpublished ones, and the
+        // check costs nothing. Previously the UPDATE ran on every course view
+        // whether or not anything was due, which for most courses is never.
+        $course->releaseDueSections();
 
         if ($user->hasRole('student')) {
             $user->enrollments()

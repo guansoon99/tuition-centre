@@ -105,10 +105,13 @@ class CourseController extends Controller
             abort_unless($user->can($tabPermissions[$requestedTab]), 403);
         }
 
-        // Auto-publish any sections whose scheduled release time has passed.
-        $course->releaseScheduledSections();
-
         $course->load(['teachers', 'students', 'sections.materials']);
+
+        // Auto-publish any sections whose scheduled release time has passed.
+        // After the load, so the check reads the collection already in memory
+        // instead of issuing an UPDATE on every visit — see
+        // Course::releaseDueSections().
+        $course->releaseDueSections();
 
         // Anyone who isn't a student or admin (system roles) can be assigned
         // as a course teacher. Their ability to actually edit content

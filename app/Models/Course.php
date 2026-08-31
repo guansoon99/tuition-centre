@@ -124,6 +124,46 @@ class Course extends Model
     }
 
     /**
+     * The same release, but decided from sections already in memory.
+     *
+     * There is no cron publishing scheduled sections — the lazy check on page
+     * load is the whole feature — so this runs on every course view. Calling
+     * releaseScheduledSections() directly meant an UPDATE every time, even
+     * though for most courses nothing is ever scheduled. sections() is
+     * unscoped, so a loaded collection already holds the unpublished ones and
+     * the check costs no query at all.
+     *
+     * The in-memory flags are flipped alongside the write so the loaded
+     * objects match the rows just updated. Note this is about object
+     * consistency, not visibility: Section::isVisibleToStudents() ignores
+     * is_published whenever scheduled_at is set and answers from the date
+     * alone, so a due section renders either way. Removing the sync breaks
+     * no test, which is exactly why the reason is written down here.
+     *
+     * Falls back to the query when sections are not loaded, so it is safe to
+     * call from anywhere.
+     */
+    public function releaseDueSections(): int
+    {
+        if (! $this->relationLoaded('sections')) {
+            return $this->releaseScheduledSections();
+        }
+
+        $due = $this->sections->filter(
+            fn ($section) => ! $section->is_published && $section->scheduled_at?->isPast()
+        );
+
+        if ($due->isEmpty()) {
+            return 0;
+        }
+
+        $count = $this->releaseScheduledSections();
+        $due->each(fn ($section) => $section->is_published = true);
+
+        return $count;
+    }
+
+    /**
      * Restrict to courses the given user is allowed to see.
      * Admin: all. Anyone else: courses they're assigned as staff
      * (enrollments.role_on_course='teacher') OR enrolled in as a student

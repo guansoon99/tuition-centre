@@ -322,6 +322,33 @@ server {
 
     client_max_body_size 96M;  # see Uploads — must stay under Cloudflare's 100M
 
+    # Compression. Ubuntu's nginx.conf already sets `gzip on`, which covers
+    # text/html — but gzip_types is commented out there, so CSS and JS ship
+    # uncompressed unless they are listed here. Measured on this app's build:
+    #
+    #   calendar.js   228.6 KB -> 68.1 KB   (3.4x)
+    #   app.css        41.4 KB ->  7.4 KB   (5.6x)
+    #   flatpickr.js   49.6 KB -> 14.4 KB   (3.4x)
+    #   app.js         46.1 KB -> 16.5 KB   (2.8x)
+    #
+    # /build/ is cached for a year, so this is a first-visit cost — but that
+    # first visit is the one on a school connection.
+    gzip on;
+    gzip_vary on;                # cache the Vary: Accept-Encoding header
+    gzip_min_length 1024;        # below this the header costs more than it saves
+    gzip_proxied any;
+    gzip_comp_level 5;           # past ~6 the CPU is not worth the extra bytes
+    gzip_types
+        text/css
+        text/plain
+        text/xml
+        application/javascript
+        application/json
+        application/xml
+        image/svg+xml;
+    # text/html is compressed by `gzip on` itself and must NOT be listed —
+    # nginx warns "duplicate MIME type" if it is.
+
     location / { try_files $uri $uri/ /index.php?$query_string; }
 
     location ~ \.php$ {
