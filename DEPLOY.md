@@ -621,9 +621,42 @@ them.
 
 ## Local dev
 
-The dev box is on PHP 8.1 + SQLite + file cache — no MySQL needed. Path
-differences are summarised in `dev_environment.md` in the project memory; the
-only friction is dot-sourcing `dev.ps1` once per shell.
+SQLite + file cache — no MySQL needed. Path differences are summarised in
+`dev_environment.md` in the project memory.
+
+### Start every shell with `dev.ps1`
+
+```powershell
+. .\dev.ps1
+```
+
+**This is not optional any more.** It used to be a convenience that loaded
+`./php.ini` for `intl` and `pdo_sqlite`; since the Laravel 13 upgrade it also
+selects the interpreter, and the app will not boot without it.
+
+The machine-wide `php` is 8.1, which the other Laravel 10 projects use. Laravel
+13 requires `^8.3`, so `dev.ps1` prepends a PHP 8.3 install to `PATH` **for that
+shell only** — every other project keeps 8.1. It prints which interpreter
+resolved, so a glance at the banner tells you whether the shell is set up.
+
+Skip it and you get two errors that look unrelated but are the same cause:
+
+```
+PHP Warning: Unable to load dynamic library 'zip' ...
+Composer detected issues in your platform: ... requires ">= 8.3.0". You are running 8.1.31.
+```
+
+The first is because 8.1 has zip compiled in and ships no `php_zip.dll`, so the
+`extension=zip` line that 8.3 needs cannot load. The second is Composer's
+platform check. Both mean: wrong PHP, dot-source the script.
+
+`extension=zip` matters more than it looks — `ZipArchive` backs the teacher's
+"download all submissions" archive, and `.xlsx` is a zip container, so the
+student import and all three Excel exports depend on it too.
+
+If a newer PHP is ever installed, put it in one of the folders `dev.ps1`
+already looks for (`C:\Program Files\php84`, `php8.4`, `C:\tools\php84`, then
+the 8.3 equivalents) and it will be picked up with no edit.
 
 Note the local disk cannot presign, so student uploads take the proxied
 fallback path in dev. The direct-to-R2 path only exercises against a real
