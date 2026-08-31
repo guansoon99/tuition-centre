@@ -305,7 +305,6 @@ php artisan db:seed --class=RolesAndPermissionsSeeder --force
 # default) nothing is written to the local public disk and the symlink is inert.
 php artisan storage:link
 php artisan config:cache route:cache view:cache
-php artisan filament:cache-components
 sudo chown -R www-data:www-data storage bootstrap/cache
 ```
 
@@ -604,7 +603,6 @@ composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 php artisan cache:clear        # AFTER migrate — see note below
 php artisan config:cache route:cache view:cache
-php artisan filament:cache-components
 sudo systemctl reload php8.3-fpm
 ```
 
