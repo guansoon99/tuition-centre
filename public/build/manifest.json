@@ -1,4 +1,15 @@
 {
+  "_flatpickr-CksuuEqD.css": {
+    "file": "assets/flatpickr-CksuuEqD.css",
+    "src": "_flatpickr-CksuuEqD.css"
+  },
+  "_flatpickr.min-Cc3t1Oke.js": {
+    "file": "assets/flatpickr.min-Cc3t1Oke.js",
+    "name": "flatpickr.min",
+    "css": [
+      "assets/flatpickr-CksuuEqD.css"
+    ]
+  },
   "resources/css/app.css": {
     "file": "assets/app-CI3wbCZM.css",
     "src": "resources/css/app.css",
@@ -11,12 +22,21 @@
     "isEntry": true
   },
   "resources/js/calendar.js": {
-    "file": "assets/calendar-CgLTc1_N.js",
+    "file": "assets/calendar-DM7NUVIi.js",
     "name": "calendar",
     "src": "resources/js/calendar.js",
     "isEntry": true,
-    "css": [
-      "assets/calendar-CksuuEqD.css"
+    "imports": [
+      "_flatpickr.min-Cc3t1Oke.js"
+    ]
+  },
+  "resources/js/flatpickr.js": {
+    "file": "assets/flatpickr-BjYLG-6S.js",
+    "name": "flatpickr",
+    "src": "resources/js/flatpickr.js",
+    "isEntry": true,
+    "imports": [
+      "_flatpickr.min-Cc3t1Oke.js"
     ]
   }
 }
