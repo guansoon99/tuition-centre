@@ -73,7 +73,7 @@
     @endphp
     <div class="flex gap-3 px-3 py-2">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
-            <img src="{{ asset('images/icons/docs.webp') }}" alt="Text"
+            <img src="{{ asset('images/icons/media.webp') }}" alt="Media"
                  class="h-7 w-7 object-contain" />
         </span>
         <div class="min-w-0 flex-1">
@@ -172,8 +172,8 @@
                 <img src="{{ asset('images/icons/pdf.webp') }}" alt="PDF"
                      class="h-7 w-7 object-contain" />
             @elseif ($type === \App\Models\Material::TYPE_PAGE)
-                {{-- Page shares the Text icon — same underlying "type" in the UI. --}}
-                <img src="{{ asset('images/icons/docs.webp') }}" alt="Page"
+                {{-- Page shares the Media icon — same underlying "type" in the UI. --}}
+                <img src="{{ asset('images/icons/media.webp') }}" alt="Page"
                      class="h-7 w-7 object-contain" />
             @elseif ($type === \App\Models\Material::TYPE_EXTERNAL_LINK)
                 <img src="{{ asset('images/icons/url.webp') }}" alt="Link"
