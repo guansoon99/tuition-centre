@@ -40,7 +40,7 @@
     <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Type</label>
         <div class="flex flex-wrap gap-2">
-            @foreach (['pdf' => 'PDF', 'external_link' => 'Link', 'media' => 'Media', 'assignment' => 'Assignment', 'countdown' => 'Countdown'] as $val => $lbl)
+            @foreach (['pdf' => 'PDF', 'external_link' => 'Link', 'media' => 'Media', 'announcement' => 'Announcement', 'assignment' => 'Assignment', 'countdown' => 'Countdown'] as $val => $lbl)
                 <label class="inline-flex cursor-pointer items-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900 has-[:checked]:text-white">
                     <input type="radio" x-model="type" value="{{ $val }}" class="sr-only">
                     {{ $lbl }}
@@ -99,7 +99,7 @@
         <label class="mb-1 block text-sm font-medium text-slate-700">
             Body
             {{-- Required for Media and Page; optional everywhere else. --}}
-            <span x-show="type !== 'media'" x-cloak class="font-normal text-slate-600">(optional)</span>
+            <span x-show="type !== 'media' && type !== 'announcement'" x-cloak class="font-normal text-slate-600">(optional)</span>
         </label>
         <div class="overflow-hidden rounded-md border border-slate-300">
             <div x-ref="quillContainer"

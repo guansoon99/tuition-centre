@@ -22,6 +22,18 @@ class Material extends Model
      * things and still hold 'text'.
      */
     public const TYPE_MEDIA = 'media';
+    /**
+     * Media in every respect but the icon and the label.
+     *
+     * Same rich-text body, same inline rendering, same validation — it exists
+     * so a teacher can mark a block as an announcement and have it read that
+     * way in the list. Anything that treats TYPE_MEDIA as "a body to render"
+     * must handle this alongside it.
+     *
+     * Unrelated to the Announcement model, which is the site-wide notice
+     * system with its own table, audience and schedule.
+     */
+    public const TYPE_ANNOUNCEMENT = 'announcement';
     public const TYPE_PAGE = 'page';
     public const TYPE_COUNTDOWN = 'countdown';
     public const TYPE_ASSIGNMENT = 'assignment';

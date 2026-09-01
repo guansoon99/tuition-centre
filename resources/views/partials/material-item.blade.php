@@ -59,9 +59,15 @@
     @endpush
 @endonce
 
-{{-- TEXT BLOCK — render the rich HTML inline. --}}
-@if ($type === \App\Models\Material::TYPE_MEDIA)
+{{-- MEDIA / ANNOUNCEMENT — render the rich HTML inline.
+
+     One branch for both: an announcement is a media block with a different
+     icon and label, so splitting them would mean maintaining the same empty-
+     body handling and prose rendering twice. --}}
+@if ($type === \App\Models\Material::TYPE_MEDIA || $type === \App\Models\Material::TYPE_ANNOUNCEMENT)
     @php
+        $isAnnouncement = $type === \App\Models\Material::TYPE_ANNOUNCEMENT;
+
         // Quill leaves `<p><br></p>` or `<p>&nbsp;</p>` behind when the editor is
         // emptied — treat any tag/entity-only shell as empty. But an image-only
         // or video-only body IS real content, so check for embedded media first
@@ -73,7 +79,8 @@
     @endphp
     <div class="flex gap-3 px-3 py-2">
         <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center text-black">
-            <img src="{{ asset('images/icons/media.webp') }}" alt="Media"
+            <img src="{{ asset($isAnnouncement ? 'images/icons/announcement.webp' : 'images/icons/media.webp') }}"
+                 alt="{{ $isAnnouncement ? 'Announcement' : 'Media' }}"
                  class="h-7 w-7 object-contain" />
         </span>
         <div class="min-w-0 flex-1">
@@ -85,7 +92,9 @@
                     {!! $material->body !!}
                 </div>
             @else
-                <p class="text-xs italic text-slate-400">Empty text block.</p>
+                <p class="text-xs italic text-slate-400">
+                    Empty {{ $isAnnouncement ? 'announcement' : 'text block' }}.
+                </p>
             @endif
         </div>
     </div>
