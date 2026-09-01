@@ -4,8 +4,6 @@
 
 @section('content')
     @php
-        $isPastDue = $material->isPastDue();
-
         $submittedCount = $students->filter(function ($s) use ($submissions) {
             $sub = $submissions->get($s->id);
             return $sub && $sub->files->isNotEmpty();
@@ -138,7 +136,6 @@
                         $submission = $submissions->get($student->id);
                         $files = $submission?->files ?? collect();
                         $hasSubmitted = $submission && $files->isNotEmpty();
-                        $isMissing = ! $hasSubmitted && $isPastDue;
                         $isToGrade = $hasSubmitted && ! $submission->isGraded();
                         $rowStatus = $hasSubmitted ? 'submitted' : 'not-submitted';
                         $searchable = strtolower($student->name.' '.$student->username);
@@ -148,11 +145,7 @@
                                   || status === '{{ $rowStatus }}'
                                   || (status === 'to-grade' && {{ $isToGrade ? 'true' : 'false' }}))
                               && (search === '' || @js($searchable).includes(search.toLowerCase()))"
-                         @class([
-                        'rounded-lg border bg-white p-4',
-                        'border-red-200 bg-red-50' => $isMissing,
-                        'border-slate-200' => ! $isMissing,
-                    ])>
+                         class="rounded-lg border border-slate-200 bg-white p-4">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="font-medium text-slate-900">
@@ -166,11 +159,13 @@
                                         <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
                                             Submitted for grading
                                         </span>
-                                    @elseif ($isMissing)
-                                        <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700">
-                                            Missing
-                                        </span>
                                     @else
+                                        {{-- One label whether or not the due
+                                             date has passed. There used to be a
+                                             red "Missing" badge and a red row
+                                             once an assignment closed; the row
+                                             now reads the same before and
+                                             after. --}}
                                         <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
                                             Not submitted
                                         </span>
