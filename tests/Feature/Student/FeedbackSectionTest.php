@@ -204,13 +204,20 @@ class FeedbackSectionTest extends TestCase
         $this->assertStringNotContainsString('text-emerald-900', $html);
     }
 
-    /** Same table styling as Submission Status, and directly under it. */
+    /**
+     * Same table structure as Submission Status, and directly under it.
+     *
+     * It carries an extra modifier for its warm ground, so this counts the
+     * base class wherever it appears rather than matching the whole
+     * attribute — the point is that both tables share the shared style, not
+     * that their class lists are identical.
+     */
     public function test_it_matches_the_status_table_and_sits_below_it(): void
     {
         $this->grade();
         $html = $this->page();
 
-        $this->assertSame(2, substr_count($html, 'class="detail-table"'),
+        $this->assertSame(2, substr_count($html, 'class="detail-table'),
             'Both sections should use the shared table style.');
         $this->assertLessThan(
             strpos($html, 'Feedback</h2>'),
@@ -225,8 +232,53 @@ class FeedbackSectionTest extends TestCase
         $this->grade();
 
         $this->assertMatchesRegularExpression(
-            '/<h2 class="text-xl font-semibold text-slate-900">Feedback<\/h2>\s*<div class="overflow-hidden rounded-lg/s',
+            '/<h2 class="text-xl font-semibold text-slate-900">Feedback<\/h2>\s*<div class="[^"]*rounded-lg/s',
             $this->page(),
         );
+    }
+
+    /**
+     * Feedback reads as a different kind of thing from the status above it —
+     * the teacher talking back — so it sits on a warm ground.
+     *
+     * Asserted on both halves because they can drift apart: the classes live
+     * in the view and the colours in partials/detail-table-styles, and a
+     * class with no rule behind it renders as a plain white table with no
+     * error anywhere.
+     */
+    public function test_the_feedback_card_has_a_yellow_ground(): void
+    {
+        $this->grade();
+        $html = $this->page();
+
+        $this->assertStringContainsString('detail-table detail-table--feedback', $html);
+        $this->assertStringContainsString('detail-card--feedback', $html);
+
+        // Matched on the selector and the property, not the exact shade —
+        // the point is that the class has a rule behind it, and pinning the
+        // hex would turn every adjustment to taste into a failing test.
+        $this->assertMatchesRegularExpression(
+            '/\.detail-table--feedback \{ background: rgb\([\d ]+\); \}/', $html,
+            'The modifier needs a rule behind it, not just a class in the markup.');
+        $this->assertStringContainsString('.detail-card--feedback {', $html);
+    }
+
+    /**
+     * The status table above it must stay neutral.
+     *
+     * Measured between the two headings, not from the top of the document —
+     * the stylesheet in the head names the modifier and would match.
+     */
+    public function test_the_status_table_is_not_tinted(): void
+    {
+        $this->grade();
+        $html = $this->page();
+
+        $from = strpos($html, 'Submission Status</h2>');
+        $status = substr($html, $from, strpos($html, 'Feedback</h2>') - $from);
+
+        $this->assertStringNotContainsString('detail-table--feedback', $status);
+        $this->assertStringContainsString('class="detail-table"', $status,
+            'The status table should still be the plain shared style.');
     }
 }

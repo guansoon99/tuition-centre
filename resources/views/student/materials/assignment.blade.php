@@ -46,8 +46,8 @@
         @if ($submission && ($submission->isGraded() || $feedbackFiles->isNotEmpty()))
             <h2 class="text-xl font-semibold text-slate-900">Feedback</h2>
 
-            <div class="overflow-hidden rounded-lg border border-slate-200">
-                <table class="detail-table">
+            <div class="detail-card--feedback overflow-hidden rounded-lg">
+                <table class="detail-table detail-table--feedback">
                     <tbody>
                         <tr>
                             <th scope="row">Grade</th>
