@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +49,31 @@ class Section extends Model
         }
 
         return $this->is_published;
+    }
+
+    /**
+     * Whether this section folds itself away for a user with no preference.
+     *
+     * Sections scheduled before the current week are last week's work and
+     * start collapsed; this week's stay open, and so does anything scheduled
+     * ahead — only staff see those, and hiding next week's prep from the
+     * person who scheduled it helps nobody.
+     *
+     * A section with no scheduled_at has no week to be old relative to, so it
+     * is always open. That is most of them: scheduled_at is optional and
+     * usually null.
+     *
+     * Monday, matching the calendar's firstDay: 1. Anything a user has an
+     * explicit preference for never reaches this — see
+     * Student\CourseController::show().
+     */
+    public function startsCollapsedByDefault(): bool
+    {
+        if ($this->scheduled_at === null) {
+            return false;
+        }
+
+        return $this->scheduled_at->lt(now()->startOfWeek(CarbonInterface::MONDAY));
     }
 
     public function course(): BelongsTo

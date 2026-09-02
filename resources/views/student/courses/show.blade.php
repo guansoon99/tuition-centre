@@ -27,27 +27,62 @@
                 No content has been published yet for this course.
             </p>
         @else
-            {{-- Fold-up state: sections default to OPEN. Any section the user
-                 has explicitly collapsed is persisted server-side (per user,
-                 cross-device) via POST /sections/{id}/toggle-fold. The DOM
-                 flips optimistically; the POST is fire-and-forget. --}}
+            {{-- Fold-up state, resolved server-side into $collapsedSectionIds.
+                 A user's own choice always wins and is persisted per user,
+                 cross-device, via POST /sections/{id}/toggle-fold. Sections
+                 the user has never touched decide for themselves by date —
+                 last week's fold away, this week's stay open. The DOM flips
+                 optimistically; the POST is fire-and-forget. --}}
             <div class="space-y-4"
                  x-data="{
                      collapsedIds: {{ json_encode($collapsedSectionIds) }},
+                     allIds: {{ json_encode($visibleSections->pluck('id')->values()) }},
                      isOpen(id) { return ! this.collapsedIds.includes(id); },
-                     toggle(id) {
-                         const i = this.collapsedIds.indexOf(id);
-                         if (i === -1) this.collapsedIds.push(id);
-                         else this.collapsedIds.splice(i, 1);
-                         fetch('/sections/' + id + '/toggle-fold', {
+                     post(url, body) {
+                         return fetch(url, {
                              method: 'POST',
                              headers: {
                                  'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
                                  'Accept': 'application/json',
+                                 'Content-Type': 'application/json',
                              },
+                             body: body ? JSON.stringify(body) : undefined,
                          }).catch(() => {});
                      },
+                     toggle(id) {
+                         const i = this.collapsedIds.indexOf(id);
+                         if (i === -1) this.collapsedIds.push(id);
+                         else this.collapsedIds.splice(i, 1);
+                         this.post('/sections/' + id + '/toggle-fold');
+                     },
+                     /* One request for the lot. The DOM flips first and the
+                        write follows, same as toggle() — the state is a
+                        display preference, so a failed POST costs the user
+                        nothing on this page load. */
+                     foldAll(collapsed) {
+                         this.collapsedIds = collapsed ? [...this.allIds] : [];
+                         this.post('{{ route('courses.fold-sections', $course) }}', { collapsed });
+                     },
                  }">
+
+                {{-- Only worth offering when there is more than one section to
+                     act on. --}}
+                @if ($visibleSections->count() > 1)
+                    <div class="flex justify-end gap-2">
+                        {{-- Both always visible. Hiding whichever would be a
+                             no-op left exactly one on screen at any moment,
+                             which reads as a single button that changes its
+                             mind rather than two you can choose between. --}}
+                        <button type="button" @click="foldAll(false)"
+                                class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                            Expand all
+                        </button>
+                        <button type="button" @click="foldAll(true)"
+                                class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                            Collapse all
+                        </button>
+                    </div>
+                @endif
 
                 @foreach ($visibleSections as $section)
                     <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">

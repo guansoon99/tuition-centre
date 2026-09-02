@@ -68,17 +68,22 @@ class SectionFoldStateTest extends TestCase
         $this->assertDatabaseHas('user_collapsed_sections', [
             'user_id' => $student->id,
             'section_id' => $section->id,
+            'collapsed' => true,
         ]);
 
-        // Toggling again reopens it and clears the row.
+        // Toggling again reopens it. The row stays, now recording an explicit
+        // open — deleting it would return the section to the date rule, and a
+        // section from a past week would fold itself shut again on the next
+        // page load. See Section::startsCollapsedByDefault().
         $this->actingAs($student)
             ->post("/sections/{$section->id}/toggle-fold")
             ->assertOk()
             ->assertJson(['collapsed' => false]);
 
-        $this->assertDatabaseMissing('user_collapsed_sections', [
+        $this->assertDatabaseHas('user_collapsed_sections', [
             'user_id' => $student->id,
             'section_id' => $section->id,
+            'collapsed' => false,
         ]);
     }
 
