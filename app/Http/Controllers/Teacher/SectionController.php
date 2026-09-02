@@ -30,11 +30,11 @@ class SectionController extends Controller
     public function store(StoreSectionRequest $request, Course $course): RedirectResponse
     {
         $isPublished = $request->boolean('is_published', true);
-        // Save whatever date the user typed as-is. scheduled_at doubles as a
-        // "when this section is/was current" record — the student view uses
-        // the latest past scheduled_at to decide which section auto-expands.
-        // Admin who wants a plain published section with no date can just
-        // clear the Available from field.
+        // Save whatever date the user typed as-is. scheduled_at is the
+        // section's "available from" gate: isVisibleToStudents() answers from
+        // it alone whenever it is set, so a future date hides the section
+        // regardless of is_published. Admin who wants a plain published
+        // section with no date can just clear the Available from field.
         $scheduledAt = $request->input('scheduled_at') ?: null;
 
         $section = Section::create([
@@ -44,6 +44,15 @@ class SectionController extends Controller
             'scheduled_at' => $scheduledAt,
             'sort_order' => $request->integer('sort_order') ?: ($course->sections()->max('sort_order') + 1),
             'is_published' => $isPublished,
+            // The moment the section becomes *visible*, which starts the week
+            // it stays expanded for. Not simply now(): isVisibleToStudents()
+            // answers from scheduled_at whenever one is set, so a section
+            // published today but dated next month is hidden until then —
+            // stamping now() would run its whole week out before a single
+            // student could see it. Null while unpublished. See
+            // Section::startsCollapsedByDefault().
+            'published_at' => $isPublished ? ($scheduledAt ?: now()) : null,
+            'never_collapses' => $request->boolean('never_collapses'),
         ]);
 
         return redirect()
@@ -106,18 +115,39 @@ class SectionController extends Controller
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
         $isPublished = $request->boolean('is_published', true);
-        // Save whatever date the user typed as-is. scheduled_at doubles as a
-        // "when this section is/was current" record — the student view uses
-        // the latest past scheduled_at to decide which section auto-expands.
-        // Admin who wants a plain published section with no date can just
-        // clear the Available from field.
+        // Save whatever date the user typed as-is. scheduled_at is the
+        // section's "available from" gate: isVisibleToStudents() answers from
+        // it alone whenever it is set, so a future date hides the section
+        // regardless of is_published. Admin who wants a plain published
+        // section with no date can just clear the Available from field.
         $scheduledAt = $request->input('scheduled_at') ?: null;
+
+        // Keep published_at pointing at the moment the section becomes
+        // visible, which is what its expanded week is measured from.
+        //
+        //   unpublished        -> null
+        //   dated              -> that date, tracking it if the user edits it
+        //   published, no date -> when it was first published
+        //
+        // The last branch is why an ordinary edit does not restart the week:
+        // a section that already has a date keeps it, so renaming one does
+        // not pop it back open for every student. A dated section is equally
+        // safe — a title edit leaves scheduled_at alone.
+        if (! $isPublished) {
+            $publishedAt = null;
+        } elseif ($scheduledAt !== null) {
+            $publishedAt = $scheduledAt;
+        } else {
+            $publishedAt = $section->published_at ?? now();
+        }
 
         $section->update([
             'title' => $request->input('title'),
             'scheduled_at' => $scheduledAt,
             'sort_order' => $request->integer('sort_order'),
             'is_published' => $isPublished,
+            'published_at' => $publishedAt,
+            'never_collapses' => $request->boolean('never_collapses'),
         ]);
 
         // Modal submits land back on the edit page with the modal closed.

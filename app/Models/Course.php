@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Course extends Model
 {
@@ -106,11 +107,11 @@ class Course extends Model
      * scheduled release time has passed. Cheap single UPDATE — safe to
      * call on every course-page load.
      *
-     * We deliberately KEEP scheduled_at after release — it doubles as the
-     * section's "release date" record, which the student view uses to
-     * auto-expand the currently-relevant section (latest past scheduled_at).
-     * The "Scheduled" badge only shows while scheduled_at is in the future,
-     * so keeping the date around after release doesn't affect the UI.
+     * We deliberately KEEP scheduled_at after release — it stays the
+     * section's release-date record, and published_at is stamped from it so
+     * the section's expanded week runs from when it actually went live. The
+     * "Scheduled" badge only shows while scheduled_at is in the future, so
+     * keeping the date around after release doesn't affect the UI.
      */
     public function releaseScheduledSections(): int
     {
@@ -120,6 +121,11 @@ class Course extends Model
             ->where('is_published', false)
             ->update([
                 'is_published' => true,
+                // The scheduled moment, not now(). Release happens on the
+                // first page load after the time passes, which may be days
+                // later — dating it now() would hand a long-overdue section
+                // a fresh week of being expanded.
+                'published_at' => DB::raw('scheduled_at'),
             ]);
     }
 
@@ -158,7 +164,10 @@ class Course extends Model
         }
 
         $count = $this->releaseScheduledSections();
-        $due->each(fn ($section) => $section->is_published = true);
+        $due->each(function ($section) {
+            $section->is_published = true;
+            $section->published_at = $section->scheduled_at;
+        });
 
         return $count;
     }

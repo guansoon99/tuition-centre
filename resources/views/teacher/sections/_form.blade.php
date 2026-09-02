@@ -29,12 +29,25 @@
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
     </div>
 
+    <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Status</label>
+        {{-- A select always submits a value, so unlike a checkbox it needs no
+             hidden companion to make "off" arrive. --}}
+        @php $published = (bool) old('is_published', $section?->is_published ?? true); @endphp
+        <select name="is_published"
+                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500">
+            <option value="1" @selected($published)>Published</option>
+            <option value="0" @selected(! $published)>Unpublished</option>
+        </select>
+        <p class="mt-1 text-xs text-slate-600">Unpublished sections are visible to staff only.</p>
+    </div>
+
     <label class="flex items-center gap-2 text-sm text-slate-700">
-        <input type="hidden" name="is_published" value="0">
-        <input type="checkbox" name="is_published" value="1"
-               @checked(old('is_published', $section?->is_published ?? true))
+        <input type="hidden" name="never_collapses" value="0">
+        <input type="checkbox" name="never_collapses" value="1"
+               @checked(old('never_collapses', $section?->never_collapses ?? false))
                class="rounded border-slate-300">
-        Published (visible to students)
+        Always open
     </label>
 
     <div class="flex gap-3">

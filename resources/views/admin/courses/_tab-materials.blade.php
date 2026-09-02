@@ -205,7 +205,7 @@
                                              x-data="{ hasDate: {{ $section->scheduled_at ? 'true' : 'false' }} }">
                                             <input type="text" name="scheduled_at" data-flatpickr
                                                    x-ref="scheduledAt"
-                                                   @change="hasDate = !! $event.target.value; if ($event.target.value && $root.$refs.publishedCheckbox) $root.$refs.publishedCheckbox.checked = false"
+                                                   @change="hasDate = !! $event.target.value; if ($event.target.value && $root.$refs.publishedStatus) $root.$refs.publishedStatus.value = '0'"
                                                    @input="hasDate = !! $event.target.value"
                                                    value="{{ $section->scheduled_at?->format('Y-m-d H:i') }}"
                                                    placeholder="Y-m-d H:i"
@@ -230,14 +230,25 @@
                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
                                     </div>
 
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-slate-700">Status</label>
+                                        {{-- A select always submits a value, so unlike a checkbox it needs
+                                             no hidden companion to make "off" arrive. --}}
+                                        <select name="is_published"
+                                                x-ref="publishedStatus"
+                                                @change="if ($event.target.value === '1' && $refs.scheduledAt?._flatpickr) $refs.scheduledAt._flatpickr.clear()"
+                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                                            <option value="1" @selected($section->is_published)>Published</option>
+                                            <option value="0" @selected(! $section->is_published)>Unpublished</option>
+                                        </select>
+                                    </div>
+
                                     <label class="flex items-center gap-2 text-sm text-slate-700">
                                         {{-- Hidden 0 ensures we receive a value when the checkbox is unticked. --}}
-                                        <input type="hidden" name="is_published" value="0">
-                                        <input type="checkbox" name="is_published" value="1"
-                                               x-ref="publishedCheckbox"
-                                               @checked($section->is_published)
-                                               @change="if ($event.target.checked && $refs.scheduledAt?._flatpickr) $refs.scheduledAt._flatpickr.clear()">
-                                        Published
+                                        <input type="hidden" name="never_collapses" value="0">
+                                        <input type="checkbox" name="never_collapses" value="1"
+                                               @checked($section->never_collapses)>
+                                        Always open
                                     </label>
 
                                     <div class="flex items-center justify-between pt-2">

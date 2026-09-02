@@ -21,6 +21,7 @@ class UpdateSectionRequest extends FormRequest
             'scheduled_at' => ['nullable', 'date'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['nullable', 'boolean'],
+            'never_collapses' => ['nullable', 'boolean'],
         ];
     }
 }

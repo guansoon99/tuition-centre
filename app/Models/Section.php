@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,12 +26,16 @@ class Section extends Model
         'scheduled_at',
         'sort_order',
         'is_published',
+        'published_at',
+        'never_collapses',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
         'target_date' => 'datetime',
         'scheduled_at' => 'datetime',
+        'published_at' => 'datetime',
+        'never_collapses' => 'boolean',
     ];
 
     /**
@@ -54,26 +57,41 @@ class Section extends Model
     /**
      * Whether this section folds itself away for a user with no preference.
      *
-     * Sections scheduled before the current week are last week's work and
-     * start collapsed; this week's stay open, and so does anything scheduled
-     * ahead — only staff see those, and hiding next week's prep from the
-     * person who scheduled it helps nobody.
+     * A section stays open for the day it was published and the seven days
+     * after it, then folds — so publish on a Wednesday and it is open all of
+     * that Wednesday and every day up to and including the next one, folding
+     * overnight into the Thursday.
      *
-     * A section with no scheduled_at has no week to be old relative to, so it
-     * is always open. That is most of them: scheduled_at is optional and
-     * usually null.
+     * Both sides are compared at day granularity, which is the point: an
+     * exact 7x24h window folded the section at whatever clock time it had
+     * been published at, so content disappeared mid-afternoon on a day it had
+     * been readable all morning. Now it only ever changes at midnight, and
+     * the time of day a section was published never matters.
      *
-     * Monday, matching the calendar's firstDay: 1. Anything a user has an
-     * explicit preference for never reaches this — see
-     * Student\CourseController::show().
+     * Keyed on published_at, not scheduled_at: scheduling is optional and
+     * most sections have none, so a rule reading scheduled_at would simply
+     * never fire for them.
+     *
+     * Null means never published — only staff can see such a section, and
+     * folding away a draft the moment it is created helps nobody, so it
+     * stays open.
+     *
+     * `never_collapses` opts a section out entirely: a standing announcement,
+     * a countdown to an exam, a coursework brief that matters all term. It is
+     * an explicit choice on the section rather than something inferred from
+     * the materials inside, because announcements and assignments go stale
+     * too — see the migration for the full reasoning.
+     *
+     * Anything a user has an explicit preference for never reaches this;
+     * see Student\CourseController::show().
      */
     public function startsCollapsedByDefault(): bool
     {
-        if ($this->scheduled_at === null) {
+        if ($this->never_collapses || $this->published_at === null) {
             return false;
         }
 
-        return $this->scheduled_at->lt(now()->startOfWeek(CarbonInterface::MONDAY));
+        return $this->published_at->startOfDay()->lt(now()->startOfDay()->subWeek());
     }
 
     public function course(): BelongsTo
