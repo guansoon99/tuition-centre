@@ -98,16 +98,22 @@ class CourseController extends Controller
     }
 
     /**
-     * Flip the fold state for one section for the current user.
+     * Record the fold state of one section for the current user.
      *
-     * The flip is relative to what the user is actually looking at, which is
-     * not always what the table says. With no stored row the section is
-     * showing whatever Section::startsCollapsedByDefault() decided, so a
-     * blind insert-as-collapsed would leave an already-collapsed section
-     * collapsed and the click would read as broken. Resolve the effective
-     * state first, then store its opposite.
+     * The client sends the state it just rendered. It has to, because the
+     * server's idea and the screen can legitimately differ: Expand all and
+     * Collapse all move every section on screen without persisting anything,
+     * so a section the server believes is collapsed may well be open in front
+     * of the user. Flipping the stored value would then store the opposite of
+     * what they just did.
      *
-     * Either way a row is written — the click is the user forming an opinion,
+     * Without an explicit value — an older cached page, a hand-made request —
+     * fall back to flipping the *effective* state, which is the stored row if
+     * there is one and otherwise whatever the date rule decided. Never a blind
+     * insert-as-collapsed: against a section the rule had already folded that
+     * would leave it shut and the click would read as dead.
+     *
+     * A row is written either way. The click is the user forming an opinion,
      * and from here on this section ignores the date rule. Deleting instead
      * would hand it straight back, which for a past week means it springs
      * shut again on the next page load.
@@ -129,9 +135,13 @@ class CourseController extends Controller
             ->where('section_id', $section->id)
             ->value('collapsed');
 
-        $collapsed = $stored === null
-            ? ! $section->startsCollapsedByDefault()
-            : ! (bool) $stored;
+        if ($request->has('collapsed')) {
+            $collapsed = $request->boolean('collapsed');
+        } else {
+            $collapsed = $stored === null
+                ? ! $section->startsCollapsedByDefault()
+                : ! (bool) $stored;
+        }
 
         DB::table('user_collapsed_sections')->upsert(
             [[
@@ -145,54 +155,5 @@ class CourseController extends Controller
         );
 
         return response()->json(['collapsed' => $collapsed]);
-    }
-
-    /**
-     * Collapse or expand every section of a course at once.
-     *
-     * One request rather than one per section: a full school-year course runs
-     * to thirty sections, and "collapse all" firing thirty POSTs at a
-     * single-threaded dev server would queue behind itself.
-     *
-     * The section list is derived here rather than accepted from the client.
-     * The page shows staff their unpublished sections and students only the
-     * visible ones — take ids from the browser and a student could collapse
-     * sections they cannot see, accumulating rows for content they have no
-     * access to. Same reasoning as the authorize() in toggleFold().
-     */
-    public function foldAll(Request $request, Course $course): JsonResponse
-    {
-        $this->authorize('view', $course);
-
-        $collapsed = $request->boolean('collapsed');
-        $user = $request->user();
-
-        // Mirrors the filter the page itself applies.
-        $sectionIds = $course->sections()
-            ->get()
-            ->filter(fn ($s) => $user->can('manageContent', $course) || $s->isVisibleToStudents())
-            ->pluck('id');
-
-        if ($sectionIds->isEmpty()) {
-            return response()->json(['collapsedIds' => []]);
-        }
-
-        // A row either way, not a delete for the expand case. Clearing the
-        // rows would hand these sections back to the date rule, and any
-        // belonging to a past week would collapse again on the next load —
-        // "Expand all" would look like it had not worked. Pressing either
-        // button is the user taking the course off automatic for good.
-        DB::table('user_collapsed_sections')->upsert(
-            $sectionIds->map(fn ($id) => [
-                'user_id' => $user->id,
-                'section_id' => $id,
-                'collapsed' => $collapsed,
-                'created_at' => now(),
-            ])->all(),
-            ['user_id', 'section_id'],
-            ['collapsed']
-        );
-
-        return response()->json(['collapsedIds' => $collapsed ? $sectionIds->values() : []]);
     }
 }

@@ -51,17 +51,23 @@
                      },
                      toggle(id) {
                          const i = this.collapsedIds.indexOf(id);
-                         if (i === -1) this.collapsedIds.push(id);
+                         const collapsed = i === -1;
+                         if (collapsed) this.collapsedIds.push(id);
                          else this.collapsedIds.splice(i, 1);
-                         this.post('/sections/' + id + '/toggle-fold');
+                         /* Send the state just rendered rather than asking
+                            the server to flip its own. The bulk buttons below
+                            move what is on screen without telling the server,
+                            so the two can disagree — and the screen is what
+                            the user is acting on. */
+                         this.post('/sections/' + id + '/toggle-fold', { collapsed });
                      },
-                     /* One request for the lot. The DOM flips first and the
-                        write follows, same as toggle() — the state is a
-                        display preference, so a failed POST costs the user
-                        nothing on this page load. */
+                     /* Deliberately not persisted. These two are a way to
+                        see the whole course at once, not a preference — so
+                        they change nothing on the server and the next visit
+                        starts fresh from the date rule plus whatever
+                        individual sections the user has actually chosen. */
                      foldAll(collapsed) {
                          this.collapsedIds = collapsed ? [...this.allIds] : [];
-                         this.post('{{ route('courses.fold-sections', $course) }}', { collapsed });
                      },
                  }">
 

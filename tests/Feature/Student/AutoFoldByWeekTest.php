@@ -271,24 +271,22 @@ class AutoFoldByWeekTest extends TestCase
     }
 
     /**
-     * Expand all has to stick against a course full of old sections — this is
-     * the case that made deleting rows untenable.
+     * Expand all does not survive a reload, and is not meant to.
+     *
+     * It is a look-at-everything control, not a preference: it moves the DOM
+     * and writes nothing, so last week's sections are folded again on the next
+     * visit. See FoldAllSectionsTest.
      */
-    public function test_expand_all_survives_the_rule(): void
+    public function test_the_rule_still_applies_after_a_reload(): void
     {
         $a = $this->section('2026-08-28 09:00:00');
         $b = $this->section('2026-08-20 09:00:00');
 
-        $this->actingAs($this->student)
-            ->postJson(route('courses.fold-sections', $this->course), ['collapsed' => false])
-            ->assertOk();
-
-        $this->app['auth']->forgetGuards();
-        $this->flushSession();
-
         $collapsed = $this->collapsedOnPage();
 
-        $this->assertNotContains($a->id, $collapsed);
-        $this->assertNotContains($b->id, $collapsed);
+        $this->assertContains($a->id, $collapsed);
+        $this->assertContains($b->id, $collapsed);
+        // Nothing is written by simply viewing the page.
+        $this->assertDatabaseCount('user_collapsed_sections', 0);
     }
 }

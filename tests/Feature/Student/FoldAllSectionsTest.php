@@ -9,20 +9,25 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
  * Expand all / collapse all.
  *
- * One request for the whole course rather than one per section: a full
- * school-year course runs to thirty sections, and thirty POSTs at a
- * single-threaded server would queue behind each other.
+ * These two are a way to see the whole course at once, not a preference.
+ * They move the DOM and stop there: nothing is written, no request is sent,
+ * and the next page load starts fresh from the date rule plus whatever
+ * individual sections the user has actually chosen.
  *
- * The section list is derived server-side. The page shows staff their
- * unpublished sections and students only the visible ones, so accepting ids
- * from the browser would let a student collapse — and store rows for —
- * sections they cannot see.
+ * That makes them cheap in a way the persisted version was not. Persisting
+ * meant a course of old sections had to store an explicit "open" against
+ * every one of them, which took that user off the automatic rule for that
+ * course permanently — one click, no way back.
+ *
+ * There is nothing server-side left to test, so what follows guards the two
+ * things that would quietly undo the decision: the buttons disappearing, and
+ * persistence creeping back in.
  */
 class FoldAllSectionsTest extends TestCase
 {
@@ -32,31 +37,19 @@ class FoldAllSectionsTest extends TestCase
 
     private User $student;
 
-    /** @var array<int> visible to students */
-    private array $publishedIds = [];
-
-    private Section $draftSection;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->seed(RolesAndPermissionsSeeder::class);
-        Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web'])
-            ->givePermissionTo('sections.manage');
 
         $this->course = Course::factory()->create(['is_active' => true]);
 
         foreach (range(1, 3) as $i) {
-            $this->publishedIds[] = Section::factory()->create([
+            Section::factory()->create([
                 'course_id' => $this->course->id, 'is_published' => true, 'scheduled_at' => null,
-            ])->id;
+            ]);
         }
-
-        // Not visible to students; staff still see it.
-        $this->draftSection = Section::factory()->create([
-            'course_id' => $this->course->id, 'is_published' => false, 'scheduled_at' => null,
-        ]);
 
         $this->student = User::factory()->create(['is_active' => true]);
         $this->student->assignRole('student');
@@ -66,165 +59,18 @@ class FoldAllSectionsTest extends TestCase
         ]);
     }
 
-    /** Section ids this user is storing an explicit *collapsed* against. */
-    private function collapsedFor(User $user): array
+    private function page(): string
     {
-        return DB::table('user_collapsed_sections')
-            ->where('user_id', $user->id)
-            ->where('collapsed', true)
-            ->pluck('section_id')
-            ->sort()
-            ->values()
-            ->all();
+        return $this->actingAs($this->student)
+            ->get("/courses/{$this->course->slug}")
+            ->assertOk()
+            ->getContent();
     }
 
-    private function fold(User $user, bool $collapsed)
-    {
-        return $this->actingAs($user)
-            ->postJson(route('courses.fold-sections', $this->course), ['collapsed' => $collapsed]);
-    }
-
-    // ---- Collapsing ---------------------------------------------------------
-
-    public function test_collapse_all_stores_a_row_per_visible_section(): void
-    {
-        $this->fold($this->student, true)->assertOk();
-
-        $this->assertSame($this->publishedIds, $this->collapsedFor($this->student));
-    }
-
-    /** The draft section is not the student's to collapse. */
-    public function test_collapse_all_skips_sections_the_student_cannot_see(): void
-    {
-        $this->fold($this->student, true)->assertOk();
-
-        $this->assertNotContains($this->draftSection->id, $this->collapsedFor($this->student));
-    }
+    // ---- The buttons --------------------------------------------------------
 
     /**
-     * Running it twice must not fail.
-     *
-     * unique(user_id, section_id) means a plain insert would throw on the
-     * second call and lose the whole batch — hence upsert.
-     */
-    public function test_collapse_all_is_repeatable(): void
-    {
-        $this->fold($this->student, true)->assertOk();
-
-        $this->app['auth']->forgetGuards();
-        $this->flushSession();
-
-        $this->fold($this->student, true)->assertOk();
-
-        $this->assertSame($this->publishedIds, $this->collapsedFor($this->student));
-    }
-
-    /** A part-collapsed course collapses the rest without duplicating. */
-    public function test_collapse_all_from_a_partly_collapsed_state(): void
-    {
-        DB::table('user_collapsed_sections')->insert([
-            'user_id' => $this->student->id,
-            'section_id' => $this->publishedIds[0],
-            'collapsed' => true,
-            'created_at' => now(),
-        ]);
-
-        $this->fold($this->student, true)->assertOk();
-
-        $this->assertSame($this->publishedIds, $this->collapsedFor($this->student));
-    }
-
-    // ---- Expanding ----------------------------------------------------------
-
-    public function test_expand_all_leaves_nothing_collapsed(): void
-    {
-        $this->fold($this->student, true)->assertOk();
-
-        $this->app['auth']->forgetGuards();
-        $this->flushSession();
-
-        $this->fold($this->student, false)->assertOk();
-
-        $this->assertSame([], $this->collapsedFor($this->student));
-    }
-
-    /**
-     * Expanding writes explicit open rows rather than deleting.
-     *
-     * Deleting would return the sections to the date rule, and a past week's
-     * would collapse again on the very next load — the button would look
-     * broken. See CourseController::foldAll().
-     */
-    public function test_expand_all_records_the_choice_rather_than_forgetting_it(): void
-    {
-        $this->fold($this->student, false)->assertOk();
-
-        $rows = DB::table('user_collapsed_sections')
-            ->where('user_id', $this->student->id)
-            ->pluck('collapsed', 'section_id');
-
-        foreach ($this->publishedIds as $id) {
-            $this->assertTrue($rows->has($id), "Section {$id} should have a stored preference.");
-            $this->assertFalse((bool) $rows[$id], "Section {$id} should be stored as open.");
-        }
-    }
-
-    /** Another course's fold state is untouched. */
-    public function test_expand_all_only_clears_this_course(): void
-    {
-        $otherCourse = Course::factory()->create(['is_active' => true]);
-        $otherSection = Section::factory()->create([
-            'course_id' => $otherCourse->id, 'is_published' => true, 'scheduled_at' => null,
-        ]);
-        DB::table('user_collapsed_sections')->insert([
-            'user_id' => $this->student->id,
-            'section_id' => $otherSection->id,
-            'collapsed' => true,
-            'created_at' => now(),
-        ]);
-
-        $this->fold($this->student, true)->assertOk();
-
-        $this->app['auth']->forgetGuards();
-        $this->flushSession();
-
-        $this->fold($this->student, false)->assertOk();
-
-        $this->assertSame([$otherSection->id], $this->collapsedFor($this->student),
-            "The other course's collapsed section should survive.");
-    }
-
-    // ---- Scope --------------------------------------------------------------
-
-    /** Staff see drafts on the page, so collapse all covers them too. */
-    public function test_a_teacher_collapses_their_draft_sections_as_well(): void
-    {
-        $teacher = User::factory()->create(['is_active' => true]);
-        $teacher->assignRole('teacher');
-        Enrollment::create([
-            'course_id' => $this->course->id, 'user_id' => $teacher->id,
-            'role_on_course' => Enrollment::ROLE_TEACHER, 'is_active' => true, 'enrolled_at' => now(),
-        ]);
-
-        $this->fold($teacher, true)->assertOk();
-
-        $this->assertContains($this->draftSection->id, $this->collapsedFor($teacher));
-    }
-
-    public function test_a_stranger_cannot_fold_a_course_they_are_not_in(): void
-    {
-        $outsider = User::factory()->create(['is_active' => true]);
-        $outsider->assignRole('student');
-
-        $this->fold($outsider, true)->assertForbidden();
-
-        $this->assertSame([], $this->collapsedFor($outsider));
-    }
-
-    // ---- The page -----------------------------------------------------------
-
-    /**
-     * Both buttons, always, side by side.
+     * Both, always, side by side.
      *
      * They were briefly hidden when their action would do nothing, which left
      * exactly one on screen at any moment — reading as a single button that
@@ -232,32 +78,12 @@ class FoldAllSectionsTest extends TestCase
      */
     public function test_both_buttons_appear_when_there_is_more_than_one_section(): void
     {
-        $html = $this->actingAs($this->student)
-            ->get("/courses/{$this->course->slug}")
-            ->assertOk()
-            ->getContent();
+        $html = $this->page();
 
         $this->assertStringContainsString('Expand all', $html);
         $this->assertStringContainsString('Collapse all', $html);
         $this->assertStringNotContainsString('x-show="collapsedIds.length', $html,
             'Neither button should be conditionally hidden.');
-    }
-
-    /** Both stay put with everything already collapsed. */
-    public function test_both_buttons_remain_when_every_section_is_collapsed(): void
-    {
-        $this->fold($this->student, true)->assertOk();
-
-        $this->app['auth']->forgetGuards();
-        $this->flushSession();
-
-        $html = $this->actingAs($this->student)
-            ->get("/courses/{$this->course->slug}")
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('Expand all', $html);
-        $this->assertStringContainsString('Collapse all', $html);
     }
 
     /** Nothing to expand or collapse against a single section. */
@@ -278,5 +104,125 @@ class FoldAllSectionsTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('Collapse all', $html);
+    }
+
+    // ---- They must stay unpersisted -----------------------------------------
+
+    /**
+     * foldAll() touches collapsedIds and nothing else.
+     *
+     * Reaching for this.post() inside it is exactly how persistence would
+     * come back, so the rendered function body is asserted directly.
+     */
+    public function test_the_bulk_handler_sends_no_request(): void
+    {
+        $html = $this->page();
+
+        $start = strpos($html, 'foldAll(collapsed) {');
+        $this->assertNotFalse($start, 'The bulk handler should be on the page.');
+
+        $body = substr($html, $start, strpos($html, '}', $start) - $start);
+
+        $this->assertStringNotContainsString('post(', $body);
+        $this->assertStringNotContainsString('fetch(', $body);
+    }
+
+    /**
+     * The single toggle must send the state it just rendered.
+     *
+     * Dropping that payload puts the server back to flipping its own stored
+     * value, which after a bulk button disagrees with the screen — the click
+     * would then save the opposite of what the user did. The server half of
+     * this is covered below; this is the half that lives in the template.
+     */
+    public function test_the_single_toggle_sends_the_state_it_rendered(): void
+    {
+        $html = $this->page();
+
+        $start = strpos($html, 'toggle(id) {');
+        $this->assertNotFalse($start, 'The per-section toggle should be on the page.');
+
+        $body = substr($html, $start, strpos($html, '},', $start) - $start);
+
+        $this->assertStringContainsString('toggle-fold', $body);
+        $this->assertStringContainsString('{ collapsed }', $body,
+            'The request must carry the rendered state, not ask for a flip.');
+    }
+
+    /** And no endpoint survives for it to call. */
+    public function test_no_bulk_fold_route_exists(): void
+    {
+        $this->assertNull(Route::getRoutes()->getByName('courses.fold-sections'));
+
+        $this->actingAs($this->student)
+            ->postJson("/courses/{$this->course->slug}/fold-sections", ['collapsed' => true])
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('user_collapsed_sections', 0);
+    }
+
+    // ---- The per-section toggle still persists -------------------------------
+
+    /**
+     * The bulk buttons going quiet must not take the single toggle with them —
+     * that one is a preference and still has to survive a reload.
+     */
+    public function test_a_single_section_toggle_is_still_saved(): void
+    {
+        $section = $this->course->sections()->first();
+
+        $this->actingAs($this->student)
+            ->postJson("/sections/{$section->id}/toggle-fold", ['collapsed' => true])
+            ->assertOk()
+            ->assertJson(['collapsed' => true]);
+
+        $this->assertDatabaseHas('user_collapsed_sections', [
+            'user_id' => $this->student->id,
+            'section_id' => $section->id,
+            'collapsed' => true,
+        ]);
+    }
+
+    /**
+     * The state the client rendered wins over the server's own idea.
+     *
+     * After Expand all the two disagree by design — the screen shows open,
+     * the server still has a collapsed row. Clicking the header then means
+     * "close this", and flipping the stored value would reopen it instead.
+     */
+    public function test_an_explicit_state_beats_flipping_the_stored_one(): void
+    {
+        $section = $this->course->sections()->first();
+
+        DB::table('user_collapsed_sections')->insert([
+            'user_id' => $this->student->id, 'section_id' => $section->id,
+            'collapsed' => true, 'created_at' => now(),
+        ]);
+
+        // The client is looking at an expanded section and is closing it.
+        $this->actingAs($this->student)
+            ->postJson("/sections/{$section->id}/toggle-fold", ['collapsed' => true])
+            ->assertOk()
+            ->assertJson(['collapsed' => true]);
+
+        $this->assertDatabaseHas('user_collapsed_sections', [
+            'user_id' => $this->student->id,
+            'section_id' => $section->id,
+            'collapsed' => true,
+        ]);
+    }
+
+    public function test_a_stranger_cannot_toggle_a_course_they_are_not_in(): void
+    {
+        $section = $this->course->sections()->first();
+
+        $outsider = User::factory()->create(['is_active' => true]);
+        $outsider->assignRole('student');
+
+        $this->actingAs($outsider)
+            ->postJson("/sections/{$section->id}/toggle-fold", ['collapsed' => true])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('user_collapsed_sections', 0);
     }
 }

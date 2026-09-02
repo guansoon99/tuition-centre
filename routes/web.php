@@ -124,11 +124,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/sections/{section}/toggle-fold', [CourseController::class, 'toggleFold'])
         ->name('sections.toggle-fold');
 
-    // Expand / collapse every section of a course in one request, rather than
-    // one POST per section. The controller decides which sections those are.
-    Route::post('/courses/{course:slug}/fold-sections', [CourseController::class, 'foldAll'])
-        ->name('courses.fold-sections');
-
     // Section + material CRUD — `sections.manage` permission + teaches() scope
     // enforced by the policy.
     Route::middleware('permission:sections.manage')->group(function () {
