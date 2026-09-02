@@ -219,3 +219,4 @@ this server's configuration and are deliberately absent from git.
 | Date | From → to | Notes |
 | --- | --- | --- |
 | 2026-08-19 | `b96de7a` → `e3152fd` | Two migrations (`last_modified_at`, `feedback_files`). No dependency change. `filament:cache-components` failed — removed from the procedure. |
+| 2026-09-02 | `e7129cc` → `4cd32b2` | One migration (`collapsed` on `user_collapsed_sections`). No dependency change, no asset change. New route `courses.fold-sections`, so `route:cache` mattered. |
