@@ -13,6 +13,7 @@ use App\Support\CourseMedia;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -66,7 +67,13 @@ class SubmissionStatusExportTest extends TestCase
         bool $active = true,
     ): User {
         $user = User::factory()->create([
-            'name' => $name, 'username' => $username, 'is_active' => true,
+            'name' => $name,
+            'username' => $username,
+            'is_active' => true,
+            'plain_password' => strtoupper($username).'-pw',
+            'phone' => '0123456789',
+            'email' => $username.'@example.test',
+            'ic_number' => '051201070001',
         ]);
         $user->assignRole($role);
         Enrollment::create([
@@ -100,7 +107,18 @@ class SubmissionStatusExportTest extends TestCase
         return $submission;
     }
 
-    /** The sheet as [username, name, status] rows, headings excluded. */
+    /**
+     * Just [username, name, status] — the columns the roster tests are about.
+     *
+     * The sheet also carries phone, email, IC and so on; spelling those out in
+     * every test would bury the thing each one is actually checking.
+     */
+    private function rosterRows(): array
+    {
+        return array_map(fn ($r) => [$r[1], $r[0], $r[7]], $this->rows());
+    }
+
+    /** The sheet as data rows, headings excluded. */
     private function rows(): array
     {
         $export = new SubmissionStatusExport($this->assignment);
@@ -108,24 +126,73 @@ class SubmissionStatusExportTest extends TestCase
         return $export->collection()->map(fn ($s) => $export->map($s))->all();
     }
 
-    public function test_it_lists_username_name_and_status(): void
+    public function test_it_lists_the_students_details_and_status(): void
     {
         $submitted = $this->enrol('Alice Tan', 'student1');
         $this->enrol('Bob Lim', 'student2');
         $this->submitFor($submitted);
 
         $this->assertSame([
-            ['student1', 'Alice Tan', 'Submitted'],
-            ['student2', 'Bob Lim', 'Not submitted'],
+            ['Alice Tan', 'student1', 'STUDENT1-pw', '0123456789',
+                'student1@example.test', '051201070001', 'Yes', 'Submitted'],
+            ['Bob Lim', 'student2', 'STUDENT2-pw', '0123456789',
+                'student2@example.test', '051201070001', 'Yes', 'Not submitted'],
         ], $this->rows());
     }
 
-    public function test_the_headings_are_username_name_status(): void
+    public function test_the_headings_match_the_columns(): void
     {
+        $headings = (new SubmissionStatusExport($this->assignment))->headings();
+
         $this->assertSame(
-            ['Username', 'Name', 'Status'],
-            (new SubmissionStatusExport($this->assignment))->headings(),
+            ['Name', 'Username', 'Password', 'Phone', 'Email', 'IC Number', 'Active', 'Status'],
+            $headings,
         );
+
+        // Positional lists: a heading added without its map() counterpart puts
+        // every later column's data under the wrong title, silently.
+        $this->enrol('Alice Tan', 'student1');
+        $this->assertCount(count($headings), $this->rows()[0],
+            'headings() and map() must stay the same length.');
+    }
+
+    /** An inactive account is still on the roster, marked as such. */
+    public function test_the_active_column_reflects_the_account(): void
+    {
+        $student = $this->enrol('Cara Ng', 'student3');
+        $student->update(['is_active' => false]);
+
+        $this->assertSame('No', $this->rows()[0][6]);
+    }
+
+    /**
+     * A password column on a course roster must never carry a staff one.
+     *
+     * The roster is built from enrolments, and nothing stops an admin being
+     * enrolled as a student on a course. Same guard as UsersExport.
+     */
+    public function test_a_non_student_account_exports_no_password(): void
+    {
+        $this->enrol('Zed Admin', 'admin1', Enrollment::ROLE_STUDENT, 'admin');
+
+        $this->assertNull($this->rows()[0][2]);
+    }
+
+    /**
+     * Excel destroys these silently if they arrive as numbers: "student001"
+     * becomes 1, a phone loses its leading zero, a 12-digit IC turns into
+     * scientific notation.
+     */
+    public function test_the_digit_columns_are_forced_to_text(): void
+    {
+        $formats = (new SubmissionStatusExport($this->assignment))->columnFormats();
+
+        // B username, C password, D phone, F IC number.
+        $this->assertSame(['B', 'C', 'D', 'F'], array_keys($formats));
+
+        foreach ($formats as $column => $format) {
+            $this->assertSame(NumberFormat::FORMAT_TEXT, $format, "column {$column}");
+        }
     }
 
     /**
@@ -138,7 +205,7 @@ class SubmissionStatusExportTest extends TestCase
         $student = $this->enrol('Carol Ng', 'student3');
         $this->submitFor($student, withFile: false);
 
-        $this->assertSame([['student3', 'Carol Ng', 'Not submitted']], $this->rows());
+        $this->assertSame([['student3', 'Carol Ng', 'Not submitted']], $this->rosterRows());
     }
 
     public function test_rows_are_ordered_by_name(): void
@@ -149,7 +216,7 @@ class SubmissionStatusExportTest extends TestCase
 
         $this->assertSame(
             ['Adam Chan', 'Mei Ling', 'Zara Wong'],
-            array_column($this->rows(), 1),
+            array_column($this->rows(), 0),
         );
     }
 
@@ -159,7 +226,7 @@ class SubmissionStatusExportTest extends TestCase
         $this->enrol('Dropped Student', 'student8', Enrollment::ROLE_STUDENT, 'student', active: false);
 
         // The teacher from setUp is enrolled on this course too.
-        $this->assertSame([['student1', 'Alice Tan', 'Not submitted']], $this->rows());
+        $this->assertSame([['student1', 'Alice Tan', 'Not submitted']], $this->rosterRows());
     }
 
     public function test_the_route_downloads_a_spreadsheet(): void
@@ -283,7 +350,7 @@ class SubmissionStatusExportTest extends TestCase
 
         $this->assertSame(
             ['Not submitted', 'Not submitted'],
-            array_column($this->rows(), 2),
+            array_column($this->rows(), 7),
         );
     }
 

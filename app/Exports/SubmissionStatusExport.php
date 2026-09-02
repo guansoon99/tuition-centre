@@ -42,6 +42,7 @@ class SubmissionStatusExport implements FromCollection, ShouldAutoSize, WithColu
         return $this->material->section->course
             ->students()
             ->wherePivot('is_active', true)
+            ->with('roles')
             ->orderBy('users.name')
             ->get()
             ->map(function ($student) use ($submitted) {
@@ -53,24 +54,57 @@ class SubmissionStatusExport implements FromCollection, ShouldAutoSize, WithColu
 
     public function headings(): array
     {
-        return ['Username', 'Name', 'Status'];
+        return [
+            'Name',
+            'Username',
+            'Password',
+            // Keep this list and map() in the same order — they are positional,
+            // so inserting into one alone shifts every later column's data
+            // under the wrong heading without any error.
+            'Phone',
+            'Email',
+            'IC Number',
+            'Active',
+            'Status',
+        ];
     }
 
     public function map($student): array
     {
         return [
-            $student->username,
             $student->name,
+            $student->username,
+            // Only tracked for student users; anyone else shows blank so a
+            // staff password can never leak out through a course roster.
+            // Same rule as UsersExport.
+            $student->roles->first()?->name === 'student' ? $student->plain_password : null,
+            $student->phone,
+            $student->email,
+            $student->ic_number,
+            $student->is_active ? 'Yes' : 'No',
             $student->has_submitted ? self::SUBMITTED : self::NOT_SUBMITTED,
         ];
     }
 
     /**
-     * Usernames are text. Without this Excel reads "student001" as a number
-     * and shows "1" — the same reason EnrollmentImportSampleExport does it.
+     * Anything that is digits-but-not-a-number has to be forced to text.
+     *
+     * Excel reads "student001" as a number and shows 1, eats the leading zero
+     * off a phone number, and renders a 12-digit IC in scientific notation —
+     * all silently, and all destroying the exact values someone downloads this
+     * file to use. Passwords get the same treatment since generated ones can
+     * be entirely numeric.
+     *
+     * Letters follow headings() positionally: B username, C password,
+     * D phone, F IC number.
      */
     public function columnFormats(): array
     {
-        return ['A' => NumberFormat::FORMAT_TEXT];
+        return [
+            'B' => NumberFormat::FORMAT_TEXT,
+            'C' => NumberFormat::FORMAT_TEXT,
+            'D' => NumberFormat::FORMAT_TEXT,
+            'F' => NumberFormat::FORMAT_TEXT,
+        ];
     }
 }
