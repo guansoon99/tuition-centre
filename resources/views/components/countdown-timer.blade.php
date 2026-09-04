@@ -5,7 +5,7 @@
 
      The title is rendered here rather than by the caller so it sits inside
      the card with the clock it belongs to. --}}
-<div class="rounded-md bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 px-4 py-8 text-center text-white sm:px-6"
+<div class="rounded-md bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 px-4 py-10 text-center text-white sm:px-8 sm:py-14"
      x-data="{
          targetMs: new Date('{{ $targetDate->toIso8601String() }}').getTime(),
          nowMs: Date.now(),
@@ -19,22 +19,27 @@
      x-init="setInterval(() => { nowMs = Date.now(); }, 1000)">
 
     @if (filled($title))
-        <h3 class="mb-6 text-xl font-bold leading-tight sm:text-3xl">{{ $title }}</h3>
+        <h3 class="mb-8 text-3xl font-bold leading-tight sm:text-5xl">{{ $title }}</h3>
     @endif
 
     @php
         // One box per unit rather than one per digit, so "06" reads as a
         // number instead of two tiles that happen to sit together.
         //
+        // The mobile size is held at h-16 while the desktop one grows: four
+        // boxes plus three separators plus the gaps already come to about
+        // 330px, and a 375px phone has roughly 343px between the paddings.
+        // Any bigger and the row overflows the card.
+        //
         // tabular-nums, not font-mono: the numerals should look like the rest
         // of the page, but this ticks every second and proportional digits
         // change width as they change value, so the whole row would twitch
         // once a second without it.
-        $box = 'flex h-16 w-16 items-center justify-center rounded-xl bg-white text-3xl font-extrabold tabular-nums text-black shadow-sm sm:h-24 sm:w-24 sm:text-5xl';
-        $label = 'mt-2 text-[10px] font-semibold uppercase tracking-wider text-white sm:text-sm';
+        $box = 'flex h-16 w-16 items-center justify-center rounded-xl bg-white text-3xl font-extrabold tabular-nums text-black shadow-sm sm:h-32 sm:w-32 sm:text-7xl';
+        $label = 'mt-3 text-xs font-semibold uppercase tracking-wider text-white sm:text-base';
         // Matched to the box height so the colon centres against the boxes
         // rather than against the boxes-plus-label column.
-        $sep = 'flex h-16 items-center text-2xl font-bold text-white/70 sm:h-24 sm:text-4xl';
+        $sep = 'flex h-16 items-center text-2xl font-bold text-white/70 sm:h-32 sm:text-5xl';
     @endphp
 
     <div class="flex flex-nowrap items-start justify-center gap-1.5 sm:gap-4">
@@ -62,10 +67,10 @@
     {{-- calendar.svg is a full-colour illustration, not a monochrome glyph,
          so it goes in as an <img> and keeps its own palette — no
          currentColor, and nothing to recolour on a theme change. --}}
-    <div class="mt-8 inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2">
+    <div class="mt-10 inline-flex items-center gap-3 rounded-xl bg-white/20 px-5 py-3">
         <img src="{{ asset('images/icons/calendar.svg') }}" alt=""
-             class="h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7" />
-        <span class="text-base font-semibold tabular-nums sm:text-xl">
+             class="h-7 w-7 flex-shrink-0 sm:h-9 sm:w-9" />
+        <span class="text-lg font-semibold tabular-nums sm:text-2xl">
             {{ $targetDate->format('Y-m-d H:i') }}
         </span>
     </div>
