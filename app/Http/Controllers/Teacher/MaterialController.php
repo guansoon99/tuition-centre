@@ -43,6 +43,7 @@ class MaterialController extends Controller
             'external_url' => null,
             'body' => null,
             'target_date' => null,
+            'countdown_theme' => null,
             'due_date' => null,
             'max_file_size_mb' => null,
             'max_files' => null,
@@ -66,6 +67,8 @@ class MaterialController extends Controller
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
         } elseif ($type === Material::TYPE_COUNTDOWN) {
             $data['target_date'] = $request->input('target_date');
+            $data['countdown_theme'] = $request->input('countdown_theme')
+                ?: Material::COUNTDOWN_THEME_DEFAULT;
         } elseif ($type === Material::TYPE_ASSIGNMENT) {
             $data['body'] = HtmlSanitizer::clean($request->input('body'));
             $data['due_date'] = $request->input('due_date') ?: null;
@@ -142,6 +145,7 @@ class MaterialController extends Controller
             'external_url' => null,
             'body' => null,
             'target_date' => null,
+            'countdown_theme' => null,
             'due_date' => null,
             'max_file_size_mb' => null,
             'max_files' => null,
@@ -183,6 +187,8 @@ class MaterialController extends Controller
                 $data['body'] = HtmlSanitizer::clean($request->input('body'));
             } elseif ($type === Material::TYPE_COUNTDOWN) {
                 $data['target_date'] = $request->input('target_date');
+            $data['countdown_theme'] = $request->input('countdown_theme')
+                ?: Material::COUNTDOWN_THEME_DEFAULT;
             } elseif ($type === Material::TYPE_ASSIGNMENT) {
                 $data['body'] = HtmlSanitizer::clean($request->input('body'));
                 $data['due_date'] = $request->input('due_date') ?: null;

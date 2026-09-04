@@ -121,8 +121,28 @@
                value="{{ old('target_date', $material?->target_date?->format('Y-m-d H:i')) }}"
                placeholder="Y-m-d H:i"
                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm" />
-        <p class="mt-1 text-xs text-slate-500">The countdown will tick down to this moment.</p>
+        <p class="mt-1 text-xs text-slate-600">The countdown will tick down to this moment.</p>
         @error('target_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+
+        <label class="mb-1 mt-4 block text-sm font-medium text-slate-700">Colour</label>
+        {{-- Radios rather than a select, so the choice is the colour itself.
+             The input is visually hidden but still focusable and still the
+             thing that gets checked, so keyboard and screen readers behave;
+             peer-checked draws the ring on the swatch beside it. --}}
+        <div class="flex flex-wrap gap-2">
+            @php
+                $selectedTheme = old('countdown_theme',
+                    $material?->countdown_theme ?? \App\Models\Material::COUNTDOWN_THEME_DEFAULT);
+            @endphp
+            @foreach (\App\Models\Material::COUNTDOWN_THEMES as $themeKey => $theme)
+                <label class="cursor-pointer" title="{{ $theme['label'] }}">
+                    <input type="radio" name="countdown_theme" value="{{ $themeKey }}"
+                           class="peer sr-only" @checked($selectedTheme === $themeKey)>
+                    <span class="block h-9 w-14 rounded-md bg-gradient-to-br {{ $theme['classes'] }} ring-slate-900 ring-offset-2 peer-checked:ring-2 peer-focus-visible:ring-2"></span>
+                </label>
+            @endforeach
+        </div>
+        @error('countdown_theme')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
     {{-- Assignment settings — due date + per-assignment upload caps --}}

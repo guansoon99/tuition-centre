@@ -105,12 +105,33 @@
                   class="hidden">{{ $material->body }}</textarea>
     </div>
 
-    <div x-show="matType === 'countdown'" x-cloak>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Target date</label>
-        <input type="text" name="target_date" data-flatpickr
-               value="{{ $material->target_date?->format('Y-m-d H:i') }}"
-               placeholder="Y-m-d H:i"
-               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    <div x-show="matType === 'countdown'" x-cloak class="space-y-4">
+        <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Target date</label>
+            <input type="text" name="target_date" data-flatpickr
+                   value="{{ $material->target_date?->format('Y-m-d H:i') }}"
+                   placeholder="Y-m-d H:i"
+                   class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Colour</label>
+            {{-- Radios rather than a select, so the choice is the colour
+                 itself. The input is visually hidden but still focusable and
+                 still the thing that gets checked, so keyboard and screen
+                 readers behave; peer-checked draws the ring on the swatch
+                 beside it. --}}
+            <div class="flex flex-wrap gap-2">
+                @php $selectedTheme = $material->countdown_theme ?? \App\Models\Material::COUNTDOWN_THEME_DEFAULT; @endphp
+                @foreach (\App\Models\Material::COUNTDOWN_THEMES as $themeKey => $theme)
+                    <label class="cursor-pointer" title="{{ $theme['label'] }}">
+                        <input type="radio" name="countdown_theme" value="{{ $themeKey }}"
+                               class="peer sr-only" @checked($selectedTheme === $themeKey)>
+                        <span class="block h-9 w-14 rounded-md bg-gradient-to-br {{ $theme['classes'] }} ring-slate-900 ring-offset-2 peer-checked:ring-2 peer-focus-visible:ring-2"></span>
+                    </label>
+                @endforeach
+            </div>
+        </div>
     </div>
 
     <div x-show="matType === 'assignment'" x-cloak class="grid grid-cols-1 gap-4 sm:grid-cols-3">

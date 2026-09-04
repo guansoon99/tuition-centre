@@ -106,7 +106,8 @@
              caption — it belongs to the clock it names. Still shown above
              when there is no date, since there is no card to put it in. --}}
         @if ($material->target_date)
-            <x-countdown-timer :target-date="$material->target_date" :title="$material->title" />
+            <x-countdown-timer :target-date="$material->target_date" :title="$material->title"
+                               :theme="$material->countdown_theme" />
         @else
             <p class="mb-2 truncate text-sm text-black">{{ $material->title }}</p>
             <p class="text-sm italic text-black">No target date set.</p>

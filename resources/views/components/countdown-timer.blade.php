@@ -1,11 +1,19 @@
-@props(['targetDate', 'title' => null])
+@props(['targetDate', 'title' => null, 'theme' => null])
+
+@php
+    // Whole class strings from the model, never assembled here — Tailwind
+    // scans for literal names and would emit nothing for a gradient built
+    // from a variable. Unknown or missing keys fall back to the default.
+    $gradient = (\App\Models\Material::COUNTDOWN_THEMES[$theme]
+        ?? \App\Models\Material::COUNTDOWN_THEMES[\App\Models\Material::COUNTDOWN_THEME_DEFAULT])['classes'];
+@endphp
 
 {{-- Live countdown timer for a Material of type 'countdown'. Reads
      target_date and ticks every second on the client.
 
      The title is rendered here rather than by the caller so it sits inside
      the card with the clock it belongs to. --}}
-<div class="rounded-md bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 px-4 py-10 text-center text-white sm:px-8 sm:py-14"
+<div class="rounded-md bg-gradient-to-br {{ $gradient }} px-4 py-10 text-center text-white sm:px-8 sm:py-14"
      x-data="{
          targetMs: new Date('{{ $targetDate->toIso8601String() }}').getTime(),
          nowMs: Date.now(),

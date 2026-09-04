@@ -39,6 +39,37 @@ class Material extends Model
     public const TYPE_ASSIGNMENT = 'assignment';
 
     /**
+     * The colour a countdown card can be painted, keyed by what is stored in
+     * materials.countdown_theme.
+     *
+     * The class strings are written out in full and never assembled from
+     * parts. Tailwind builds its stylesheet by scanning source files for
+     * literal class names — this file is in the content globs — so
+     * "from-{$colour}-500" would find nothing and the gradient would compile
+     * to no CSS whatsoever, with no error anywhere to say so.
+     *
+     * Keys are stable: they are in the database. Labels and colours can move.
+     */
+    public const COUNTDOWN_THEMES = [
+        'indigo' => ['label' => 'Blue & purple', 'classes' => 'from-blue-500 via-indigo-500 to-purple-600'],
+        'ocean' => ['label' => 'Blue', 'classes' => 'from-blue-600 via-blue-500 to-sky-400'],
+        'violet' => ['label' => 'Purple', 'classes' => 'from-fuchsia-400 via-purple-500 to-violet-600'],
+        'sunset' => ['label' => 'Orange', 'classes' => 'from-rose-400 via-orange-400 to-amber-400'],
+        'mint' => ['label' => 'Green', 'classes' => 'from-lime-400 via-emerald-400 to-teal-400'],
+        'rose' => ['label' => 'Pink', 'classes' => 'from-rose-400 via-pink-500 to-fuchsia-500'],
+    ];
+
+    public const COUNTDOWN_THEME_DEFAULT = 'indigo';
+
+    /** The gradient classes for this material, falling back to the default. */
+    public function countdownThemeClasses(): string
+    {
+        $key = $this->countdown_theme;
+
+        return (self::COUNTDOWN_THEMES[$key] ?? self::COUNTDOWN_THEMES[self::COUNTDOWN_THEME_DEFAULT])['classes'];
+    }
+
+    /**
      * Submission limits. Single source of truth — the presign endpoint, the
      * register endpoint, the teacher form and the student UI all read these,
      * so a cap can never be enforced in one place and advertised in another.
@@ -164,6 +195,7 @@ class Material extends Model
         'is_published',
         'published_at',
         'uploaded_by_user_id',
+        'countdown_theme',
     ];
 
     protected $casts = [

@@ -34,6 +34,7 @@ class StoreMaterialRequest extends FormRequest
             'external_url' => ['nullable', 'required_if:type,external_link', 'url'],
             'body' => ['nullable', 'required_if:type,'.Material::TYPE_MEDIA, 'required_if:type,'.Material::TYPE_ANNOUNCEMENT, 'required_if:type,'.Material::TYPE_PAGE, 'string'],
             'target_date' => ['nullable', 'required_if:type,countdown', 'date'],
+            'countdown_theme' => ['nullable', 'string', Rule::in(array_keys(Material::COUNTDOWN_THEMES))],
             'due_date' => ['nullable', 'date'],
             'max_file_size_mb' => ['nullable', 'integer', 'min:1', 'max:'.\App\Models\Material::MAX_FILE_SIZE_MB],
             'max_files' => ['nullable', 'integer', 'min:1', 'max:50'],
