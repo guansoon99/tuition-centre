@@ -102,10 +102,13 @@
 {{-- COUNTDOWN — live timer ticking down to target_date. --}}
 @elseif ($type === \App\Models\Material::TYPE_COUNTDOWN)
     <div class="px-4 py-4">
-        <p class="mb-2 truncate text-sm text-black">{{ $material->title }}</p>
+        {{-- The title goes into the card rather than sitting above it as a
+             caption — it belongs to the clock it names. Still shown above
+             when there is no date, since there is no card to put it in. --}}
         @if ($material->target_date)
-            <x-countdown-timer :target-date="$material->target_date" />
+            <x-countdown-timer :target-date="$material->target_date" :title="$material->title" />
         @else
+            <p class="mb-2 truncate text-sm text-black">{{ $material->title }}</p>
             <p class="text-sm italic text-black">No target date set.</p>
         @endif
     </div>
