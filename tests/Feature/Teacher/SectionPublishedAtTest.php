@@ -405,8 +405,9 @@ class SectionPublishedAtTest extends TestCase
         return [
             'standalone edit page' => $this->actingAs($this->teacher)
                 ->get(route('sections.edit', $section))->assertOk()->getContent(),
+            // The modal body is a fetched fragment now, not part of the tab.
             'materials tab modal' => $this->actingAs($this->teacher)
-                ->get(route('courses.edit', $this->course).'?tab=materials')->assertOk()->getContent(),
+                ->get(route('sections.edit-modal', $section))->assertOk()->getContent(),
         ];
     }
 

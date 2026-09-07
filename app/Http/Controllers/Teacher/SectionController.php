@@ -112,6 +112,21 @@ class SectionController extends Controller
         return view('teacher.sections.edit', ['section' => $section]);
     }
 
+    /**
+     * Body of the "Edit section" modal on the Materials tab, fetched on open.
+     *
+     * Rendered inline per section it was 157 KB of a 790 KB page for a
+     * school-year course, all of it hidden until a click. Returns a bare
+     * fragment for the page's shared shell to inject — see
+     * MaterialController::editModal() for the same pattern and reasoning.
+     */
+    public function editModal(Section $section): View
+    {
+        $this->authorize('update', $section);
+
+        return view('admin.courses._section-modal-body', ['section' => $section]);
+    }
+
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
         $isPublished = $request->boolean('is_published', true);

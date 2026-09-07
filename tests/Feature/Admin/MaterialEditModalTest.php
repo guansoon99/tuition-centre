@@ -140,14 +140,16 @@ class MaterialEditModalTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        // Two shells total — edit + add — regardless of how many materials
-        // and sections the course has.
-        $this->assertSame(2, substr_count($html, 'materialEditModal()'), 'Expected exactly two modal shells.');
+        // Three shells total — edit material, add resource, edit section —
+        // regardless of how many materials and sections the course has.
+        $this->assertSame(3, substr_count($html, 'materialEditModal()'), 'Expected exactly three modal shells.');
 
-        // Each pointed at its own endpoint. The edit URL appears twice (the
-        // $watch and the retry button), the create URL likewise.
+        // Each pointed at its own endpoint. The material edit URL is the
+        // loader's default so appears once; the other two are passed
+        // explicitly in $watch, x-init and the retry button.
         $this->assertSame(1, substr_count($html, '/materials/{id}/edit-modal'));
         $this->assertSame(2, substr_count($html, '/sections/{id}/materials/create-modal'));
+        $this->assertSame(3, substr_count($html, '/sections/{id}/edit-modal'));
 
         // And the per-material modal markup is genuinely gone.
         $this->assertStringNotContainsString('Edit modal for this material', $html);

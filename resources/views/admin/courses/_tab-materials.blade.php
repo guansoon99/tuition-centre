@@ -28,6 +28,27 @@
                 </div>
             </div>
 
+            {{-- One shared edit-section modal for the whole page, body fetched
+                 from sections.edit-modal on open. Same loader as the material
+                 modal above; only the URL differs. --}}
+            <div x-show="openSection !== null" x-cloak
+                 x-data="materialEditModal()"
+                 x-init="
+                     $watch('openSection', id => id === null ? reset() : load(id, '/sections/{id}/edit-modal'));
+                     if (openSection !== null) load(openSection, '/sections/{id}/edit-modal');
+                 "
+                 class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-4">
+                <div @click="openSection = null" class="fixed inset-0 bg-black/40"></div>
+                <div class="relative mt-12 w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
+                    <div x-show="loading" class="py-10 text-center text-sm text-slate-600">Loading…</div>
+                    <div x-show="failed" x-cloak class="py-10 text-center text-sm text-red-600">
+                        Couldn't load this section.
+                        <button type="button" @click="load(openSection, '/sections/{id}/edit-modal')" class="underline">Retry</button>
+                    </div>
+                    {{-- Fetched markup lands here. --}}
+                    <div x-ref="body" x-show="! loading && ! failed"></div>
+                </div>
+            </div>
             {{-- Shared "Add Resource" modal, one per page rather than one per
                  section. Body fetched from materials.create-modal on open. --}}
             <div x-show="openNewMaterialFor !== null" x-cloak
@@ -166,111 +187,6 @@
                         </form>
 
                         {{-- Edit modal for this section --}}
-                        <div x-show="openSection === {{ $section->id }}" x-cloak
-                             class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-4">
-                            <div @click="openSection = null"
-                                 x-show="openSection === {{ $section->id }}" x-cloak
-                                 class="fixed inset-0 bg-black/40"></div>
-                            <div x-show="openSection === {{ $section->id }}" x-cloak
-                                 class="relative mt-12 w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
-                                <div class="mb-4 flex items-center justify-between">
-                                    <h3 class="text-lg font-semibold text-slate-900">Edit section</h3>
-                                    <button type="button" @click="openSection = null"
-                                            class="text-slate-400 hover:text-slate-600">
-                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                <form method="POST" action="{{ route('sections.update', $section) }}"
-                                      class="space-y-4">
-                                    @csrf @method('PATCH')
-
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Title</label>
-                                        <input type="text" name="title" required
-                                               value="{{ $section->title }}"
-                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500" />
-                                    </div>
-
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">
-                                            Available from <span class="font-normal text-slate-600">(optional)</span>
-                                        </label>
-                                        {{-- Local x-data so hasDate is reactive to input/clear changes.
-                                             Reading $refs.el.value directly isn't reactive — Alpine can't
-                                             re-evaluate x-show when a DOM property changes. --}}
-                                        <div class="relative"
-                                             x-data="{ hasDate: {{ $section->scheduled_at ? 'true' : 'false' }} }">
-                                            <input type="text" name="scheduled_at" data-flatpickr
-                                                   x-ref="scheduledAt"
-                                                   @change="hasDate = !! $event.target.value; if ($event.target.value && $root.$refs.publishedStatus) $root.$refs.publishedStatus.value = '0'"
-                                                   @input="hasDate = !! $event.target.value"
-                                                   value="{{ $section->scheduled_at?->format('Y-m-d H:i') }}"
-                                                   placeholder="Y-m-d H:i"
-                                                   class="w-full rounded-md border border-slate-300 px-3 py-2 pr-9 text-sm" />
-                                            <button type="button"
-                                                    x-show="hasDate" x-cloak
-                                                    @click="$refs.scheduledAt._flatpickr?.clear(); $refs.scheduledAt.value = ''; hasDate = false"
-                                                    title="Clear date"
-                                                    class="absolute inset-y-0 right-0 flex items-center pr-2">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <p class="mt-1 text-xs text-slate-500">Hidden from students until this moment. Leave empty to publish immediately.</p>
-                                    </div>
-
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-                                        <input type="number" name="sort_order" min="0"
-                                               value="{{ $section->sort_order }}"
-                                               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                                    </div>
-
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium text-slate-700">Status</label>
-                                        {{-- A select always submits a value, so unlike a checkbox it needs
-                                             no hidden companion to make "off" arrive. --}}
-                                        <select name="is_published"
-                                                x-ref="publishedStatus"
-                                                @change="if ($event.target.value === '1' && $refs.scheduledAt?._flatpickr) $refs.scheduledAt._flatpickr.clear()"
-                                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                                            <option value="1" @selected($section->is_published)>Published</option>
-                                            <option value="0" @selected(! $section->is_published)>Unpublished</option>
-                                        </select>
-                                    </div>
-
-                                    <label class="flex items-center gap-2 text-sm text-slate-700">
-                                        {{-- Hidden 0 ensures we receive a value when the checkbox is unticked. --}}
-                                        <input type="hidden" name="never_collapses" value="0">
-                                        <input type="checkbox" name="never_collapses" value="1"
-                                               @checked($section->never_collapses)>
-                                        Always open
-                                    </label>
-
-                                    <div class="flex items-center justify-between pt-2">
-                                        <button type="button" @click="openSection = null"
-                                                class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">
-                                            Cancel
-                                        </button>
-                                        <button type="submit"
-                                                class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-                                            Save
-                                        </button>
-                                    </div>
-                                </form>
-
-                                <form method="POST" action="{{ route('sections.destroy', $section) }}"
-                                      onsubmit="return confirm('Delete this section and all its materials?');"
-                                      class="mt-4 border-t border-slate-200 pt-4">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="text-sm text-red-600 hover:underline">Delete section</button>
-                                </form>
-                            </div>
-                        </div>
                     @endforeach
                 </div>
             @endif

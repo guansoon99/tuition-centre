@@ -10,15 +10,18 @@
         $canManageStudents = auth()->user()->can('courses.manage_students');
         $canManageSections = auth()->user()->can('sections.manage');
 
-        $defaultTab = $canManageDetails ? 'details'
-            : ($canManageTeachers ? 'teachers'
-            : ($canManageStudents ? 'students'
-            : ($canManageSections ? 'materials' : 'details')));
+        // Tabs are separate page loads; the controller chose $activeTab and
+        // loaded only that tab's data. Each tab partial still wraps itself
+        // in x-show="tab === '...'", which is why `tab` is kept in x-data:
+        // it is simply fixed for the life of the page now.
+        $tabClasses = fn (string $tab) => $activeTab === $tab
+            ? 'border-slate-900 text-slate-900'
+            : 'border-transparent text-slate-700 hover:text-slate-900';
     @endphp
 
     <div class="mx-auto max-w-6xl space-y-8"
          x-data="{
-             tab: new URLSearchParams(window.location.search).get('tab') || '{{ $defaultTab }}',
+             tab: '{{ $activeTab }}',
              openSection: (() => {
                  const v = new URLSearchParams(window.location.search).get('open');
                  return v ? parseInt(v) : null;
@@ -29,12 +32,7 @@
              })(),
              openNewMaterialFor: null,
          }"
-         x-init="$watch('tab', value => {
-             const url = new URL(window.location);
-             url.searchParams.set('tab', value);
-             history.replaceState(null, '', url);
-         });
-         $watch('openSection', value => {
+         x-init="$watch('openSection', value => {
              const url = new URL(window.location);
              if (value) url.searchParams.set('open', value);
              else url.searchParams.delete('open');
@@ -53,39 +51,34 @@
         <div class="border-b border-slate-200">
             <nav class="-mb-px flex gap-6 text-sm">
                 @if ($canManageDetails)
-                    <button @click="tab = 'details'" :class="tab === 'details' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
-                            class="border-b-2 pb-2">Details</button>
+                    <a href="{{ route('courses.edit', [$course, 'tab' => 'details']) }}"
+                       class="border-b-2 pb-2 {{ $tabClasses('details') }}">Details</a>
                 @endif
                 @if ($canManageTeachers)
-                    <button @click="tab = 'teachers'" :class="tab === 'teachers' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
-                            class="border-b-2 pb-2">Teachers ({{ $course->teachers->count() }})</button>
+                    <a href="{{ route('courses.edit', [$course, 'tab' => 'teachers']) }}"
+                       class="border-b-2 pb-2 {{ $tabClasses('teachers') }}">Teachers ({{ $course->teachers_count }})</a>
                 @endif
                 @if ($canManageStudents)
-                    <button @click="tab = 'students'" :class="tab === 'students' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
-                            class="border-b-2 pb-2">Students ({{ $course->students->count() }})</button>
+                    <a href="{{ route('courses.edit', [$course, 'tab' => 'students']) }}"
+                       class="border-b-2 pb-2 {{ $tabClasses('students') }}">Students ({{ $course->students_count }})</a>
                 @endif
                 @if ($canManageSections)
-                    <button @click="tab = 'materials'" :class="tab === 'materials' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-700'"
-                            class="border-b-2 pb-2">Materials ({{ $course->sections->count() }})</button>
+                    <a href="{{ route('courses.edit', [$course, 'tab' => 'materials']) }}"
+                       class="border-b-2 pb-2 {{ $tabClasses('materials') }}">Materials ({{ $course->sections_count }})</a>
                 @endif
             </nav>
         </div>
 
-        {{-- Tab bodies. Each is a partial in this directory; the permission
-             guard stays here so this file reads as a table of contents. --}}
-        @if ($canManageDetails)
+        {{-- One tab body per request. The controller already refused a tab
+             the user may not see, so only the active one is rendered: the
+             others are not hidden, they are absent. --}}
+        @if ($activeTab === 'details')
             @include('admin.courses._tab-details')
-        @endif
-
-        @if ($canManageTeachers)
+        @elseif ($activeTab === 'teachers')
             @include('admin.courses._tab-teachers')
-        @endif
-
-        @if ($canManageStudents)
+        @elseif ($activeTab === 'students')
             @include('admin.courses._tab-students')
-        @endif
-
-        @if ($canManageSections)
+        @elseif ($activeTab === 'materials')
             @include('admin.courses._tab-materials')
         @endif
     </div>

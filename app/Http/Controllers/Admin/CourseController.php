@@ -91,59 +91,81 @@ class CourseController extends Controller
             abort_unless($user->teaches($course) && $course->is_active, 403);
         }
 
-        // If a specific tab was requested via ?tab=X, verify the user has the
-        // matching permission — otherwise 403 (instead of loading the page
-        // and rendering nothing because the tab's section is @if-guarded).
-        $requestedTab = $request->string('tab')->value();
+        // One tab per request. The page used to render all four and switch
+        // them client-side, which meant every load carried every tab: 150
+        // materials plus 80 enrolment rows plus two 200-row candidate lists,
+        // close to a megabyte, whichever tab you had actually asked for.
+        // ?tab= is already in the URL and every redirect back here sets it,
+        // so the tab is known before anything is loaded.
         $tabPermissions = [
             'details' => 'courses.manage_details',
             'teachers' => 'courses.manage_teachers',
             'students' => 'courses.manage_students',
             'materials' => 'sections.manage',
         ];
+
+        $requestedTab = $request->string('tab')->value();
         if ($requestedTab && isset($tabPermissions[$requestedTab])) {
+            // Asked for explicitly: 403 rather than quietly showing another
+            // tab, so a missing permission is visible as such.
             abort_unless($user->can($tabPermissions[$requestedTab]), 403);
+            $activeTab = $requestedTab;
+        } else {
+            // First tab the user may see, in nav order.
+            $activeTab = collect($tabPermissions)
+                ->keys()
+                ->first(fn ($tab) => $user->can($tabPermissions[$tab]), 'details');
         }
 
-        $course->load(['teachers', 'students', 'sections.materials']);
+        // The nav badges need counts for every tab; only the active tab
+        // needs the rows themselves.
+        $course->loadCount(['teachers', 'students', 'sections']);
 
-        // Auto-publish any sections whose scheduled release time has passed.
-        // After the load, so the check reads the collection already in memory
-        // instead of issuing an UPDATE on every visit — see
-        // Course::releaseDueSections().
-        $course->releaseDueSections();
+        $teacherCandidates = collect();
+        $studentCandidates = collect();
+        $enrollments = collect();
 
-        // Anyone who isn't a student or admin (system roles) can be assigned
-        // as a course teacher. Their ability to actually edit content
-        // afterwards depends on whatever permissions their role has —
-        // assignment is just the pivot record; sections.manage gates editing.
-        $teacherCandidates = \App\Models\User::query()
-            ->where('is_active', true)
-            ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'student']))
-            ->whereNotIn('id', $course->teachers->pluck('id'))
-            ->orderBy('name')
-            ->limit(200)
-            ->get(['id', 'username', 'name']);
+        if ($activeTab === 'teachers') {
+            $course->load('teachers');
+            $teacherCandidates = \App\Models\User::query()
+                ->where('is_active', true)
+                ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'student']))
+                ->whereNotIn('id', $course->teachers->pluck('id'))
+                ->orderBy('name')
+                ->limit(200)
+                ->get(['id', 'username', 'name']);
+        }
 
-        $studentCandidates = \App\Models\User::role('student')
-            ->where('is_active', true)
-            ->whereNotIn('id', $course->students->pluck('id'))
-            ->orderBy('username')
-            ->limit(200)
-            ->get(['id', 'username', 'name']);
+        if ($activeTab === 'students') {
+            $course->load('students');
+            $studentCandidates = \App\Models\User::role('student')
+                ->where('is_active', true)
+                ->whereNotIn('id', $course->students->pluck('id'))
+                ->orderBy('username')
+                ->limit(200)
+                ->get(['id', 'username', 'name']);
 
-        // Student enrollment rows for the Students tab. whereHas('user')
-        // drops rows whose student has been soft deleted — the enrollment
-        // survives (nothing cascades on a soft delete) but ->user resolves
-        // to null, which the table would fatal on.
-        $enrollments = $course->enrollments()
-            ->whereHas('user')
-            ->with('user')
-            ->orderByDesc('enrolled_at')
-            ->get();
+            // whereHas('user') drops rows whose student has been soft deleted
+            // - the enrollment survives (nothing cascades on a soft delete)
+            // but ->user resolves to null, which the table would fatal on.
+            $enrollments = $course->enrollments()
+                ->whereHas('user')
+                ->with('user')
+                ->orderByDesc('enrolled_at')
+                ->get();
+        }
+
+        if ($activeTab === 'materials') {
+            $course->load('sections.materials');
+            // Lazy scheduled release: no cron, the page load is the trigger.
+            // Only the materials tab shows sections, so only it needs this;
+            // the student course page runs the same check on its own.
+            $course->releaseDueSections();
+        }
 
         return view('admin.courses.edit', [
             'course' => $course,
+            'activeTab' => $activeTab,
             'teacherCandidates' => $teacherCandidates,
             'studentCandidates' => $studentCandidates,
             'enrollments' => $enrollments,

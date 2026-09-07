@@ -159,6 +159,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         // so the page doesn't ship one copy per material.
         Route::get('/materials/{material}/edit-modal', [TeacherMaterialController::class, 'editModal'])
             ->name('materials.edit-modal');
+        // Same arrangement for sections: the edit form is fetched on open
+        // rather than shipped once per section with the page.
+        Route::get('/sections/{section}/edit-modal', [TeacherSectionController::class, 'editModal'])
+            ->name('sections.edit-modal');
         Route::patch('/materials/{material}', [TeacherMaterialController::class, 'update'])->name('materials.update');
         Route::delete('/materials/{material}', [TeacherMaterialController::class, 'destroy'])->name('materials.destroy');
 
