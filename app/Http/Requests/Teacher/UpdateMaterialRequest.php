@@ -29,7 +29,7 @@ class UpdateMaterialRequest extends FormRequest
                 Material::TYPE_ASSIGNMENT,
             ])],
             'file' => ['nullable', 'file', 'mimes:pdf', 'max:51200'],
-            'external_url' => ['nullable', 'required_if:type,external_link', 'url'],
+            'external_url' => ['nullable', 'required_if:type,external_link', 'url:http,https'],
             'body' => ['nullable', 'required_if:type,'.Material::TYPE_MEDIA, 'required_if:type,'.Material::TYPE_ANNOUNCEMENT, 'required_if:type,'.Material::TYPE_PAGE, 'string'],
             'target_date' => ['nullable', 'required_if:type,countdown', 'date'],
             'countdown_theme' => ['nullable', 'string', Rule::in(array_keys(Material::COUNTDOWN_THEMES))],

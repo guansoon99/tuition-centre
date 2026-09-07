@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class UserRequest extends FormRequest
 {
@@ -40,9 +41,12 @@ class UserRequest extends FormRequest
             'candidate_number' => ['nullable', 'string', 'max:32'],
             'role' => ['required', Rule::exists('roles', 'name')],
             'is_active' => ['nullable', 'boolean'],
+            // Same floor as the self-service change in UpdatePasswordRequest.
+            // Without it an admin could set a one-character password, and a
+            // student who never changes it keeps it for good.
             'password' => $isCreate
-                ? ['required', 'confirmed', 'string']
-                : ['nullable', 'confirmed', 'string'],
+                ? ['required', 'confirmed', 'string', Password::min(8)]
+                : ['nullable', 'confirmed', 'string', Password::min(8)],
         ];
     }
 }

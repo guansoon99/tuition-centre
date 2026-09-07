@@ -185,8 +185,28 @@ class UserController extends Controller
             ->with('status', "User {$user->username} created.");
     }
 
+    /**
+     * Accounts holding the admin role are managed by admins only.
+     *
+     * Route permissions say what a role may do and nothing about whom. Left
+     * to them alone, a role granted users.deactivate could switch every admin
+     * off, and one granted users.edit would reach the edit form for an admin
+     * account. UserRequest::authorize() happens to refuse the update itself
+     * to non-admins, but that is a property of one form class rather than a
+     * rule anyone can find — this is the rule, applied everywhere an account
+     * is changed. bulkDestroy() skips admins for the same reason.
+     */
+    private function assertMayManage(User $target): void
+    {
+        if ($target->hasRole('admin') && ! auth()->user()->hasRole('admin')) {
+            abort(403);
+        }
+    }
+
     public function edit(User $user): View
     {
+        $this->assertMayManage($user);
+
         return view('admin.users.edit', [
             'user' => $user,
             'roleOptions' => $this->assignableRoles(),
@@ -195,6 +215,8 @@ class UserController extends Controller
 
     public function update(UserRequest $request, User $user): RedirectResponse
     {
+        $this->assertMayManage($user);
+
         $data = $request->validated();
 
         $user->fill([
@@ -217,7 +239,16 @@ class UserController extends Controller
 
         // Role changes are admin-only. Non-admins who craft a POST with a
         // different role are silently ignored — we keep the existing one.
+        //
+        // An admin also cannot take admin away from themselves. destroy()
+        // already refuses self-deactivation for the same reason: the lockout
+        // is immediate, and if they were the only admin, nobody is left who
+        // can undo it without opening the database by hand.
         if ($request->user()?->hasRole('admin')) {
+            if ($user->id === $request->user()->id && $data['role'] !== 'admin') {
+                return back()->withErrors(['role' => 'You cannot remove the admin role from your own account.']);
+            }
+
             $user->syncRoles([$data['role']]);
         }
 
@@ -240,6 +271,8 @@ class UserController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
+        $this->assertMayManage($user);
+
         if ($user->id === auth()->id()) {
             return back()->withErrors(['user' => 'You cannot deactivate your own account.']);
         }
@@ -253,6 +286,8 @@ class UserController extends Controller
 
     public function activate(User $user): RedirectResponse
     {
+        $this->assertMayManage($user);
+
         $user->update(['is_active' => true]);
 
         return redirect()
