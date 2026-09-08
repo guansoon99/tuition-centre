@@ -320,15 +320,18 @@ alone would exceed RAM and start swapping:
 
 ```
 pm = dynamic
-pm.max_children = 8
+pm.max_children = 6
 pm.start_servers = 2
 pm.min_spare_servers = 2
-pm.max_spare_servers = 4
+pm.max_spare_servers = 3
 pm.max_requests = 500
 ```
 
-Scale `pm.max_children` with RAM, roughly `(available MB) / 40`, leaving
-~150 MB headroom for an image upload. Each request renders Blade — file
+Measured on the production droplet: a worker is **58 MB** resident, not the
+35 first assumed, so 6 is the honest figure for 1 GB — 348 MB of workers
+beside MySQL (~160 MB with `performance_schema = OFF`, ~400 MB without) and
+~120 MB for the OS and nginx, leaving room for an image upload. Scale
+`pm.max_children` with RAM at roughly `(available MB) / 60`. Each request renders Blade — file
 streaming happens at Cloudflare R2, not here.
 
 ## OPcache — verify it's actually on
@@ -531,6 +534,15 @@ php artisan storage:link
 php artisan config:cache route:cache view:cache
 sudo chown -R www-data:www-data storage bootstrap/cache
 ```
+
+That last `chown` is not cosmetic, and it applies to every artisan command
+you ever run on the box by hand, not just this first batch. Artisan run as
+root leaves root-owned files under `storage/` — compiled Blade views, and
+the cache entry `backup:run`'s `withoutOverlapping()` uses as its mutex —
+which www-data then cannot write: a page 500s on the next view recompile,
+and the nightly backup fails to take its lock and silently never runs. Day
+to day, run artisan as the web user (`sudo -u www-data php artisan …`);
+`deploy/update.sh` is the deliberate exception and chowns after itself.
 
 ## Nginx (`/etc/nginx/sites-available/tuition`)
 
