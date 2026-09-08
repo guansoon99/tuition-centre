@@ -99,6 +99,14 @@ echo "  https://${DOMAIN}/login -> $STATUS"
 [ "$STATUS" = 200 ] || fail "site is not answering 200 after deploy — roll back with: $0 $BEFORE"
 echo "  migrations: $(php artisan migrate:status 2>/dev/null | grep -c Ran) ran, $(php artisan migrate:status 2>/dev/null | grep -c Pending) pending"
 
+# An app route that ends in an image extension. nginx's static-asset block
+# swallowed these with a bare 404 until 2026-09-08; the fix is a try_files
+# fall-through in that block, and this is the check that it stays. Signed
+# out, Laravel answers 302 to /login; nginx answering itself gives 404.
+MEDIA="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/courses/1/media/materials/probe.webp")"
+echo "  course-media route through nginx -> $MEDIA (302 = handed to Laravel)"
+[ "$MEDIA" = 302 ] || fail "nginx is answering the course-media route itself - check the try_files fall-through in the static-asset block"
+
 say "deployed $BEFORE -> $AFTER"
 echo "  roll back with:  bash $0 $BEFORE"
 echo "  (a migration in this deploy is NOT undone by rolling the code back — see Rollback in DEPLOY.md)"

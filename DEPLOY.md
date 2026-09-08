@@ -607,6 +607,12 @@ server {
     # Everything else static. Note webp: the material icons are webp, and
     # leaving it out of this list silently excludes them from caching.
     location ~* \.(js|css|png|jpg|jpeg|gif|webp|avif|ico|svg|woff2?|ttf)$ {
+        # App routes can end in an image extension too — embedded lesson media
+        # lives at /courses/{id}/media/{folder}/{file}.webp and is served by
+        # Laravel after an authorisation check. Serve from disk only when the
+        # file exists; otherwise hand the request to Laravel. Without this
+        # every such image was a bare nginx 404 (found in production 2026-09-08).
+        try_files $uri /index.php?$query_string;
         expires 1M;
         add_header Cache-Control "public";
     }

@@ -103,6 +103,10 @@ server {
     }
 
     location ~* \\.(js|css|png|jpg|jpeg|gif|webp|avif|ico|svg|woff2?|ttf)\$ {
+        # App routes can end in an image extension (course media, routes/web.php).
+        # Serve from disk only when the file exists; otherwise hand it to Laravel.
+        # Without this every embedded lesson image was a bare nginx 404.
+        try_files \$uri /index.php?\$query_string;
         expires 1M;
         add_header Cache-Control "public";
     }
