@@ -92,3 +92,4 @@ it's fine".
 | Date | From → to | Notes |
 | --- | --- | --- |
 | 2026-09-08 | — → `2a12282` | First build (Phases A and B of DEPLOY.md). MySQL migration `CAST … AS INTEGER` failed on first migrate and was fixed in `0d39e4e`. |
+| 2026-09-08 | `0d39e4e` → `dd07a6a` | First run of `deploy/update.sh`; CI gate green on both legs. Five commits: the settings-row lookup fix from the MySQL CI leg, the deploy scripts and runbooks, and Deactivate/Activate for banner slides and announcements. One migration (`is_active` on `announcements`). No dependency change. Asset rebuild (`app-DfeY9C-O.css`), verified served with the old file 404ing. Four new routes verified in the cached list, `storage/` ownership clean after the script's chown, `/login` 200 from outside, 72 migrations ran. |
