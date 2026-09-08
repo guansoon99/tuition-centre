@@ -153,6 +153,24 @@ class AnnouncementController extends Controller
         return response()->json(['ok' => true, 'count' => count($valid)]);
     }
 
+    public function deactivate(Announcement $announcement): RedirectResponse
+    {
+        $announcement->update(['is_active' => false]);
+
+        return redirect()
+            ->route('announcements.index')
+            ->with('status', 'Announcement deactivated. Recipients no longer see it.');
+    }
+
+    public function activate(Announcement $announcement): RedirectResponse
+    {
+        $announcement->update(['is_active' => true]);
+
+        return redirect()
+            ->route('announcements.index')
+            ->with('status', 'Announcement activated.');
+    }
+
     private function coursesForSelect()
     {
         return Course::query()

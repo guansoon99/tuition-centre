@@ -31,7 +31,7 @@ class BannerController extends Controller
     {
         $data = $request->validated();
         $data['image_path'] = PublicFile::store($request->file('image'), 'banner-slides');
-        $data['is_active'] = true; // Slides are always active — no toggle in the UI; use Delete to hide.
+        $data['is_active'] = true; // New slides start visible; Deactivate on the list hides one without deleting it.
         // Auto-append to the end of the existing order.
         $data['sort_order'] = (int) BannerSlide::max('sort_order') + 1;
 
@@ -64,9 +64,9 @@ class BannerController extends Controller
             $data['image_path'] = PublicFile::store($request->file('image'), 'banner-slides');
         }
 
-        $data['is_active'] = true;
-
-        unset($data['image']);
+        // Status changes only through activate()/deactivate(). An edit must
+        // not quietly re-show a slide somebody hid.
+        unset($data['image'], $data['is_active']);
 
         $slide->update($data);
 
@@ -117,6 +117,32 @@ class BannerController extends Controller
         return redirect()
             ->route('banner.index')
             ->with('status', 'Slide deleted.');
+    }
+
+    public function deactivate(BannerSlide $slide): RedirectResponse
+    {
+        return $this->setActive($slide, false, 'Slide deactivated. It no longer shows on the homepage.');
+    }
+
+    public function activate(BannerSlide $slide): RedirectResponse
+    {
+        return $this->setActive($slide, true, 'Slide activated.');
+    }
+
+    /**
+     * Hide or show a slide without deleting it. The homepage reads active
+     * slides from a cache, so the flip has to clear it or the change waits
+     * up to five minutes to appear.
+     */
+    private function setActive(BannerSlide $slide, bool $active, string $status): RedirectResponse
+    {
+        $slide->update(['is_active' => $active]);
+
+        $this->forgetCache();
+
+        return redirect()
+            ->route('banner.index')
+            ->with('status', $status);
     }
 
     private function forgetCache(): void

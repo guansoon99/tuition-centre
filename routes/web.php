@@ -258,6 +258,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('/banner/reorder', [BannerController::class, 'reorder'])->name('banner.reorder');
         Route::get('/banner/{slide}/edit', [BannerController::class, 'edit'])->name('banner.edit');
         Route::patch('/banner/{slide}', [BannerController::class, 'update'])->name('banner.update');
+        // Status: hide a slide without deleting it. Two routes rather than a
+        // toggle, so a double-submit cannot flip it straight back.
+        Route::post('/banner/{slide}/deactivate', [BannerController::class, 'deactivate'])->name('banner.deactivate');
+        Route::post('/banner/{slide}/activate', [BannerController::class, 'activate'])->name('banner.activate');
     });
     Route::middleware('permission:banner.delete')->group(function () {
         Route::delete('/banner/{slide}', [BannerController::class, 'destroy'])->name('banner.destroy');
@@ -319,6 +323,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('/announcements/reorder', [AnnouncementController::class, 'reorder'])->name('announcements.reorder');
         Route::get('/announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
         Route::patch('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        // Status: hide an announcement from every recipient without deleting it.
+        Route::post('/announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('announcements.deactivate');
+        Route::post('/announcements/{announcement}/activate', [AnnouncementController::class, 'activate'])->name('announcements.activate');
     });
     Route::middleware('permission:announcements.delete')->group(function () {
         Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');

@@ -31,6 +31,7 @@
                             <th class="px-4 py-3">Start</th>
                             <th class="px-4 py-3">End</th>
                             <th class="px-4 py-3">Created</th>
+                            <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -40,7 +41,8 @@
                                 $starts = $a->starts_at ? \Carbon\Carbon::parse($a->starts_at) : null;
                                 $ends = $a->ends_at ? \Carbon\Carbon::parse($a->ends_at) : null;
                             @endphp
-                            <tr data-announcement-id="{{ $a->id }}">
+                            {{-- Active rows sit on a light green so the status reads at a glance. --}}
+                            <tr data-announcement-id="{{ $a->id }}" class="{{ $a->is_active ? 'bg-emerald-50' : '' }}">
                                 <td class="px-2 py-3 text-center">
                                     <button type="button" title="Drag to reorder"
                                             class="announcement-drag-handle inline-flex h-8 w-8 cursor-grab select-none items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-200 active:cursor-grabbing">
@@ -76,6 +78,13 @@
                                 <td class="px-4 py-3 font-mono text-sm">
                                     {{ $a->sent_at?->format('Y-m-d H:i') ?? '—' }}
                                 </td>
+                                <td class="px-4 py-3">
+                                    @if ($a->is_active)
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">Active</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">Inactive</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
                                         @can('announcements.edit')
@@ -83,6 +92,23 @@
                                                class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
                                                 Edit
                                             </a>
+                                            @if ($a->is_active)
+                                                <form method="POST" action="{{ route('announcements.deactivate', $a->id) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-amber-600">
+                                                        Deactivate
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('announcements.activate', $a->id) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
+                                                        Activate
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @endcan
                                         @can('announcements.delete')
                                             <form method="POST" action="{{ route('announcements.destroy', $a->id) }}"

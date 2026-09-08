@@ -97,7 +97,12 @@ class User extends Authenticatable
     {
         $now = now();
 
+        // A deactivated announcement is hidden from everyone, the admin's
+        // own home page included. The admin list is the one place it still
+        // appears, with its status and an Activate button. The image route
+        // delegates here too, so the picture goes with the listing.
         $q = \App\Models\Announcement::query()
+            ->where('is_active', true)
             ->where(function ($q) use ($now) {
                 $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
             })

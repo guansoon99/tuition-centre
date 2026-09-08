@@ -29,12 +29,14 @@ class Announcement extends Model
         'starts_at',
         'ends_at',
         'sort_order',
+        'is_active',
         'created_by_user_id',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**

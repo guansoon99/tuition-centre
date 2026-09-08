@@ -27,12 +27,14 @@
                             <th class="px-4 py-3">Preview</th>
                             <th class="px-4 py-3">Title</th>
                             <th class="px-4 py-3">Created</th>
+                            <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100" data-sortable-slides>
                         @foreach ($slides as $slide)
-                            <tr data-slide-id="{{ $slide->id }}">
+                            {{-- Active rows sit on a light green so the status reads at a glance. --}}
+                            <tr data-slide-id="{{ $slide->id }}" class="{{ $slide->is_active ? 'bg-emerald-50' : '' }}">
                                 <td class="px-2 py-3 text-center">
                                     <button type="button" title="Drag to reorder"
                                             class="slide-drag-handle inline-flex h-8 w-8 cursor-grab select-none items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-200 active:cursor-grabbing">
@@ -40,7 +42,7 @@
                                     </button>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="aspect-video w-32 overflow-hidden rounded bg-slate-100">
+                                    <div class="aspect-video w-32 overflow-hidden rounded bg-slate-100 {{ $slide->is_active ? '' : 'opacity-50' }}">
                                         <img src="{{ $slide->image_url }}"
                                              alt="" class="h-full w-full object-cover" />
                                     </div>
@@ -51,6 +53,13 @@
                                 <td class="px-4 py-3 font-mono text-sm">
                                     {{ $slide->created_at->format('Y-m-d H:i') }}
                                 </td>
+                                <td class="px-4 py-3">
+                                    @if ($slide->is_active)
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">Active</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">Inactive</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
                                         @can('banner.edit')
@@ -58,6 +67,23 @@
                                                class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
                                                 Edit
                                             </a>
+                                            @if ($slide->is_active)
+                                                <form method="POST" action="{{ route('banner.deactivate', $slide) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-amber-600">
+                                                        Deactivate
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('banner.activate', $slide) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
+                                                        Activate
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @endcan
                                         @can('banner.delete')
                                             <form method="POST" action="{{ route('banner.destroy', $slide) }}"
