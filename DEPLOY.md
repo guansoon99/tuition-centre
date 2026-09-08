@@ -4,6 +4,226 @@ Target: a single small VPS (DigitalOcean Singapore, Contabo, or similar), for a 
 only HTML, and files stream from Cloudflare R2 rather than the droplet. See
 [Sizing](#sizing) for the measurements behind that.
 
+## First run: DigitalOcean + Cloudflare, when the domain is the client's
+
+The rest of this document is organised by topic. This section is the order to
+do it in the first time, written for the actual situation: **the domain is
+registered by the client, not by you.** Everything is arranged so that you
+build and test the whole site on your side, and the client performs exactly
+one action at the end — changing nameservers — after which it is simply live.
+
+Each step links to the detail below; nothing here repeats it.
+
+The trick that makes one-touch possible is a **Cloudflare Origin Certificate**
+instead of Let's Encrypt. Certbot needs the domain to already resolve to your
+droplet before it will issue anything, which would force a scramble the moment
+the client flips DNS. An Origin Certificate is issued from the Cloudflare
+dashboard with no DNS validation, because you control the zone in your own
+account — so TLS can be installed and tested before the domain resolves at
+all. Its one condition is that the site must stay proxied through Cloudflare
+(orange cloud); browsers do not trust it directly.
+
+### Phase A — the server. Nothing here needs the domain.
+
+**A1. Create the droplet.** Ubuntu **24.04 LTS**, Singapore, **1 GB / 1 vCPU**
+to start — [Sizing](#sizing) has the measurements, and if you outgrow it you
+need more vCPU, not RAM. Add your SSH key at creation. Also attach a
+**Reserved IP** (free while attached): point everything at that, and you can
+rebuild or resize the droplet later without touching DNS.
+
+**A2. First login, swap, firewall.**
+
+```bash
+ssh root@<reserved-ip>
+adduser deploy && usermod -aG sudo deploy
+rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy
+```
+
+A 1 GB box has no swap, and the OOM killer takes MySQL first when an image
+upload spikes — [Sizing](#sizing) covers why uploads set the RAM floor:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+```bash
+sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
+```
+
+⚠️ `allow OpenSSH` **before** `enable`, or you are locked out of your own
+droplet and the only way back is the DigitalOcean web console.
+
+**A3. Stack, database, app.** Follow
+[Server prerequisites](#server-prerequisites),
+[PHP-FPM tuning](#php-fpm-tuning-etcphp83fpmpooldwwwconf),
+[OPcache](#opcache--verify-its-actually-on) and [App deploy](#app-deploy), in
+that order. OPcache is not optional reading — every performance figure in this
+document assumes it.
+
+MySQL needs a database and user before `php artisan migrate` will run:
+
+```bash
+sudo mysql -e "CREATE DATABASE tuition CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER 'tuition'@'localhost' IDENTIFIED BY '<a long random password>';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON tuition.* TO 'tuition'@'localhost'; FLUSH PRIVILEGES;"
+```
+
+**A4. nginx on port 80, and test on the bare IP.** Install the server block
+from [Nginx](#nginx-etcnginxsites-availabletuition) with `server_name` set to
+the client's domain, but skip the certbot line at the end of that section.
+
+To log in over plain HTTP for this test only, set in `.env`:
+
+    APP_URL=http://<reserved-ip>
+    SESSION_SECURE_COOKIE=false
+
+then `php artisan config:cache`. Without that the session cookie is never
+sent back over HTTP and login bounces you to `/login` forever, with nothing
+in the log. **Both settings are reverted in B4** — do not forget.
+
+Browse to `http://<reserved-ip>`, log in, create a course, upload a PDF,
+confirm it round-trips through R2. This is the moment to find problems: no
+client involved, nothing public yet.
+
+### Phase B — Cloudflare. Still entirely your side.
+
+**B1. Add the domain to your Cloudflare account.** You do not need to own it.
+Cloudflare hands you two nameservers and a live DNS editor immediately;
+nothing has to resolve yet. Keep the nameservers for Phase C.
+
+Do this **while the domain is still live at the client's current provider**,
+because Cloudflare scans and imports the records it finds. Then open the DNS
+tab and check the import yourself. ⚠️ If the domain carries email, the MX and
+TXT records must be present here before the client flips — a nameserver change
+moves *all* DNS, and missing MX means mail stops arriving with no error
+anywhere. This is the one step that can hurt the client rather than you.
+
+**B2. Add the A records, proxied from the start.**
+
+    A   @      <reserved-ip>    (orange cloud ON)
+    A   www    <reserved-ip>    (orange cloud ON)
+
+Orange from the outset is safe here precisely because there is no certbot
+step that needs to reach the origin directly.
+
+**B3. Origin Certificate on the droplet.** Cloudflare → SSL/TLS → Origin
+Server → Create Certificate. Accept the defaults (RSA, 15 years, the domain
+and `*.domain`). Save the two blocks it shows you to
+`/etc/ssl/cloudflare/origin.pem` and `/etc/ssl/cloudflare/origin.key` on the
+droplet (`chmod 600` the key), then add a second server block alongside the
+port-80 one:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name your-domain.tld www.your-domain.tld;
+    ssl_certificate     /etc/ssl/cloudflare/origin.pem;
+    ssl_certificate_key /etc/ssl/cloudflare/origin.key;
+
+    # ... everything from the port-80 block below this line, unchanged ...
+}
+```
+
+and turn the port-80 block into a redirect:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.tld www.your-domain.tld;
+    return 301 https://$host$request_uri;
+}
+```
+
+`sudo nginx -t && sudo systemctl reload nginx`. Then Cloudflare → SSL/TLS →
+set the mode to **Full (strict)**. ⚠️ Not "Flexible": that has Cloudflare
+speak HTTP to the origin, the origin redirects to HTTPS, and you get an
+infinite redirect loop that looks like an application bug.
+
+**B4. Revert the test settings from A4.**
+
+    APP_URL=https://your-domain.tld
+    SESSION_SECURE_COOKIE=true
+
+then `php artisan config:cache`.
+
+**B5. Trust Cloudflare's proxy, and only Cloudflare's.** Behind the proxy
+every request arrives from a Cloudflare IP with the real details in
+`X-Forwarded-*` headers. `App\Http\Middleware\TrustProxies` has to be told
+to believe them, or two things break quietly:
+
+- `$request->ip()` is Cloudflare's edge IP, not the student's. The login
+  throttle keys on it (`LoginRequest::throttleKey()`), so the five-attempt
+  lockout collapses into a bucket shared by everyone behind that edge.
+- `$request->secure()` is false, so `SecurityHeaders` never sends HSTS.
+
+Both are already wired; production just has to turn them on. In `.env`:
+
+    TRUSTED_PROXIES=cloudflare
+
+then `php artisan config:cache`. That expands to the edge ranges in
+`app/Support/CloudflareIps.php` (`config/trustedproxy.php` documents the other
+values). Staging and local leave it unset and trust nothing, which is right
+for a box that faces the internet directly.
+
+Then close the other half. Trusting the header is only safe if nobody but
+Cloudflare can send it, so replace the `Nginx Full` rule from A2 with the
+Cloudflare ranges alone:
+
+```bash
+sudo ufw delete allow 'Nginx Full'
+for ip in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
+    sudo ufw allow proto tcp from "$ip" to any port 80,443
+done
+sudo ufw reload
+```
+
+The two settings are only safe together: trust without the firewall lets a
+direct caller forge the address the login lockout is keyed on; the firewall
+without trust leaves every student sharing the edge's address.
+
+**B6. Rehearse the real domain before anyone else can see it.** On your own
+machine, add to the hosts file:
+
+    <reserved-ip>   your-domain.tld www.your-domain.tld
+
+Now `https://your-domain.tld` in your browser hits your droplet directly with
+the Origin certificate (expect a browser warning — it is not trusted outside
+Cloudflare, which is the point). Log in, click through a course, upload a
+file. Remove the hosts entry afterwards.
+
+**B7. Cache, bypass and WAF rules** — [Cloudflare CDN/WAF](#cloudflare-cdnwaf-free-tier).
+Read the bypass list carefully: `/announcement-images/*` is authorised per
+user, and caching it serves one student's image to another.
+
+### Phase C — the client's one action
+
+Send the client the two Cloudflare nameservers from B1 and ask them to set
+those at their registrar. That is the entire request. Nothing else is needed
+from them, then or later.
+
+Propagation is usually minutes, sometimes hours. Confirm with
+`dig +short NS your-domain.tld` returning the Cloudflare pair, then
+`https://your-domain.tld` from a machine with no hosts entry. Cloudflare's
+Universal SSL for the edge is issued automatically once the nameservers land —
+nothing for you to do.
+
+### Phase D — after it is live
+
+The nightly orphan sweep is not optional — see the cron entry under
+[Server prerequisites](#server-prerequisites). Create the first admin user
+and work through the [Going live checklist](#going-live-checklist).
+
+### The four orderings that cost an evening
+
+| Do this | Before this | Or else |
+| --- | --- | --- |
+| `ufw allow OpenSSH` | `ufw enable` | Locked out of the droplet |
+| Check MX/TXT in Cloudflare's DNS tab | Client flips nameservers | Client's email stops |
+| SSL mode **Full (strict)** | Anyone visits | Infinite redirect loop |
+| Revert `SESSION_SECURE_COOKIE=true` | Client flips nameservers | Session cookie sent in the clear |
+
 ## Server prerequisites
 
 **Use Ubuntu 24.04 LTS.** Not for any deep technical reason — Debian is
@@ -301,8 +521,12 @@ composer install --no-dev --optimize-autoloader
 php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --class=RolesAndPermissionsSeeder --force
-# Only needed if UPLOADS_DISK=public. With UPLOADS_DISK=r2 (the production
-# default) nothing is written to the local public disk and the symlink is inert.
+# Required. UPLOADS_DISK defaults to `public` and .env.production.example
+# keeps it there, so branding — the site logo and banner slides — is written
+# to storage/app/public and served through this symlink. Skip it and those
+# images 404 with nothing in the log to say why. (Private files are a
+# different disk: FILESYSTEM_DISK=r2 covers PDFs, submissions and
+# announcement images, and never touches this symlink.)
 php artisan storage:link
 php artisan config:cache route:cache view:cache
 sudo chown -R www-data:www-data storage bootstrap/cache
