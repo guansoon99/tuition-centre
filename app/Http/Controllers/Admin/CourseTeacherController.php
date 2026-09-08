@@ -30,6 +30,14 @@ class CourseTeacherController extends Controller
         $teacher = User::findOrFail($data['user_id']);
         abort_if($teacher->hasRole('student'), 422, 'Cannot assign a student as course staff.');
 
+        // See Course::NO_SELF_ASSIGN_MESSAGE. The dropdown already leaves the
+        // requester out for non-admins; this is the check that matters.
+        abort_if(
+            $teacher->is($request->user()) && ! $request->user()->hasRole('admin'),
+            403,
+            Course::NO_SELF_ASSIGN_MESSAGE,
+        );
+
         // Upsert the teacher membership. A user can also hold a separate
         // student row for the same course — those two coexist safely thanks
         // to the (user_id, course_id, role_on_course) unique constraint.
@@ -55,8 +63,16 @@ class CourseTeacherController extends Controller
         return back()->with('status', "Assigned {$teacher->name} to {$course->code}.");
     }
 
-    public function destroy(Course $course, User $user): RedirectResponse
+    public function destroy(Request $request, Course $course, User $user): RedirectResponse
     {
+        // Same rule as assigning, in the other direction: the Teachers tab
+        // must not let a non-admin change their own standing on a course.
+        abort_if(
+            $user->is($request->user()) && ! $request->user()->hasRole('admin'),
+            403,
+            Course::NO_SELF_REMOVE_MESSAGE,
+        );
+
         // Only remove the teacher row — leave any student enrollment alone.
         // Uses forceDelete (not delete) because Course::teachers() reads the
         // pivot table directly and doesn't apply Enrollment's soft-delete

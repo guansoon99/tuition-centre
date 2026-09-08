@@ -70,14 +70,19 @@
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
-                                        <form method="POST" action="{{ route('courses.teachers.destroy', [$course, $t]) }}"
-                                              onsubmit="return confirm('Unenroll {{ $t->name }}?');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
-                                                Unenroll
-                                            </button>
-                                        </form>
+                                        {{-- A non-admin cannot remove themselves (CourseTeacherController), so no button. --}}
+                                        @if (auth()->user()->hasRole('admin') || ! $t->is(auth()->user()))
+                                            <form method="POST" action="{{ route('courses.teachers.destroy', [$course, $t]) }}"
+                                                  onsubmit="return confirm('Unenroll {{ $t->name }}?');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                        class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                                                    Unenroll
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-xs text-slate-600">you</span>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
