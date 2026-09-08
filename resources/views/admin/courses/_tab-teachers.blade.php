@@ -80,8 +80,6 @@
                                                     Unenroll
                                                 </button>
                                             </form>
-                                        @else
-                                            <span class="text-xs text-slate-600">you</span>
                                         @endif
                                     </div>
                                 </td>

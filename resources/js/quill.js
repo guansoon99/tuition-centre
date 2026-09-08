@@ -16,5 +16,9 @@
  */
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import { registerNativeVideo } from './quill-native-video';
+
+// Uploaded lesson videos are <video> embeds; see quill-native-video.js.
+registerNativeVideo(Quill);
 
 window.Quill = Quill;

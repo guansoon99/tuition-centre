@@ -83,9 +83,13 @@
                                         // Insert an HTML5 <video> tag at the cursor. Quill's built-in
                                         // video embed uses <iframe> (for YouTube-style URLs) — we want
                                         // native playback for uploaded files.
+                                        // A block embed, not pasted HTML: the nativeVideo blot
+                                        // (quill-native-video.js) owns the <video> element, so it
+                                        // survives here and again when the body is loaded back
+                                        // for editing.
                                         const range = editor.getSelection(true);
-                                        const html = '<p><video controls src="' + url + '" style="max-width:100%;"></video></p>';
-                                        editor.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+                                        editor.insertEmbed(range.index, 'nativeVideo', url, 'user');
+                                        editor.setSelection(range.index + 1, 0, 'silent');
                                     } catch (e) {
                                         alert('Video upload failed: ' + e.message);
                                     } finally {

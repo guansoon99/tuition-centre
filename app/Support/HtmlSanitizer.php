@@ -53,6 +53,14 @@ class HtmlSanitizer
             $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'data' => true]);
             $config->set('HTML.TargetBlank', true);
             $config->set('AutoFormat.RemoveEmpty', true);
+            // RemoveEmpty judges by inner content, and a <video src> has none,
+            // so it deleted every uploaded lesson video on save. The predicate
+            // is the exemption list; these are HTMLPurifier's defaults plus
+            // video/source, kept as long as they point at something.
+            $config->set('AutoFormat.RemoveEmpty.Predicate', [
+                'colgroup' => [], 'th' => [], 'td' => [], 'iframe' => ['src'],
+                'video' => ['src'], 'source' => ['src'],
+            ]);
             // Don't cache to disk — keeps the local-dev experience portable.
             $config->set('Cache.DefinitionImpl', null);
 
