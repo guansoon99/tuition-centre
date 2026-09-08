@@ -124,6 +124,7 @@ class CourseController extends Controller
         $teacherCandidates = collect();
         $studentCandidates = collect();
         $enrollments = collect();
+        $studentSearch = '';
 
         if ($activeTab === 'teachers') {
             $course->load('teachers');
@@ -145,11 +146,23 @@ class CourseController extends Controller
                 ->limit(200)
                 ->get(['id', 'username', 'name']);
 
+            // Same search as /users: a substring of the username or the name.
+            // Server-side rather than filtering rows in the browser, so it
+            // works the same on a course with 300 students as with 8.
+            $studentSearch = $request->string('q')->trim()->value();
+
             // whereHas('user') drops rows whose student has been soft deleted
             // - the enrollment survives (nothing cascades on a soft delete)
             // but ->user resolves to null, which the table would fatal on.
             $enrollments = $course->enrollments()
-                ->whereHas('user')
+                ->whereHas('user', function ($u) use ($studentSearch) {
+                    if ($studentSearch !== '') {
+                        $u->where(function ($q) use ($studentSearch) {
+                            $q->where('username', 'like', "%{$studentSearch}%")
+                                ->orWhere('name', 'like', "%{$studentSearch}%");
+                        });
+                    }
+                })
                 ->with('user')
                 ->orderByDesc('enrolled_at')
                 ->get();
@@ -169,6 +182,7 @@ class CourseController extends Controller
             'teacherCandidates' => $teacherCandidates,
             'studentCandidates' => $studentCandidates,
             'enrollments' => $enrollments,
+            'studentSearch' => $studentSearch,
         ]);
     }
 

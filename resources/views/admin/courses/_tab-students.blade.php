@@ -51,6 +51,34 @@
                 </div>
             </form>
 
+            {{-- Search, the same way /users does it: a GET that reloads this
+                 tab with ?q=, auto-submitted as you type. The hidden tab
+                 field keeps the reload on the students tab. --}}
+            <form method="GET" action="{{ route('courses.edit', $course) }}"
+                  x-data
+                  x-init="
+                      if (sessionStorage.getItem('course-students-q-focus') === '1') {
+                          sessionStorage.removeItem('course-students-q-focus');
+                          const input = $el.querySelector('input[name=q]');
+                          if (input) {
+                              input.focus();
+                              input.setSelectionRange(input.value.length, input.value.length);
+                          }
+                      }
+                  "
+                  class="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-white p-3">
+                <input type="hidden" name="tab" value="students" />
+                <input type="text" name="q" placeholder="Search username or name"
+                       value="{{ $studentSearch }}"
+                       @input.debounce.500ms="sessionStorage.setItem('course-students-q-focus', '1'); $el.form.submit()"
+                       class="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+                @if ($studentSearch !== '')
+                    <span class="text-sm text-slate-700">{{ $enrollments->count() }} of {{ $course->students_count }} match</span>
+                    <a href="{{ route('courses.edit', ['course' => $course, 'tab' => 'students']) }}"
+                       class="rounded-md bg-red-500 px-3 py-1.5 text-sm text-white hover:bg-red-600">Clear</a>
+                @endif
+            </form>
+
             <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table class="w-full min-w-[700px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
                     <thead class="bg-slate-50 text-left text-xs uppercase text-slate-800">
@@ -97,7 +125,15 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">No students enrolled.</td></tr>
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-600">
+                                    @if ($studentSearch !== '')
+                                        No students match "{{ $studentSearch }}".
+                                    @else
+                                        No students enrolled.
+                                    @endif
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
