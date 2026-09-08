@@ -253,13 +253,26 @@
             return {
                 loading: false,
                 failed: false,
+                // Why the load was refused, when the server said. Shown in
+                // place of the generic "Couldn't load" line.
+                reason: '',
                 loadedId: null,
 
                 reset() {
                     this.$refs.body.innerHTML = '';
                     this.loadedId = null;
                     this.failed = false;
+                    this.reason = '';
                     this.loading = false;
+                },
+
+                async reasonFrom(res) {
+                    if (!(res.headers.get('content-type') || '').includes('json')) return '';
+                    try {
+                        return (await res.json()).message || '';
+                    } catch (e) {
+                        return '';
+                    }
                 },
 
                 async load(id, urlTemplate = '/materials/{id}/edit-modal') {
@@ -267,13 +280,24 @@
 
                     this.loading = true;
                     this.failed = false;
+                    this.reason = '';
                     this.$refs.body.innerHTML = '';
 
                     try {
+                        // Accept JSON first: a success still comes back as the
+                        // HTML fragment, but a refusal now arrives as JSON with
+                        // the policy's message ("not a teacher on this course")
+                        // instead of a 403 page the modal can only call "failed".
                         const res = await fetch(urlTemplate.replace('{id}', id), {
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json, text/html;q=0.9',
+                            },
                         });
-                        if (!res.ok) throw new Error(res.status);
+                        if (!res.ok) {
+                            this.reason = await this.reasonFrom(res);
+                            throw new Error(res.status);
+                        }
 
                         this.$refs.body.innerHTML = await res.text();
                         this.loadedId = id;

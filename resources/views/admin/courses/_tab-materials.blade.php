@@ -20,8 +20,8 @@
                 <div class="relative mt-12 w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
                     <div x-show="loading" class="py-10 text-center text-sm text-slate-600">Loading…</div>
                     <div x-show="failed" x-cloak class="py-10 text-center text-sm text-red-600">
-                        Couldn't load this material.
-                        <button type="button" @click="load(openMaterial)" class="underline">Retry</button>
+                        <span x-text="reason || &quot;Couldn't load this material.&quot;"></span>
+                        <button type="button" x-show="! reason" @click="load(openMaterial)" class="underline">Retry</button>
                     </div>
                     {{-- Fetched markup lands here. --}}
                     <div x-ref="body" x-show="! loading && ! failed"></div>
@@ -42,8 +42,8 @@
                 <div class="relative mt-12 w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
                     <div x-show="loading" class="py-10 text-center text-sm text-slate-600">Loading…</div>
                     <div x-show="failed" x-cloak class="py-10 text-center text-sm text-red-600">
-                        Couldn't load this section.
-                        <button type="button" @click="load(openSection, '/sections/{id}/edit-modal')" class="underline">Retry</button>
+                        <span x-text="reason || &quot;Couldn't load this section.&quot;"></span>
+                        <button type="button" x-show="! reason" @click="load(openSection, '/sections/{id}/edit-modal')" class="underline">Retry</button>
                     </div>
                     {{-- Fetched markup lands here. --}}
                     <div x-ref="body" x-show="! loading && ! failed"></div>
@@ -64,8 +64,8 @@
                 <div class="relative mt-12 w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
                     <div x-show="loading" class="py-10 text-center text-sm text-slate-600">Loading…</div>
                     <div x-show="failed" x-cloak class="py-10 text-center text-sm text-red-600">
-                        Couldn't load the form.
-                        <button type="button"
+                        <span x-text="reason || &quot;Couldn't load the form.&quot;"></span>
+                        <button type="button" x-show="! reason"
                                 @click="load(openNewMaterialFor, '/sections/{id}/materials/create-modal')"
                                 class="underline">Retry</button>
                     </div>

@@ -81,6 +81,22 @@ class NotATeacherMessageTest extends TestCase
             ->assertSee(Course::NOT_A_TEACHER_MESSAGE);
     }
 
+    public function test_the_edit_modal_fetch_carries_the_message_as_json(): void
+    {
+        // The materials tab fetches modal bodies with Accept: application/json
+        // first, so a refusal arrives as JSON the modal can show, not as a
+        // 403 page it can only call "failed".
+        $this->actingAs($this->outsider)
+            ->getJson(route('materials.edit-modal', $this->material))
+            ->assertForbidden()
+            ->assertJsonPath('message', Course::NOT_A_TEACHER_MESSAGE);
+
+        $this->actingAs($this->outsider)
+            ->getJson(route('sections.edit-modal', $this->section))
+            ->assertForbidden()
+            ->assertJsonPath('message', Course::NOT_A_TEACHER_MESSAGE);
+    }
+
     public function test_opening_the_course_edit_page_from_outside_says_why(): void
     {
         $this->actingAs($this->outsider)
