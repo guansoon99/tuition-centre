@@ -124,7 +124,7 @@ class CountdownThemeTest extends TestCase
     /** A key removed from the map later must not blank the card. */
     public function test_an_unknown_theme_falls_back_to_the_default(): void
     {
-        $material = $this->countdown('a-theme-that-was-deleted');
+        $material = $this->countdown('retired-theme');
 
         $this->assertSame(
             Material::COUNTDOWN_THEMES[Material::COUNTDOWN_THEME_DEFAULT]['classes'],

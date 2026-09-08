@@ -52,6 +52,24 @@ class SiteSettings extends Model
         return app(self::CONTAINER_KEY);
     }
 
+    /**
+     * The one row this table holds, created on first use.
+     *
+     * Not firstOrCreate(['id' => 1]): `id` is not fillable, so that form
+     * silently dropped the id on create and the row got whatever the
+     * auto-increment handed out. SQLite winds its counter back when a test
+     * transaction rolls back, so the row always came out as 1; MySQL does
+     * not, so on the MySQL test leg every lookup for id 1 missed and created
+     * a fresh blank row per call — the controller saving into one row, the
+     * next read returning another. In production the same would follow from
+     * a deleted row 1: every save landing in a row nobody reads.
+     */
+    public static function row(): self
+    {
+        return static::query()->orderBy('id')->first()
+            ?? static::forceCreate(['id' => 1]);
+    }
+
     public static function forgetCache(): void
     {
         // Drop the per-request memo as well, so a save is visible immediately

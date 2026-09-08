@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(SiteSettings::CONTAINER_KEY, fn () => Cache::remember(
             SiteSettings::CACHE_KEY,
             3600,
-            fn () => SiteSettings::firstOrCreate(['id' => 1])
+            fn () => SiteSettings::row()
         ));
     }
 

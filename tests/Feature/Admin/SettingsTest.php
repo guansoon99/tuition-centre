@@ -92,6 +92,27 @@ class SettingsTest extends TestCase
         Storage::disk('public')->assertMissing('site/old-logo.png');
     }
 
+    /**
+     * The row is looked up as "the one row", not as id 1. MySQL does not
+     * wind AUTO_INCREMENT back when a test transaction rolls back, so on the
+     * MySQL CI leg the row is never id 1 — and a lookup pinned to that id
+     * created a fresh blank row on every call, saves included. A row with
+     * any other id reproduces that on SQLite.
+     */
+    public function test_settings_row_is_found_whatever_its_id(): void
+    {
+        SiteSettings::forceCreate(['id' => 7, 'name' => 'Existing']);
+
+        $this->assertSame('Existing', SiteSettings::current()->name);
+
+        $this->actingAs($this->admin)
+            ->patch('/settings', ['name' => 'Renamed'])
+            ->assertRedirect('/settings');
+
+        $this->assertSame('Renamed', SiteSettings::current()->name);
+        $this->assertDatabaseCount('site_settings', 1);
+    }
+
     public function test_blank_centre_name_falls_back_to_app_name(): void
     {
         SiteSettings::current()->update(['name' => null]);

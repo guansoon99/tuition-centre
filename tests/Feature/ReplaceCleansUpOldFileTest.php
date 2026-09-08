@@ -57,10 +57,10 @@ class ReplaceCleansUpOldFileTest extends TestCase
     public function test_replacing_the_site_logo_removes_the_old_one(): void
     {
         $old = $this->seedFile(PublicFile::disk(), 'site/old-logo.webp');
-        // firstOrCreate, not query()->update(): the table is empty under
+        // current(), not query()->update(): the table is empty under
         // RefreshDatabase, so an update would match nothing and the controller
         // would then create a fresh row with no logo to replace.
-        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $old]);
+        SiteSettings::current()->update(['logo_path' => $old]);
         SiteSettings::forgetCache();
 
         $this->actingAs($this->admin)
@@ -77,7 +77,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
     public function test_removing_and_replacing_in_one_save_is_allowed(): void
     {
         $old = $this->seedFile(PublicFile::disk(), 'site/outgoing.webp');
-        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $old]);
+        SiteSettings::current()->update(['logo_path' => $old]);
         SiteSettings::forgetCache();
 
         $this->actingAs($this->admin)
@@ -96,7 +96,7 @@ class ReplaceCleansUpOldFileTest extends TestCase
     public function test_saving_without_a_file_keeps_the_existing_logo(): void
     {
         $existing = $this->seedFile(PublicFile::disk(), 'site/keep-me.webp');
-        SiteSettings::firstOrCreate(['id' => 1])->update(['logo_path' => $existing]);
+        SiteSettings::current()->update(['logo_path' => $existing]);
         SiteSettings::forgetCache();
 
         $this->actingAs($this->admin)
