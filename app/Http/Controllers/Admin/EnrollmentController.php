@@ -194,6 +194,7 @@ class EnrollmentController extends Controller
         if ($user->hasRole('admin')) {
             return;
         }
-        abort_unless($user->teaches($course) && $course->is_active, 403);
+        abort_unless($user->teaches($course), 403, Course::NOT_A_TEACHER_MESSAGE);
+        abort_unless($course->is_active, 403);
     }
 }

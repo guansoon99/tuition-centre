@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\DB;
 
 class Course extends Model
 {
+    /**
+     * Shown in place of the bare 403 when someone holds the permission for
+     * an action but is not a teacher on the course it targets. The two
+     * checks are deliberately separate (see SectionPolicy::manages), and
+     * without this the page said only "This action is unauthorized", which
+     * reads as a permissions problem and sends people to the wrong screen.
+     */
+    public const NOT_A_TEACHER_MESSAGE = "You are not enrolled in this course as a teacher. Ask an admin to add you under the course's Teachers tab.";
+
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

@@ -4,7 +4,9 @@ namespace App\Policies;
 
 use App\Models\Material;
 use App\Models\Section;
+use App\Models\Course;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 class MaterialPolicy
 {
@@ -37,18 +39,30 @@ class MaterialPolicy
         return $this->view($user, $material);
     }
 
-    public function create(User $user, Section $section): bool
+    public function create(User $user, Section $section): Response|bool
     {
-        return $user->can('sections.manage') && $user->teaches($section->course);
+        return $this->manages($user, $section->course);
     }
 
-    public function update(User $user, Material $material): bool
+    public function update(User $user, Material $material): Response|bool
     {
-        return $user->can('sections.manage') && $user->teaches($material->section->course);
+        return $this->manages($user, $material->section->course);
     }
 
-    public function delete(User $user, Material $material): bool
+    public function delete(User $user, Material $material): Response|bool
     {
-        return $user->can('sections.manage') && $user->teaches($material->section->course);
+        return $this->manages($user, $material->section->course);
+    }
+
+    /** Same split as SectionPolicy::manages(), for the same reason. */
+    private function manages(User $user, Course $course): Response|bool
+    {
+        if (! $user->can('sections.manage')) {
+            return false;
+        }
+
+        return $user->teaches($course)
+            ? true
+            : Response::deny(Course::NOT_A_TEACHER_MESSAGE);
     }
 }

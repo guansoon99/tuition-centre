@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
 use App\Models\FeedbackFile;
 use App\Models\Material;
 use App\Models\Submission;
@@ -170,7 +171,7 @@ class FeedbackFileController extends Controller
         $user = $request->user();
 
         if (! $user->teaches($material->section->course) && ! $user->hasRole('admin')) {
-            abort(403);
+            abort(403, Course::NOT_A_TEACHER_MESSAGE);
         }
 
         if ($material->type !== Material::TYPE_ASSIGNMENT) {

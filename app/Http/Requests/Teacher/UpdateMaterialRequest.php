@@ -4,15 +4,23 @@ namespace App\Http\Requests\Teacher;
 
 use App\Models\Material;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class UpdateMaterialRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response|bool
     {
         $material = $this->route('material');
 
-        return $material instanceof Material && $this->user()->can('update', $material);
+        if (! $material instanceof Material) {
+            return false;
+        }
+
+        // inspect() rather than can(): a refusal from the policy carries the
+        // "not a teacher on this course" message, and a bool would drop it.
+        return Gate::inspect('update', $material);
     }
 
     public function rules(): array

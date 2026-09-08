@@ -4,14 +4,22 @@ namespace App\Http\Requests\Teacher;
 
 use App\Models\Section;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Gate;
 
 class UpdateSectionRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response|bool
     {
         $section = $this->route('section');
 
-        return $section instanceof Section && $this->user()->can('update', $section);
+        if (! $section instanceof Section) {
+            return false;
+        }
+
+        // inspect() rather than can(): a refusal from the policy carries the
+        // "not a teacher on this course" message, and a bool would drop it.
+        return Gate::inspect('update', $section);
     }
 
     public function rules(): array

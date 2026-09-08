@@ -88,7 +88,8 @@ class CourseController extends Controller
         // without courses.view can only open ACTIVE courses they teach.
         $user = $request->user();
         if (! $user->hasRole('admin') && ! $user->can('courses.view')) {
-            abort_unless($user->teaches($course) && $course->is_active, 403);
+            abort_unless($user->teaches($course), 403, Course::NOT_A_TEACHER_MESSAGE);
+            abort_unless($course->is_active, 403);
         }
 
         // One tab per request. The page used to render all four and switch

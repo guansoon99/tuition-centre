@@ -4,15 +4,22 @@ namespace App\Http\Requests\Teacher;
 
 use App\Models\Course;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Gate;
 
 class StoreSectionRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response|bool
     {
         $course = $this->route('course');
 
-        return $course instanceof Course
-            && $this->user()->can('create', [\App\Models\Section::class, $course]);
+        if (! $course instanceof Course) {
+            return false;
+        }
+
+        // inspect() rather than can(): a refusal from the policy carries the
+        // "not a teacher on this course" message, and a bool would drop it.
+        return Gate::inspect('create', [\App\Models\Section::class, $course]);
     }
 
     public function rules(): array
