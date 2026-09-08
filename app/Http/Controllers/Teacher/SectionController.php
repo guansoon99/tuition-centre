@@ -137,17 +137,76 @@ class SectionController extends Controller
         // section with no date can just clear the Available from field.
         $scheduledAt = $request->input('scheduled_at') ?: null;
 
-        // Keep published_at pointing at the moment the section becomes
-        // visible, which is what its expanded week is measured from.
-        //
-        //   unpublished        -> null
-        //   dated              -> that date, tracking it if the user edits it
-        //   published, no date -> when it was first published
-        //
-        // The last branch is why an ordinary edit does not restart the week:
-        // a section that already has a date keeps it, so renaming one does
-        // not pop it back open for every student. A dated section is equally
-        // safe — a title edit leaves scheduled_at alone.
+        $section->update([
+            'title' => $request->input('title'),
+            'scheduled_at' => $scheduledAt,
+            'sort_order' => $request->integer('sort_order'),
+            'never_collapses' => $request->boolean('never_collapses'),
+            ...$this->publishState($section, $isPublished, $scheduledAt),
+        ]);
+
+        // Modal submits land back on the edit page with the modal closed.
+        return redirect()
+            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
+            ->with('status', 'Section updated.');
+    }
+
+    /**
+     * "Hide Section" in the section menu: unpublished, AND the "Available
+     * from" date cleared. The date is not incidental: isVisibleToStudents()
+     * answers from it alone whenever it is set, so a section with a past date
+     * would stay visible no matter what is_published says. Hidden has to
+     * mean hidden. Show puts it back as an undated section.
+     */
+    public function hide(Section $section): RedirectResponse
+    {
+        $this->authorize('update', $section);
+
+        $section->update([
+            'scheduled_at' => null,
+            ...$this->publishState($section, false, null),
+        ]);
+
+        return redirect()
+            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
+            ->with('status', 'Section "'.$section->title.'" is hidden from students.');
+    }
+
+    /**
+     * "Show Section": back to published. A section with a future date stays
+     * gated by that date, as it would after the form.
+     */
+    public function unhide(Section $section): RedirectResponse
+    {
+        $this->authorize('update', $section);
+
+        $section->update($this->publishState($section, true, $section->scheduled_at));
+
+        $status = $section->scheduled_at?->isFuture()
+            ? 'Section "'.$section->title.'" will be visible from '.$section->scheduled_at->format('Y-m-d H:i').'.'
+            : 'Section "'.$section->title.'" is visible to students.';
+
+        return redirect()
+            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
+            ->with('status', $status);
+    }
+
+    /**
+     * is_published and published_at together. published_at is the moment the
+     * section becomes visible, which is what its expanded week is measured
+     * from:
+     *
+     *   unpublished        -> null
+     *   dated              -> that date, tracking it if the user edits it
+     *   published, no date -> when it was first published
+     *
+     * The last branch is why an ordinary edit does not restart the week: a
+     * section that already has a date keeps it, so renaming one does not pop
+     * it back open for every student. Shared by the edit form and the
+     * Hide/Show menu items so the two can never disagree.
+     */
+    private function publishState(Section $section, bool $isPublished, mixed $scheduledAt): array
+    {
         if (! $isPublished) {
             $publishedAt = null;
         } elseif ($scheduledAt !== null) {
@@ -156,19 +215,7 @@ class SectionController extends Controller
             $publishedAt = $section->published_at ?? now();
         }
 
-        $section->update([
-            'title' => $request->input('title'),
-            'scheduled_at' => $scheduledAt,
-            'sort_order' => $request->integer('sort_order'),
-            'is_published' => $isPublished,
-            'published_at' => $publishedAt,
-            'never_collapses' => $request->boolean('never_collapses'),
-        ]);
-
-        // Modal submits land back on the edit page with the modal closed.
-        return redirect()
-            ->route('courses.edit', [$section->course, 'tab' => 'materials'])
-            ->with('status', 'Section updated.');
+        return ['is_published' => $isPublished, 'published_at' => $publishedAt];
     }
 
     public function destroy(Section $section): RedirectResponse

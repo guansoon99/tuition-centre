@@ -22,6 +22,12 @@ class Material extends Model
      * things and still hold 'text'.
      */
     public const TYPE_MEDIA = 'media';
+
+    /**
+     * How far "Move right" can indent a resource: one level. Indented or not,
+     * so the menu offers exactly one of Move right / Move left.
+     */
+    public const MAX_INDENT = 1;
     /**
      * Media in every respect but the icon and the label.
      *
@@ -196,11 +202,13 @@ class Material extends Model
         'published_at',
         'uploaded_by_user_id',
         'countdown_theme',
+        'indent',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
         'published_at' => 'datetime',
+        'indent' => 'integer',
         'target_date' => 'datetime',
         'due_date' => 'datetime',
         'file_size_bytes' => 'integer',

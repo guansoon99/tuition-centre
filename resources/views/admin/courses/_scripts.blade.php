@@ -253,6 +253,34 @@
          * `urlTemplate` uses {id} as the placeholder; it defaults to the
          * edit-material endpoint.
          */
+        // The shared resource menu on the materials tab. See the markup in
+        // _tab-materials.blade.php for why there is one rather than one per row.
+        window.materialMenu = function () {
+            return {
+                item: null,
+                style: '',
+
+                show({ anchor, id, indent, published }) {
+                    const r = anchor.getBoundingClientRect();
+                    // Under the button, right-aligned to it, kept on screen.
+                    this.style = 'top:' + (r.bottom + 4) + 'px; left:' + Math.max(8, r.right - 176) + 'px';
+                    this.item = { id, indent, published };
+                },
+
+                close() {
+                    this.item = null;
+                },
+
+                url(kind) {
+                    if (! this.item) return '#';
+                    const key = 'url' + kind.replace(/(^|-)(\w)/g, (m, sep, c) => c.toUpperCase());
+                    // $root, not $el: evaluated from a :action binding, $el is
+                    // that form, and the URL templates live on the menu's root.
+                    return this.$root.dataset[key].replace('__ID__', this.item.id);
+                },
+            };
+        };
+
         window.materialEditModal = function () {
             return {
                 loading: false,

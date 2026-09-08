@@ -261,6 +261,51 @@ class MaterialController extends Controller
         return response()->json(['ok' => true, 'count' => count($valid)]);
     }
 
+    /** "Hide" in the material menu: the edit form's Published checkbox, off. */
+    public function hide(Material $material): RedirectResponse
+    {
+        $this->authorize('update', $material);
+
+        $material->update(['is_published' => false]);
+
+        return $this->backToTab($material, 'Resource "'.$material->title.'" is hidden from students.');
+    }
+
+    public function unhide(Material $material): RedirectResponse
+    {
+        $this->authorize('update', $material);
+
+        $material->update(['is_published' => true]);
+
+        return $this->backToTab($material, 'Resource "'.$material->title.'" is visible to students.');
+    }
+
+    /** "Move right": indent one level, up to Material::MAX_INDENT. */
+    public function moveRight(Material $material): RedirectResponse
+    {
+        $this->authorize('update', $material);
+
+        $material->update(['indent' => min($material->indent + 1, Material::MAX_INDENT)]);
+
+        return $this->backToTab($material, 'Moved "'.$material->title.'" right.');
+    }
+
+    public function moveLeft(Material $material): RedirectResponse
+    {
+        $this->authorize('update', $material);
+
+        $material->update(['indent' => max($material->indent - 1, 0)]);
+
+        return $this->backToTab($material, 'Moved "'.$material->title.'" left.');
+    }
+
+    private function backToTab(Material $material, string $status): RedirectResponse
+    {
+        return redirect()
+            ->route('courses.edit', [$material->section->course, 'tab' => 'materials'])
+            ->with('status', $status);
+    }
+
     public function destroy(Material $material): RedirectResponse
     {
         $this->authorize('delete', $material);

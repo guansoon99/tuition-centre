@@ -80,7 +80,7 @@ class MaterialRowLayoutTest extends TestCase
         $this->assertStringContainsString('.prose-section table { display: block; overflow-x: auto', $html);
     }
 
-    /** The edit button is still on the row it belongs to. */
+    /** The edit button (which opens the row's menu) is still on the row it belongs to. */
     public function test_the_row_still_has_its_edit_button(): void
     {
         $html = $this->materialsTabHtml('<p>Some text</p>');

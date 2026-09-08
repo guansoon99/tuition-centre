@@ -123,7 +123,10 @@
                             @else
                                 <div class="divide-y divide-slate-100">
                                     @foreach ($visibleMaterials as $material)
-                                        @include('partials.material-item', ['material' => $material])
+                                        {{-- "Move right" on the materials tab is an indent; it shows here too. --}}
+                                        <div @if ($material->indent) style="padding-left: {{ $material->indent * 1.5 }}rem" @endif>
+                                            @include('partials.material-item', ['material' => $material])
+                                        </div>
                                     @endforeach
                                 </div>
                             @endif

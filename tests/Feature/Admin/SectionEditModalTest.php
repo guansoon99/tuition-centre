@@ -101,7 +101,10 @@ class SectionEditModalTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringNotContainsString('action="'.route('sections.update', $this->section).'"', $html);
+        // The section menu's Delete form posts to the same URL as update
+        // (DELETE rather than PATCH), so the URL alone no longer proves the
+        // edit form is gone; its PATCH method field does.
+        $this->assertStringNotContainsString('name="_method" value="PATCH"', $html);
         $this->assertStringNotContainsString('name="never_collapses"', $html);
         $this->assertStringNotContainsString('<select name="is_published"', $html);
 

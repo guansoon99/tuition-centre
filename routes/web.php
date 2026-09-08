@@ -147,6 +147,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             ->whereNumber('course')->name('course-media.upload-video');
         Route::get('/sections/{section}/edit', [TeacherSectionController::class, 'edit'])->name('sections.edit');
         Route::patch('/sections/{section}', [TeacherSectionController::class, 'update'])->name('sections.update');
+        // Visibility flip from the section menu. The edit form does the same
+        // through its Status select; this is the one-click version.
+        Route::post('/sections/{section}/hide', [TeacherSectionController::class, 'hide'])->name('sections.hide');
+        Route::post('/sections/{section}/unhide', [TeacherSectionController::class, 'unhide'])->name('sections.unhide');
         Route::delete('/sections/{section}', [TeacherSectionController::class, 'destroy'])->name('sections.destroy');
 
         Route::get('/sections/{section}/materials/create', [TeacherMaterialController::class, 'create'])->name('materials.create');
@@ -164,6 +168,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/sections/{section}/edit-modal', [TeacherSectionController::class, 'editModal'])
             ->name('sections.edit-modal');
         Route::patch('/materials/{material}', [TeacherMaterialController::class, 'update'])->name('materials.update');
+        // The material menu's one-click actions. Hide/Show is the edit form's
+        // Published checkbox; Move right/left is an indent.
+        Route::post('/materials/{material}/hide', [TeacherMaterialController::class, 'hide'])->name('materials.hide');
+        Route::post('/materials/{material}/unhide', [TeacherMaterialController::class, 'unhide'])->name('materials.unhide');
+        Route::post('/materials/{material}/move-right', [TeacherMaterialController::class, 'moveRight'])->name('materials.move-right');
+        Route::post('/materials/{material}/move-left', [TeacherMaterialController::class, 'moveLeft'])->name('materials.move-left');
         Route::delete('/materials/{material}', [TeacherMaterialController::class, 'destroy'])->name('materials.destroy');
 
         Route::patch('/submissions/{submission}/grade', [TeacherSubmissionController::class, 'grade'])
