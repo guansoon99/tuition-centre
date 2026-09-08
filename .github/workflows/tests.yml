@@ -1,0 +1,84 @@
+# Runs the test suite on every push and pull request — on SQLite, which is
+# what the suite and staging use, AND on MySQL, which is what production
+# uses.
+#
+# The MySQL leg is the reason this file exists. Until it was added, all 645
+# tests ran on in-memory SQLite only, so a migration containing
+# CAST(... AS INTEGER) — valid SQLite, a syntax error on MySQL — passed every
+# test and every staging deploy, then failed on the first production migrate
+# after already half-applying itself. This catches that class of bug at the
+# commit that introduces it.
+#
+# It checks; it never deploys. Deploys stay manual (DEPLOY.md, deploy-staging.md).
+
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  phpunit:
+    name: phpunit (${{ matrix.db }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mysql]
+
+    # Always started; the sqlite leg simply never connects to it. One job
+    # definition with a matrix is simpler than two near-identical jobs.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: tuition_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # phpunit.xml sets DB_CONNECTION=sqlite without force="true", so a
+      # variable already present in the environment wins over it. That is
+      # what lets the same phpunit.xml serve both legs.
+      DB_CONNECTION: ${{ matrix.db }}
+      DB_DATABASE: ${{ matrix.db == 'mysql' && 'tuition_test' || ':memory:' }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, curl, zip, intl, gd, bcmath, pdo_mysql, pdo_sqlite
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # No .env exists in CI. APP_KEY has to come from somewhere or every
+      # request that touches a session or a cookie fails to encrypt.
+      - name: App key
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      # A separate step, before the suite, so a broken migration reads as
+      # "migrate failed" rather than as 645 failing tests. RefreshDatabase
+      # would run these anyway; this is about the shape of the failure.
+      - name: Migrate (${{ matrix.db }})
+        if: matrix.db == 'mysql'
+        run: php artisan migrate --force
+
+      - name: Test suite
+        run: vendor/bin/phpunit
