@@ -47,7 +47,11 @@ return new class extends Migration
         DB::table('materials')
             ->whereNotNull('max_file_size_mb')
             ->update([
-                'max_file_size_gb' => DB::raw('CAST((max_file_size_mb + 1023) / 1024 AS INTEGER)'),
+                // Same engine split as the migration this reverses; see the
+                // note there. INTEGER is not a CAST type MySQL accepts.
+                'max_file_size_gb' => DB::raw(DB::getDriverName() === 'mysql'
+                    ? '(max_file_size_mb + 1023) DIV 1024'
+                    : 'CAST((max_file_size_mb + 1023) / 1024 AS INTEGER)'),
             ]);
 
         Schema::table('materials', function (Blueprint $table) {
