@@ -21,6 +21,7 @@ class PermissionCatalog
     public const GROUPS = [
         'Courses' => [
             'courses.view' => 'View',
+            'courses.create' => 'Create',
             'courses.delete' => 'Delete',
             'courses.activate' => 'Activate / Deactivate',
             'courses.manage_details' => 'Manage Details',

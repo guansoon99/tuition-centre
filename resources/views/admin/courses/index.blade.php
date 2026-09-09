@@ -40,12 +40,12 @@
                         Delete
                     </button>
                 @endif
-                @if ($isAdmin)
+                @can('courses.create')
                     <a href="{{ route('courses.create') }}"
                        class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
                         + New course
                     </a>
-                @endif
+                @endcan
             </div>
         </div>
 

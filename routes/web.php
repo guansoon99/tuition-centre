@@ -89,9 +89,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // -----------------------------------------------------------------
 
     // /courses/create + POST /courses must come before /courses/{slug}.
-    // Course CRUD (create/update/destroy/activate) stays admin-only — no
-    // matching permission exists in the catalog.
-    Route::middleware('role:admin')->group(function () {
+    // Creating a course takes the courses.create permission; admins pass
+    // every permission check. Static /courses/create stays ahead of the
+    // /{course:slug} routes below.
+    Route::middleware('permission:courses.create')->group(function () {
         Route::get('/courses/create', [AdminCourseController::class, 'create'])->name('courses.create');
         Route::post('/courses', [AdminCourseController::class, 'store'])->name('courses.store');
     });

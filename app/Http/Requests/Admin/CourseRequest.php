@@ -9,16 +9,15 @@ class CourseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Store (POST /courses) still needs admin — create isn't a granular
-        // perm. Update (PATCH /courses/{slug}) allows courses.manage_details.
+        // Store (POST /courses) takes courses.create; update (PATCH
+        // /courses/{slug}) takes courses.manage_details. Admins pass both
+        // through Gate::before.
         $user = $this->user();
         if (! $user) {
             return false;
         }
-        if ($this->isMethod('POST')) {
-            return $user->hasRole('admin');
-        }
-        return $user->can('courses.manage_details');
+
+        return $user->can($this->isMethod('POST') ? 'courses.create' : 'courses.manage_details');
     }
 
     public function rules(): array
