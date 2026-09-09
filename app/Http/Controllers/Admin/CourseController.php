@@ -133,9 +133,6 @@ class CourseController extends Controller
                 ->where('is_active', true)
                 ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'student']))
                 ->whereNotIn('id', $course->teachers->pluck('id'))
-                // Non-admins cannot assign themselves (CourseTeacherController),
-                // so don't offer it.
-                ->when(! $user->hasRole('admin'), fn ($q) => $q->whereKeyNot($user->id))
                 ->orderBy('name')
                 ->limit(200)
                 ->get(['id', 'username', 'name']);

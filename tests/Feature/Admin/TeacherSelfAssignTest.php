@@ -11,10 +11,9 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Manage Teachers must not double as a key to every course. A non-admin
- * holding it could otherwise put themselves on any course and then edit
- * its materials, which would make the "teacher on this course" rule
- * optional for exactly the people it is meant to scope.
+ * Self-assignment on the Teachers tab. A non-admin holding Manage Teachers
+ * may add themselves to a course (the permission is the trust) but may not
+ * remove themselves; that needs an admin. Admins may do both.
  */
 class TeacherSelfAssignTest extends TestCase
 {
@@ -59,13 +58,27 @@ class TeacherSelfAssignTest extends TestCase
             ->exists();
     }
 
-    public function test_a_non_admin_cannot_assign_themselves(): void
+    public function test_a_non_admin_with_manage_teachers_can_assign_themselves(): void
     {
-        $this->assign($this->coordinator, $this->coordinator)
-            ->assertForbidden()
-            ->assertSee(Course::NO_SELF_ASSIGN_MESSAGE);
+        $this->assign($this->coordinator, $this->coordinator)->assertRedirect();
 
-        $this->assertFalse($this->isTeacher($this->coordinator));
+        $this->assertTrue($this->isTeacher($this->coordinator));
+    }
+
+    public function test_without_manage_teachers_nobody_can_add_themselves(): void
+    {
+        // Manage Materials alone is not enough: the assign route is behind
+        // Manage Teachers, and the tab does not open without it either.
+        Role::firstOrCreate(['name' => 'plain-teacher', 'guard_name' => 'web'])->syncPermissions(['sections.manage']);
+        $teacher = User::factory()->create(['is_active' => true, 'username' => 'plain_one']);
+        $teacher->assignRole('plain-teacher');
+
+        $this->assign($teacher, $teacher)->assertForbidden();
+        $this->assertFalse($this->isTeacher($teacher));
+
+        $this->actingAs($teacher)
+            ->get(route('courses.edit', ['course' => $this->course, 'tab' => 'teachers']))
+            ->assertForbidden();
     }
 
     public function test_a_non_admin_can_still_assign_a_colleague(): void
@@ -142,7 +155,7 @@ class TeacherSelfAssignTest extends TestCase
             ->assertDontSee(route('courses.teachers.destroy', [$this->course, $this->coordinator]), false);
     }
 
-    public function test_the_dropdown_does_not_offer_a_non_admin_themselves(): void
+    public function test_the_dropdown_offers_a_non_admin_themselves(): void
     {
         $page = $this->actingAs($this->coordinator)
             ->get(route('courses.edit', ['course' => $this->course, 'tab' => 'teachers']))
@@ -150,7 +163,7 @@ class TeacherSelfAssignTest extends TestCase
 
         // Options render as <option value="{id}">Name (username)</option>.
         $page->assertSee('(colleague_two)</option>', false)
-            ->assertDontSee('(coord_one)</option>', false);
+            ->assertSee('(coord_one)</option>', false);
     }
 
     public function test_the_dropdown_still_offers_an_admin_themselves(): void
@@ -158,9 +171,7 @@ class TeacherSelfAssignTest extends TestCase
         $admin = User::factory()->create(['is_active' => true, 'username' => 'admin_self']);
         $admin->assignRole('admin');
 
-        // Admins are excluded from the candidate list by role, as before;
-        // this guards the narrower claim that the new filter did not remove
-        // anyone it should not have.
+        // Admins are excluded from the candidate list by role, as before.
         $this->actingAs($admin)
             ->get(route('courses.edit', ['course' => $this->course, 'tab' => 'teachers']))
             ->assertOk()

@@ -30,13 +30,8 @@ class CourseTeacherController extends Controller
         $teacher = User::findOrFail($data['user_id']);
         abort_if($teacher->hasRole('student'), 422, 'Cannot assign a student as course staff.');
 
-        // See Course::NO_SELF_ASSIGN_MESSAGE. The dropdown already leaves the
-        // requester out for non-admins; this is the check that matters.
-        abort_if(
-            $teacher->is($request->user()) && ! $request->user()->hasRole('admin'),
-            403,
-            Course::NO_SELF_ASSIGN_MESSAGE,
-        );
+        // Assigning yourself is allowed: holding Manage Teachers is the trust.
+        // (Removing yourself is not; see destroy().)
 
         // Upsert the teacher membership. A user can also hold a separate
         // student row for the same course — those two coexist safely thanks

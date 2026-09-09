@@ -23,13 +23,9 @@ class Course extends Model
     public const NOT_A_TEACHER_MESSAGE = "You are not enrolled in this course as a teacher. Ask an admin to add you under the course's Teachers tab.";
 
     /**
-     * Manage Teachers must not double as a key to every course: without
-     * this, anyone holding it could put themselves on any course and then
-     * edit its materials. Admins are already trusted everywhere.
+     * A non-admin may add themselves to a course (holding Manage Teachers is
+     * the trust) but may not take themselves off one; that needs an admin.
      */
-    public const NO_SELF_ASSIGN_MESSAGE = "You cannot assign yourself as a teacher. Ask an admin to add you.";
-
-    /** The same rule in the other direction; see NO_SELF_ASSIGN_MESSAGE. */
     public const NO_SELF_REMOVE_MESSAGE = "You cannot remove yourself from a course's teachers. Ask an admin.";
 
     use HasFactory, SoftDeletes;
