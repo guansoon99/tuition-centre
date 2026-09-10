@@ -18,6 +18,10 @@ import listPlugin from '@fullcalendar/list';
 import flatpickr from 'flatpickr';
 
 import 'flatpickr/dist/flatpickr.min.css';
+import { paintBgEvent, wipeBgMarkup } from './calendar-bg';
+
+// The holiday / highlight painting, for the inline wiring in the Blade.
+window.calendarBg = { paint: paintBgEvent, wipe: wipeBgMarkup };
 
 /*
  * The global CDN build auto-registers its plugins, so the inline script in

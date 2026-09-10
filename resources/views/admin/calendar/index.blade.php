@@ -438,89 +438,13 @@
                             info.jsEvent.preventDefault();
                             this.openView(info.event);
                         },
-                        // When a holiday background event mounts, tag the
-                        // corresponding day cell and write the holiday name
-                        // directly into the cell as a small red text label
-                        // (below the date number). No pill, no click target —
-                        // reads like a printed Malaysian calendar.
-                        //
-                        // Two gotchas:
-                        //   - eventDidMount fires more than once per event as
-                        //     FullCalendar re-renders → dedupe by title.
-                        //   - showNonCurrentDates:false hides the date number
-                        //     on leading/trailing cells but keeps them in the
-                        //     DOM with `data-date`. Filter those out with
-                        //     :not(.fc-day-other) so the label doesn't land on
-                        //     a numberless neighbouring-month cell.
-                        eventDidMount: (info) => {
-                            // Handle two flavours of background events:
-                            //   - Auto holidays (red, read-only, .fc-holiday-label)
-                            //   - User events with display_style='background'
-                            //     (chosen color, clickable, .fc-user-bg-label)
-                            const isHoliday = info.event.extendedProps?.isHoliday;
-                            const isUserBg = ! isHoliday
-                                && info.event.display === 'background';
-                            if (! isHoliday && ! isUserBg) return;
-
-                            // Find the "real" cell for this date — belongs to the
-                            // current view, not a hidden neighbour-month cell.
-                            const candidates = document.querySelectorAll(
-                                '.fc-daygrid-day[data-date="' + info.event.startStr + '"]'
-                            );
-                            const cell = Array.from(candidates).find(c => {
-                                if (c.classList.contains('fc-day-disabled')) return false;
-                                if (c.classList.contains('fc-day-other')) return false;
-                                const num = c.querySelector('.fc-daygrid-day-number');
-                                return num && num.textContent.trim() !== '';
-                            });
-                            if (! cell) return;
-
-                            const labelClass = isHoliday ? 'fc-holiday-label' : 'fc-user-bg-label';
-                            const cellClass = isHoliday ? 'fc-day-has-holiday' : 'fc-day-has-user-bg';
-
-                            cell.classList.add(cellClass);
-                            // Both types now carry their tint + text color inline
-                            // from the feed — a user red+highlight event renders
-                            // identically to an auto-fetched public holiday.
-                            cell.style.setProperty('background-color', info.event.backgroundColor);
-
-                            // Tint the date number to match the event. Both kinds
-                            // go through here, from the same field, so a holiday
-                            // and a hand-made red highlight land on exactly the
-                            // same red — the feed sends COLOR_TEXTS['red'] for
-                            // holidays too. Inline because a user's colour is
-                            // per-event, and it also beats the Sunday rose rule
-                            // that would otherwise win on Sundays.
-                            const dayNumber = cell.querySelector('.fc-daygrid-day-number');
-                            if (dayNumber) {
-                                dayNumber.style.setProperty('color', info.event.extendedProps.textHex);
-                            }
-
-                            let label = cell.querySelector('.' + labelClass);
-                            if (! label) {
-                                label = document.createElement('div');
-                                label.className = labelClass;
-                                label.style.color = info.event.extendedProps.textHex;
-
-                                const frame = cell.querySelector('.fc-daygrid-day-frame');
-                                (frame || cell).appendChild(label);
-                            }
-                            // Dedupe: don't append a title that's already in the label.
-                            const parts = label.textContent
-                                ? label.textContent.split(' • ')
-                                : [];
-                            if (parts.includes(info.event.title)) return;
-                            parts.push(info.event.title);
-                            label.textContent = parts.join(' • ');
-
-                            // Tooltip aggregates ALL names on this cell (either type).
-                            const existingTitle = cell.getAttribute('title');
-                            const titleParts = existingTitle ? existingTitle.split(', ') : [];
-                            if (! titleParts.includes(info.event.title)) {
-                                titleParts.push(info.event.title);
-                                cell.setAttribute('title', titleParts.join(', '));
-                            }
-                        },
+                        // When a holiday (or user highlight) background event
+                        // mounts, tag the day cell and write the name into it
+                        // as a small label — no pill, no click target, like a
+                        // printed Malaysian calendar. The painting lives in
+                        // resources/js/calendar-bg.js so it can be driven
+                        // under real FullCalendar in a harness.
+                        eventDidMount: (info) => window.calendarBg.paint(info.event),
                         // Fires on every event refetch (save/delete → refetchEvents()
                         // triggers loading:true → false cycle). We wipe injected
                         // markup on the LOAD-START edge so cells are clean before
@@ -535,6 +459,15 @@
                             // cell DOM elements across view switches so stale
                             // labels need explicit cleanup here too.
                             this.wipeInjectedBgMarkup();
+                            // ...then paint again from the events already loaded.
+                            // A view change that keeps the date range (Month
+                            // clicked while on Month) re-renders the grid without
+                            // refetching, so eventDidMount never fires again and
+                            // the wipe above would be the last word: every holiday
+                            // vanished until the next real navigation. Events for
+                            // a new range are not loaded yet here and paint
+                            // nowhere; loading → eventDidMount covers them.
+                            this.repaintBgEvents();
 
                             // Sync our custom header labels whenever the view changes.
                             this.view = arg.view.type;
@@ -551,6 +484,7 @@
                 },
 
                 setView(name) {
+                    if (name === this.view) return; // already there; nothing to re-render
                     this.calendar.changeView(name);
                     this.view = name;
                 },
@@ -558,19 +492,15 @@
                 // Remove all previously-injected holiday / user-bg markup from
                 // the day cells so eventDidMount can rebuild cleanly. Called
                 // before every event re-render (loading) and every view change
-                // (datesSet).
+                // (datesSet). The work is in resources/js/calendar-bg.js.
                 wipeInjectedBgMarkup() {
-                    document.querySelectorAll('.fc-holiday-label, .fc-user-bg-label').forEach(el => el.remove());
-                    document.querySelectorAll('.fc-day-has-holiday, .fc-day-has-user-bg').forEach(cell => {
-                        cell.classList.remove('fc-day-has-holiday', 'fc-day-has-user-bg');
-                        cell.style.removeProperty('background-color');
-                        cell.removeAttribute('title');
-                        // The date number's colour is set inline for user
-                        // highlights, so it has to be cleared here too —
-                        // otherwise deleting a highlight leaves its colour on
-                        // the number after the cell itself has gone plain.
-                        cell.querySelector('.fc-daygrid-day-number')?.style.removeProperty('color');
-                    });
+                    window.calendarBg.wipe();
+                },
+
+                // eventDidMount's painting, done again for every event that is
+                // already loaded — for the re-renders that mount nothing new.
+                repaintBgEvents() {
+                    this.calendar.getEvents().forEach(e => window.calendarBg.paint(e));
                 },
 
                 initDatePicker() {

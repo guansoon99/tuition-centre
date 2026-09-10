@@ -180,16 +180,21 @@ class CalendarHolidayEventTest extends TestCase
         $this->assertSame(Event::COLOR_TEXTS['red'], $manual['extendedProps']['textHex']);
     }
 
-    /** Presence check on the inline painting — Alpine, so not run by PHPUnit. */
+    /**
+     * Presence check on the painting. The page's Alpine wiring is not run by
+     * PHPUnit, and the painting itself now lives in resources/js/calendar-bg.js
+     * (driven under real FullCalendar by a Node harness), so this pins the
+     * hand-off from the page to the module and the colour rule in the module.
+     */
     public function test_the_day_number_is_painted_from_the_events_own_colour(): void
     {
         $html = $this->actingAs($this->creator())->get('/calendar')->assertOk()->getContent();
 
-        $this->assertStringContainsString('.fc-daygrid-day-number', $html);
-        $this->assertStringContainsString(
-            "dayNumber.style.setProperty('color', info.event.extendedProps.textHex)",
-            $html,
-        );
+        $this->assertStringContainsString('window.calendarBg.paint(info.event)', $html);
+
+        $module = file_get_contents(resource_path('js/calendar-bg.js'));
+        $this->assertStringContainsString('.fc-daygrid-day-number', $module);
+        $this->assertStringContainsString("dayNumber.style.setProperty('color', textHex)", $module);
     }
 
     // ---- The server never objected ------------------------------------------
