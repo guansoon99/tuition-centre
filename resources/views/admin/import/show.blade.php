@@ -21,14 +21,9 @@
                     <div class="h-3 rounded-full bg-emerald-500 transition-all duration-500" :style="'width:' + percent + '%'"></div>
                 </div>
                 <p class="text-slate-700"
-                   x-text="status === 'queued'
-                       ? 'Waiting for the import worker to pick this up…'
-                       : done + ' of ' + total + ' rows · ' + percent + '%'"></p>
+                   x-text="status === 'queued' ? 'Starting…' : done + ' of ' + total + ' rows · ' + percent + '%'"></p>
                 <p x-show="stale" x-cloak class="text-amber-800">
                     Still waiting after a minute. The import worker may not be running; ask whoever looks after the server.
-                </p>
-                <p class="text-xs text-slate-600">
-                    You can leave this page; the import carries on. Come back here to see the result.
                 </p>
             </div>
         @else
