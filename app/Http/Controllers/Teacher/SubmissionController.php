@@ -16,7 +16,9 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use RuntimeException;
 use ZipStream\CompressionMethod;
+use ZipStream\OperationMode;
 use ZipStream\ZipStream;
 
 class SubmissionController extends Controller
@@ -112,9 +114,9 @@ class SubmissionController extends Controller
             return back()->withErrors(['zip' => 'No submissions to download yet.']);
         }
 
-        // Which stored file lands at which path inside the ZIP. Worked out
-        // here, before a byte is sent, so the streamed callback below only
-        // moves data: a folder per student, uploads de-duplicated within it.
+        // Which stored file lands at which path inside the ZIP, and how big
+        // each is. Worked out here, before a byte is sent: a folder per
+        // student, uploads de-duplicated within it.
         $entries = $this->zipEntries($submissions);
         $filename = $this->downloadName($material, 'zip');
 
@@ -125,39 +127,56 @@ class SubmissionController extends Controller
         // whatever the class size. The old build-first path buffered every
         // file and met PHP's memory limit, and would meet Cloudflare's
         // 100-second one once the domain is live.
-        $response = new StreamedResponse(function () use ($entries) {
-            $zip = new ZipStream(
-                outputName: null,
-                sendHttpHeaders: false,
-                defaultCompressionMethod: CompressionMethod::STORE,
-                defaultEnableZeroHeader: true, // no seeking back -- this output is not seekable
-                flushOutput: true,             // push each file out as it is written
+        //
+        // Planned first, streamed second. With every entry stored and its
+        // size known, the archive's length is exact arithmetic, and ZipStream
+        // works it out in simulation without reading a byte. Announcing that
+        // length is what turns the browser's "12 MB so far" into "12 of 200
+        // MB, 6%, two minutes left".
+        $zip = new ZipStream(
+            operationMode: OperationMode::SIMULATE_LAX,
+            sendHttpHeaders: false,
+            defaultCompressionMethod: CompressionMethod::STORE,
+            defaultEnableZeroHeader: true, // no seeking back -- this output is not seekable
+            flushOutput: true,             // push each file out as it is written
+        );
+
+        $opened = [];
+        foreach ($entries as [$entryName, $storedPath, $size]) {
+            $zip->addFileFromCallback(
+                $entryName,
+                function () use ($storedPath, &$opened) {
+                    $stream = PrivateFile::readStream($storedPath);
+                    if ($stream === null) {
+                        // Planned a moment ago, unreadable now. A download that
+                        // fails beats one that quietly holds the wrong bytes.
+                        throw new RuntimeException("Submission file {$storedPath} is no longer readable.");
+                    }
+
+                    return $opened[] = $stream;
+                },
+                exactSize: $size,
             );
+        }
 
-            foreach ($entries as [$entryName, $storedPath]) {
-                $stream = PrivateFile::readStream($storedPath);
-                if ($stream === null) {
-                    continue; // a file that has gone missing skips, as before
-                }
+        // The simulated length; the object is now armed to run for real.
+        $total = $zip->finish();
 
-                try {
-                    $zip->addFileFromStream($entryName, $stream);
-                } finally {
-                    fclose($stream);
-                }
-
-                // The teacher closed the download: stop reading from R2 rather
-                // than pull every remaining file for nobody.
-                if (connection_aborted()) {
-                    return;
+        $response = new StreamedResponse(function () use ($zip, &$opened) {
+            try {
+                $zip->executeSimulation();
+            } finally {
+                foreach ($opened as $stream) {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
                 }
             }
-
-            $zip->finish();
         });
 
         $response->headers->set('Content-Type', 'application/zip');
         $response->headers->set('Content-Disposition', PrivateFile::dispositionHeader('attachment', $filename));
+        $response->headers->set('Content-Length', (string) $total);
         // Tell nginx not to buffer the whole archive before sending it on --
         // that would undo the streaming and reintroduce the memory cost.
         $response->headers->set('X-Accel-Buffering', 'no');
@@ -166,12 +185,14 @@ class SubmissionController extends Controller
     }
 
     /**
-     * The ZIP layout: a [entry path, stored file path] pair for every file
-     * that exists, one folder per student, uploads with the same name inside
-     * a folder de-duplicated "foo (2).pdf" as Windows and macOS do.
+     * The ZIP layout: an [entry path, stored file path, size in bytes] triple
+     * for every file that is actually in storage, one folder per student,
+     * uploads with the same name inside a folder de-duplicated "foo (2).pdf"
+     * as Windows and macOS do. The size comes from storage, not the row, so
+     * the length announced to the browser is the length that gets sent.
      *
      * @param  \Illuminate\Support\Collection<int,\App\Models\Submission>  $submissions
-     * @return list<array{0:string,1:string}>
+     * @return list<array{0:string,1:string,2:int}>
      */
     private function zipEntries($submissions): array
     {
@@ -190,7 +211,10 @@ class SubmissionController extends Controller
             $usedInFolder = [];
 
             foreach ($submission->files as $file) {
-                if (! PrivateFile::exists($file->file_path)) {
+                // Missing from storage: skipped, as before. One round trip per
+                // file, which also doubles as the existence check.
+                $size = PrivateFile::size($file->file_path);
+                if ($size === null) {
                     continue;
                 }
                 // Strip path separators so a crafted upload like "../foo.pdf"
@@ -210,7 +234,7 @@ class SubmissionController extends Controller
                 }
                 $usedInFolder[] = $uniqueName;
 
-                $entries[] = [$folder.'/'.$uniqueName, $file->file_path];
+                $entries[] = [$folder.'/'.$uniqueName, $file->file_path, $size];
             }
         }
 

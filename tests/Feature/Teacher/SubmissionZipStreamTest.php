@@ -144,6 +144,24 @@ class SubmissionZipStreamTest extends TestCase
         $this->assertSame('%PDF bob bytes', $entries['Bob Lee/essay.pdf']);
     }
 
+    public function test_the_total_size_is_announced_up_front_and_is_exact(): void
+    {
+        // What turns the browser's "12 MB so far" into a percentage: the
+        // archive's length is declared before the first byte, and it has to
+        // match the bytes that follow or the download is truncated/corrupt.
+        $this->submitFor($this->enrol('Alice Tan'), 'a.pdf', str_repeat('A', 3000));
+        $this->submitFor($this->enrol('Bob Lee'), 'b.pdf', str_repeat('B', 12345));
+
+        $response = $this->actingAs($this->teacher)
+            ->get(route('submissions.download-all', $this->assignment));
+
+        $announced = (int) $response->headers->get('content-length');
+        $actual = strlen($response->streamedContent());
+
+        $this->assertGreaterThan(15345, $announced, 'Headers and directory come on top of the file bytes.');
+        $this->assertSame($announced, $actual);
+    }
+
     public function test_files_are_stored_not_compressed(): void
     {
         $this->submitFor($this->enrol('Alice Tan'), 'work.pdf', str_repeat('A', 500));

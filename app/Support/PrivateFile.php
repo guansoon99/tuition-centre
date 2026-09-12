@@ -131,6 +131,20 @@ class PrivateFile extends StoredFile
     }
 
     /**
+     * The stored size in bytes, or null if the file is not there. One round
+     * trip on a cloud disk, so it doubles as the existence check when a
+     * caller needs both.
+     */
+    public static function size(string $path): ?int
+    {
+        try {
+            return Storage::disk(static::disk())->size($path);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * A read handle for the file, or null if it cannot be opened.
      *
      * For streaming a file somewhere without ever holding it whole in memory
