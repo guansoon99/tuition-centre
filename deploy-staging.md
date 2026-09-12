@@ -42,6 +42,7 @@ ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15
 | Database | **SQLite** — `database\database.sqlite` |
 | Cache / session | `file` |
 | Filesystem disk | `local` |
+| Queue | `sync` — the student import job runs inside the request here (no worker; `artisan serve` has no time limit). Production runs it on a worker. |
 | `APP_ENV` | `production` (`APP_DEBUG=false`) — despite being staging |
 | git | `C:\Program Files\Git\cmd\git.exe` |
 | composer | `C:\ProgramData\ComposerSetup\bin\composer.bat` |

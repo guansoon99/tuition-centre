@@ -1,0 +1,34 @@
+# The queue worker for the tuition LMS — one process, always on.
+#
+# Installed by deploy/phase-a.sh to /etc/systemd/system/tuition-queue.service.
+# The student import runs as a job on the database queue; without this
+# service those imports sit queued forever and the page says so.
+#
+#   --tries=1      an import is never retried by the queue: the importer runs
+#                  in one transaction, so a failure leaves nothing, and whether
+#                  to run the file again is a person's decision
+#   --timeout      a single job may take this long (3,600 s)
+#   --max-time     the worker exits after an hour and systemd restarts it, so
+#                  it can never run stale code for long even if a deploy's
+#                  queue:restart were missed
+#
+# deploy/update.sh runs `php artisan queue:restart` after every deploy, which
+# makes the worker finish its current job and exit; Restart=always brings it
+# back on the new code.
+
+[Unit]
+Description=Tuition LMS queue worker
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/tuition
+ExecStart=/usr/bin/php artisan queue:work database --sleep=3 --tries=1 --timeout=3600 --max-time=3600
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/www/tuition/storage/logs/queue.log
+StandardError=append:/var/www/tuition/storage/logs/queue.log
+
+[Install]
+WantedBy=multi-user.target

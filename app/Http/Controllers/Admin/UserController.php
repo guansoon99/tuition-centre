@@ -18,10 +18,12 @@ class UserController extends Controller
 {
     public function index(Request $request): View
     {
+        // Alphabetical by name. LOWER() so SQLite (case-sensitive by default)
+        // sorts the same way MySQL's collation does; id breaks ties.
         $users = $this->buildIndexQuery($request)
             ->with('roles')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->orderByRaw('LOWER(name) ASC')
+            ->orderBy('id')
             ->paginate(25)
             ->withQueryString();
 

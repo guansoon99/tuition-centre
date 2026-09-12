@@ -45,6 +45,9 @@ only if `composer.lock` changed, migrates, clears the application cache
 confirms `https://osterqin.com/login` answers 200. It prints the rollback
 command at the end.
 
+The script also restarts the queue worker (`tuition-queue`, see DEPLOY.md
+"Queue worker"), which runs the student import in the background.
+
 There is no `npm` on the server and none is needed: `public/build/` is
 committed. **Any change to Tailwind classes must be built locally and
 committed** (`npm run build`), exactly as for staging.

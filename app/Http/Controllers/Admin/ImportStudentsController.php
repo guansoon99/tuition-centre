@@ -2,40 +2,71 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Exports\StudentCredentialsExport;
 use App\Exports\StudentImportSampleExport;
-use App\Models\Course;
-use App\Services\StudentImporter;
 use App\Http\Controllers\Controller;
+use App\Jobs\ImportStudents;
+use App\Models\Course;
+use App\Models\StudentImport;
+use App\Services\StudentImporter;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
+/**
+ * Student import: upload → preview (dry run, in the request) → run (a
+ * background job; see ImportStudents) → result and credentials sheet.
+ *
+ * The preview is fast and stays synchronous. The real run is not: every new
+ * student costs a bcrypt hash, so it goes to the queue and the page polls
+ * its progress until the job reports done or failed.
+ */
 class ImportStudentsController extends Controller
 {
-    public function show(): View
+    public function show(Request $request): View
     {
         $preview = Session::pull('preview');
-        $result = Session::pull('result');
+        $userId = $request->user()->id;
 
-        // No active preview/result on this request, but there's still a
-        // stashed file from a previous session — clean it up so we don't
-        // leave orphaned uploads on disk.
-        if (! $preview && ! $result && ($path = Session::get('import_file_path'))) {
+        // An import still queued or running: the page shows its progress and
+        // nothing else until it finishes.
+        $active = StudentImport::activeFor($userId)->latest()->first();
+
+        // A finished import to show the result of — the one the progress page
+        // redirected to.
+        $import = null;
+        if (! $active && $request->filled('import')) {
+            $import = StudentImport::query()
+                ->where('user_id', $userId)
+                ->whereIn('status', [StudentImport::STATUS_DONE, StudentImport::STATUS_FAILED])
+                ->find($request->integer('import'));
+        }
+
+        // The most recent credentials sheet, for "Download Last Credentials".
+        $lastCredentials = StudentImport::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('credentials_path')
+            ->latest()
+            ->first();
+
+        // No preview, no result, no run in flight, but a stashed upload from a
+        // previous visit — clean it up so /imports does not accumulate.
+        if (! $preview && ! $import && ! $active && ($path = Session::get('import_file_path'))) {
             Storage::disk('local')->delete($path);
             Session::forget(['import_file_path', 'import_file_original_name']);
         }
 
         return view('admin.import.show', [
             'preview' => $preview,
-            'result' => $result,
-            'credentialsFile' => Session::get('credentials_file'),
+            'active' => $active,
+            'import' => $import,
+            'lastCredentials' => $lastCredentials,
             'stashedFileName' => Session::get('import_file_original_name'),
         ]);
     }
@@ -53,7 +84,6 @@ class ImportStudentsController extends Controller
 
         $uploaded = $request->file('file');
         $stored = $uploaded->store('imports', 'local');
-
         Session::put('import_file_path', $stored);
         Session::put('import_file_original_name', $uploaded->getClientOriginalName());
 
@@ -64,46 +94,57 @@ class ImportStudentsController extends Controller
         return back();
     }
 
-    public function run(Request $request, StudentImporter $importer): RedirectResponse
+    /**
+     * Start the import: record it, hand the file to the job, and send the
+     * admin to the page that follows its progress.
+     */
+    public function run(Request $request): RedirectResponse
     {
-        $file = $this->resolveImportFile($request);
+        $user = $request->user();
 
-        if ($file === null) {
+        if (StudentImport::activeFor($user->id)->exists()) {
+            return redirect()
+                ->route('import.show')
+                ->withErrors(['file' => 'An import is already running. Wait for it to finish.']);
+        }
+
+        [$storedPath, $originalName] = $this->resolveStoredFile($request);
+
+        if ($storedPath === null) {
             return back()->withErrors(['file' => 'No file to import — please pick a file first.']);
         }
 
-        // 'all' means the admin explicitly opted into creating duplicate
-        // names; anything else falls back to the default (skip duplicates).
-        $allowDuplicates = $request->input('mode') === 'all';
+        $import = StudentImport::create([
+            'user_id' => $user->id,
+            'original_name' => $originalName,
+            'stored_path' => $storedPath,
+            // 'all' means the admin explicitly opted into creating duplicate
+            // names; anything else is the default (skip duplicates).
+            'mode' => $request->input('mode') === 'all' ? StudentImport::MODE_ALL : StudentImport::MODE_SKIP,
+            'status' => StudentImport::STATUS_QUEUED,
+        ]);
 
-        $result = $importer->processRows(
-            $importer->parseFile($file),
-            dryRun: false,
-            allowDuplicates: $allowDuplicates,
-        );
+        // The upload now belongs to the import; the job deletes it when done.
+        Session::forget(['import_file_path', 'import_file_original_name']);
 
-        if (! empty($result['ok']) || ! empty($result['skipped'])) {
-            $filename = 'students_credentials_'.now()->format('Y-m-d_His').'.xlsx';
-            $exportPath = 'exports/'.$filename;
-            Excel::store(
-                new StudentCredentialsExport($result['ok'] ?? [], $result['skipped'] ?? []),
-                $exportPath,
-                'local'
-            );
-
-            Session::put('credentials_file', $exportPath);
+        try {
+            ImportStudents::dispatch($import);
+        } catch (Throwable $e) {
+            // Only reachable on the sync queue (staging, tests), where the job
+            // runs inside this request and its failure surfaces here. The job
+            // has already recorded the failure on the row; the page shows it.
+            report($e);
         }
 
-        // Done with the import — clear the stashed upload.
-        if ($stashedPath = Session::get('import_file_path')) {
-            Storage::disk('local')->delete($stashedPath);
-            Session::forget(['import_file_path', 'import_file_original_name']);
-        }
+        return redirect()->route('import.show', ['import' => $import->id]);
+    }
 
-        Session::flash('result', $result);
-        Session::flash('status', 'Import done. Created: '.count($result['ok']).', skipped: '.count($result['skipped']).', errors: '.count($result['errors']).'.');
+    /** What the progress bar polls. */
+    public function status(Request $request, StudentImport $import): JsonResponse
+    {
+        abort_unless($import->user_id === $request->user()->id, 403);
 
-        return back();
+        return response()->json($import->progressPayload());
     }
 
     /**
@@ -123,29 +164,36 @@ class ImportStudentsController extends Controller
     }
 
     /**
-     * Use the file the admin just picked if one is present; otherwise fall
-     * back to the file stashed during the preview step so the admin can
-     * click Import without re-uploading.
+     * The file to import, as a path on the local disk: one picked on this
+     * request is stored like the preview stores its upload; otherwise the
+     * file stashed during the preview step is used, so the admin can click
+     * Import without re-uploading.
+     *
+     * @return array{0:?string,1:?string} [stored path, original name]
      */
-    private function resolveImportFile(Request $request): ?UploadedFile
+    private function resolveStoredFile(Request $request): array
     {
         if ($request->hasFile('file')) {
             $request->validate([
                 'file' => ['file', 'mimes:xlsx,xls,csv', 'max:5120'],
             ]);
 
-            return $request->file('file');
+            if ($oldPath = Session::get('import_file_path')) {
+                Storage::disk('local')->delete($oldPath);
+            }
+
+            $uploaded = $request->file('file');
+
+            return [$uploaded->store('imports', 'local'), $uploaded->getClientOriginalName()];
         }
 
         $stashedPath = Session::get('import_file_path');
+
         if (! $stashedPath || ! Storage::disk('local')->exists($stashedPath)) {
-            return null;
+            return [null, null];
         }
 
-        $fullPath = Storage::disk('local')->path($stashedPath);
-        $originalName = Session::get('import_file_original_name', basename($stashedPath));
-
-        return new UploadedFile($fullPath, $originalName, null, null, true);
+        return [$stashedPath, Session::get('import_file_original_name', basename($stashedPath))];
     }
 
     public function downloadSample(): BinaryFileResponse
@@ -158,14 +206,16 @@ class ImportStudentsController extends Controller
         );
     }
 
-    public function downloadCredentials(): StreamedResponse|RedirectResponse
+    public function downloadCredentials(Request $request, StudentImport $import): StreamedResponse|RedirectResponse
     {
-        $path = Session::get('credentials_file');
+        abort_unless($import->user_id === $request->user()->id, 403);
 
-        if (! $path || ! Storage::disk('local')->exists($path)) {
-            return back()->withErrors(['credentials' => 'No credentials file available. Run an import first.']);
+        if (! $import->credentials_path || ! Storage::disk('local')->exists($import->credentials_path)) {
+            return redirect()
+                ->route('import.show')
+                ->withErrors(['credentials' => 'No credentials file available for that import.']);
         }
 
-        return Storage::disk('local')->download($path);
+        return Storage::disk('local')->download($import->credentials_path);
     }
 }

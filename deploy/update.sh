@@ -88,9 +88,16 @@ php artisan route:cache
 php artisan view:cache
 chown -R www-data:www-data storage bootstrap/cache
 
-# ---------------------------------------------------------------- 7. fpm
-say "7 — reload PHP-FPM"
+# ---------------------------------------------------------------- 7. fpm + worker
+say "7 — reload PHP-FPM, restart the queue worker"
 systemctl reload php8.3-fpm
+# The worker holds the old code in memory until it exits. queue:restart asks
+# it to finish its current job and stop; systemd (Restart=always) brings it
+# back on the new code. See deploy/tuition-queue.service. As www-data: the
+# signal is a cache entry, and this runs after step 6's chown, so root would
+# leave a root-owned file under storage/framework/cache for the app to trip
+# over (see "Running artisan on the box" in deploy-production.md).
+sudo -u www-data php artisan queue:restart
 
 # ---------------------------------------------------------------- 8. verify
 say "8 — verify"
@@ -98,6 +105,7 @@ STATUS="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "${DOMAIN}:443:127.0
 echo "  https://${DOMAIN}/login -> $STATUS"
 [ "$STATUS" = 200 ] || fail "site is not answering 200 after deploy — roll back with: $0 $BEFORE"
 echo "  migrations: $(php artisan migrate:status 2>/dev/null | grep -c Ran) ran, $(php artisan migrate:status 2>/dev/null | grep -c Pending) pending"
+echo "  queue worker: $(systemctl is-active tuition-queue 2>/dev/null || echo not-installed)"
 
 # An app route that ends in an image extension. nginx's static-asset block
 # swallowed these with a bare 404 until 2026-09-08; the fix is a try_files

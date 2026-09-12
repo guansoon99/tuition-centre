@@ -815,6 +815,33 @@ and direct-to-R2 uploads are, and both are settled elsewhere in this document.
 - [ ] **Restore one backup onto a scratch database before going live.** An
       untested backup is a hypothesis
 
+## Queue worker
+
+The student import runs as a queued job (`App\Jobs\ImportStudents`) on the
+database queue, so it is bound by neither PHP-FPM's request limit nor
+Cloudflare's 100-second one. That needs one worker process, always on:
+
+```bash
+install -m 0644 /var/www/tuition/deploy/tuition-queue.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now tuition-queue
+systemctl is-active tuition-queue      # active
+```
+
+`deploy/phase-a.sh` does this on a fresh box; `deploy/update.sh` runs
+`php artisan queue:restart` after every deploy so the worker picks up the
+new code (it holds the old code in memory until it exits; systemd restarts
+it). The worker's own output goes to `storage/logs/queue.log`; a job that
+throws lands in `failed_jobs` (`php artisan queue:failed`).
+
+**If the worker is down**, imports sit at "Waiting for the import worker"
+on `/import-students`, and the page says so after a minute. Nothing is
+lost: `systemctl start tuition-queue` and the queued import runs.
+
+`QUEUE_CONNECTION=database` in `.env` is what sends jobs to the worker.
+Staging keeps `sync`, where the job runs inside the request instead — the
+same code path, without the worker.
+
 ## Backups
 
 `php artisan backup:run`, scheduled nightly at 02:30 by the same `schedule:run`

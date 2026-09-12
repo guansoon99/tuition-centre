@@ -15,26 +15,31 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
 
     public function collection(): Collection
     {
-        return $this->query->with('roles')->orderByDesc('created_at')->get();
+        // Same order as the /users page: by name, case-insensitively (LOWER()
+        // so SQLite matches MySQL's collation), id breaking ties.
+        return $this->query->with('roles')->orderByRaw('LOWER(name) ASC')->orderBy('id')->get();
     }
 
     public function headings(): array
     {
+        // The /users table's columns first, in its order, then the fields the
+        // table does not show.
+        //
+        // Keep this list and map() in the same order — they are positional,
+        // so inserting into one alone shifts every later column's data
+        // under the wrong heading without any error.
         return [
             'Name',
+            'Role',
+            'Active',
             'Username',
             'Password',
+            'Last Login',
+            'Created',
             'Phone',
-            // Keep this list and map() in the same order — they are positional,
-            // so inserting into one alone shifts every later column's data
-            // under the wrong heading without any error.
             'Email',
             'IC Number',
             'Candidate Number',
-            'Role',
-            'Active',
-            'Last Login',
-            'Created',
         ];
     }
 
@@ -44,18 +49,18 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
 
         return [
             $user->name,
+            ucfirst($roleName ?? ''),
+            $user->is_active ? 'Yes' : 'No',
             $user->username,
             // Only tracked for student users; other roles show blank so
-            // admin passwords etc. never leak into the export.
+            // staff passwords never leak into the export.
             $roleName === 'student' ? $user->plain_password : null,
+            $user->last_login_at?->format('Y-m-d H:i'),
+            $user->created_at->format('Y-m-d H:i'),
             $user->phone,
             $user->email,
             $user->ic_number,
             $user->candidate_number,
-            ucfirst($roleName ?? ''),
-            $user->is_active ? 'Yes' : 'No',
-            $user->last_login_at?->format('Y-m-d H:i'),
-            $user->created_at->format('Y-m-d H:i'),
         ];
     }
 }

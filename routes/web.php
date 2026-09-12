@@ -366,6 +366,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/import-students/preview', [ImportStudentsController::class, 'preview'])->name('import.preview');
         Route::post('/import-students/run', [ImportStudentsController::class, 'run'])->name('import.run');
         Route::post('/import-students/cancel', [ImportStudentsController::class, 'cancel'])->name('import.cancel');
-        Route::get('/import-students/credentials', [ImportStudentsController::class, 'downloadCredentials'])->name('import.credentials');
+        // The run is a background job; the page polls this until it is done.
+        Route::get('/import-students/status/{import}', [ImportStudentsController::class, 'status'])
+            ->whereNumber('import')->name('import.status');
+        Route::get('/import-students/credentials/{import}', [ImportStudentsController::class, 'downloadCredentials'])
+            ->whereNumber('import')->name('import.credentials');
     });
 });

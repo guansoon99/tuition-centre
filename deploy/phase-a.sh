@@ -267,6 +267,13 @@ echo "$CRON_LINE" >> "$CRON_TMP"
 crontab -u www-data "$CRON_TMP"
 rm -f "$CRON_TMP"
 
+# ---------------------------------------------------------------- queue worker
+say "Queue worker — the student import runs as a job (DEPLOY.md: Queue worker)"
+install -m 0644 "${APP_DIR}/deploy/tuition-queue.service" /etc/systemd/system/tuition-queue.service
+systemctl daemon-reload
+systemctl enable --now tuition-queue
+printf '  tuition-queue: %s\n' "$(systemctl is-active tuition-queue)"
+
 # ---------------------------------------------------------------- admin user
 say "First admin user — credentials to /root/admin-credentials.txt (root-only), never printed"
 ADMIN_PASS="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 20)"

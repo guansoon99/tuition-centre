@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Throwable;
@@ -128,9 +129,29 @@ class StudentImporter
      * Process parsed rows. Returns ['ok' => [...], 'skipped' => [...], 'errors' => [...]].
      * Each 'ok' row in import mode includes username + plain_password for the credentials export.
      */
-    public function processRows(array $records, bool $dryRun, bool $allowDuplicates = false): array
+    /**
+     * @param  callable|null  $onProgress  called with (rows done, rows total) before
+     *                                     each row and once at the end; the
+     *                                     background job feeds the progress bar from it
+     */
+    public function processRows(array $records, bool $dryRun, bool $allowDuplicates = false, ?callable $onProgress = null): array
+    {
+        if ($dryRun) {
+            return $this->walkRows($records, true, $allowDuplicates, $onProgress);
+        }
+
+        // All rows or none. A run that dies partway (the 2026-09-11 timeouts)
+        // used to leave every row it had reached, and re-running the file
+        // then created those people again under fresh usernames. Row-level
+        // problems are still collected, not thrown, so a bad row costs one
+        // row; only a failure of the run itself rolls everything back.
+        return DB::transaction(fn () => $this->walkRows($records, false, $allowDuplicates, $onProgress));
+    }
+
+    private function walkRows(array $records, bool $dryRun, bool $allowDuplicates, ?callable $onProgress = null): array
     {
         $results = ['ok' => [], 'skipped' => [], 'errors' => []];
+        $total = count($records);
 
         // Pre-load existing names (case-insensitive) so we can flag duplicates
         // without hitting the DB once per row.
@@ -153,6 +174,10 @@ class StudentImporter
         $seenEmails = [];
 
         foreach ($records as $idx => $row) {
+            if ($onProgress !== null) {
+                $onProgress($idx, $total);
+            }
+
             $line = $idx + 2;
 
             $name = trim((string) ($row['name'] ?? ''));
@@ -314,6 +339,10 @@ class StudentImporter
                 'plain_password' => $password,
                 'course' => $course?->code,
             ];
+        }
+
+        if ($onProgress !== null) {
+            $onProgress($total, $total);
         }
 
         return $results;

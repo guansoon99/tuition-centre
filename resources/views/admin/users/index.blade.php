@@ -119,10 +119,11 @@
                                        class="rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
                             </th>
                         @endif
-                        <th class="px-4 py-3">Username</th>
                         <th class="px-4 py-3">Name</th>
                         <th class="px-4 py-3">Role</th>
                         <th class="px-4 py-3">Active</th>
+                        <th class="px-4 py-3">Username</th>
+                        <th class="px-4 py-3">Password</th>
                         <th class="px-4 py-3">Last login</th>
                         <th class="px-4 py-3">Created</th>
                         <th class="px-4 py-3"></th>
@@ -137,7 +138,6 @@
                                            class="user-checkbox rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
                                 </td>
                             @endif
-                            <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $u->username }}</td>
                             <td class="px-4 py-3 text-slate-800">{{ $u->name }}</td>
                             <td class="px-4 py-3 text-slate-800">
                                 @php $role = $u->roles->first()?->name; @endphp
@@ -154,6 +154,15 @@
                                         <span class="mr-1 h-1.5 w-1.5 rounded-full bg-red-500"></span>
                                         Inactive
                                     </span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $u->username }}</td>
+                            {{-- The stored plaintext exists only for student accounts (generated
+                                 logins handed out on paper, the same field the roster export
+                                 shows). Staff rows stay blank whatever the column holds. --}}
+                            <td class="px-4 py-3 font-mono text-sm text-slate-800">
+                                @if ($role === 'student')
+                                    {{ $u->plain_password ?? '—' }}
                                 @endif
                             </td>
                             <td class="px-4 py-3 font-mono text-sm">
@@ -200,7 +209,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="{{ $canBulkDelete ? 8 : 7 }}" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
+                        <tr><td colspan="{{ $canBulkDelete ? 9 : 8 }}" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
                     @endforelse
                 </tbody>
             </table>

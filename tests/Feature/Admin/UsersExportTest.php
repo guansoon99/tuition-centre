@@ -139,6 +139,30 @@ class UsersExportTest extends TestCase
 
     // ---- The route ----------------------------------------------------------
 
+    /** The sheet leads with the /users table's columns, in the table's order. */
+    public function test_the_first_columns_follow_the_users_table_order(): void
+    {
+        $this->assertSame(
+            ['Name', 'Role', 'Active', 'Username', 'Password', 'Last Login', 'Created'],
+            array_slice((new UsersExport(User::query()))->headings(), 0, 7),
+        );
+    }
+
+    public function test_rows_come_out_in_name_order_like_the_page(): void
+    {
+        // Created in the wrong order and mixed case on purpose.
+        foreach (['Zul', 'amir', 'Chong'] as $name) {
+            User::factory()->create(['name' => $name]);
+        }
+
+        $names = (new UsersExport(User::query()))->collection()->pluck('name')->all();
+
+        $this->assertSame(
+            ['amir', 'Chong', 'Zul'],
+            array_values(array_intersect($names, ['amir', 'Chong', 'Zul'])),
+        );
+    }
+
     public function test_an_admin_can_download_the_sheet(): void
     {
         User::factory()->create(['email' => 'insheet@example.test'])->assignRole('student');
