@@ -105,6 +105,13 @@ STATUS="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "${DOMAIN}:443:127.0
 echo "  https://${DOMAIN}/login -> $STATUS"
 [ "$STATUS" = 200 ] || fail "site is not answering 200 after deploy — roll back with: $0 $BEFORE"
 echo "  migrations: $(php artisan migrate:status 2>/dev/null | grep -c Ran) ran, $(php artisan migrate:status 2>/dev/null | grep -c Pending) pending"
+# The restart signal in step 7 makes the worker exit and systemd bring it
+# back (RestartSec=5), so checked straight away it reads "activating". Give
+# it a few seconds before reporting.
+for _ in 1 2 3 4 5 6; do
+    systemctl is-active --quiet tuition-queue 2>/dev/null && break
+    sleep 2
+done
 echo "  queue worker: $(systemctl is-active tuition-queue 2>/dev/null || echo not-installed)"
 
 # An app route that ends in an image extension. nginx's static-asset block
