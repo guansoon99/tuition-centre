@@ -103,15 +103,18 @@ class SubmissionZipNamingTest extends TestCase
 
         $disposition = $response->headers->get('content-disposition');
 
-        // BinaryFileResponse keeps the built archive on disk until it is sent.
-        $path = $response->baseResponse->getFile()->getPathname();
+        // The archive streams to the response now; capture it to a temp file
+        // and open that, so the entry names can still be inspected.
+        $tmp = tempnam(sys_get_temp_dir(), 'ziptest_').'.zip';
+        file_put_contents($tmp, $response->streamedContent());
         $zip = new ZipArchive;
-        $zip->open($path);
+        $zip->open($tmp);
         $entries = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $entries[] = $zip->statIndex($i)['name'];
         }
         $zip->close();
+        @unlink($tmp);
 
         return [$disposition, $entries];
     }

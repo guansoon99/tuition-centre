@@ -131,6 +131,22 @@ class PrivateFile extends StoredFile
     }
 
     /**
+     * A read handle for the file, or null if it cannot be opened.
+     *
+     * For streaming a file somewhere without ever holding it whole in memory
+     * — building the submissions ZIP entry by entry, say. The caller owns the
+     * handle and must fclose() it.
+     *
+     * @return resource|null
+     */
+    public static function readStream(string $path)
+    {
+        $stream = Storage::disk(static::disk())->readStream($path);
+
+        return is_resource($stream) ? $stream : null;
+    }
+
+    /**
      * Whether this disk can hand the browser a URL to upload straight to.
      * False on the local disk, which is what dev runs on — callers must keep
      * a path that proxies the upload through PHP for that case.

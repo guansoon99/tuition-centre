@@ -15,7 +15,9 @@ use Illuminate\View\View;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use ZipArchive;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipStream\CompressionMethod;
+use ZipStream\ZipStream;
 
 class SubmissionController extends Controller
 {
@@ -89,14 +91,14 @@ class SubmissionController extends Controller
     /**
      * Bundle every submission file for this assignment into a single ZIP,
      * one folder per student (folder name = slugified student name, e.g.
-     * "alex_lee/"). Streams the ZIP as a download.
+     * "alex_lee/"). Streams the ZIP straight to the response.
      *
-     * Uses a temp file rather than in-memory buffering so 30 × 10 × 10MB
-     * doesn't blow the request's memory limit. For local disks we hand the
-     * on-disk path to ZipArchive (no read into PHP memory); for cloud
-     * disks we fall back to reading each file's bytes.
+     * Each file is written into the archive one at a time, straight from
+     * storage to the response, so a class of 30 × 10MB never blows the
+     * request's memory limit — see the note in the method. zipEntries()
+     * decides the layout; the streamed callback only moves bytes.
      */
-    public function downloadAll(Request $request, Material $material): BinaryFileResponse|RedirectResponse
+    public function downloadAll(Request $request, Material $material): StreamedResponse|RedirectResponse
     {
         $this->assertMayDownload($request, $material);
 
@@ -110,35 +112,89 @@ class SubmissionController extends Controller
             return back()->withErrors(['zip' => 'No submissions to download yet.']);
         }
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'submissions_').'.zip';
-        $zip = new ZipArchive();
-        if ($zip->open($tmpPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            @unlink($tmpPath);
-            abort(500, 'Could not create ZIP.');
-        }
+        // Which stored file lands at which path inside the ZIP. Worked out
+        // here, before a byte is sent, so the streamed callback below only
+        // moves data: a folder per student, uploads de-duplicated within it.
+        $entries = $this->zipEntries($submissions);
+        $filename = $this->downloadName($material, 'zip');
 
+        // Streamed, not built-then-sent. The archive is written straight to
+        // the response one file at a time and stored (not compressed --
+        // submissions are already-compressed PDFs, images and video), so no
+        // file is ever held whole in memory and the download starts at once,
+        // whatever the class size. The old build-first path buffered every
+        // file and met PHP's memory limit, and would meet Cloudflare's
+        // 100-second one once the domain is live.
+        $response = new StreamedResponse(function () use ($entries) {
+            $zip = new ZipStream(
+                outputName: null,
+                sendHttpHeaders: false,
+                defaultCompressionMethod: CompressionMethod::STORE,
+                defaultEnableZeroHeader: true, // no seeking back -- this output is not seekable
+                flushOutput: true,             // push each file out as it is written
+            );
+
+            foreach ($entries as [$entryName, $storedPath]) {
+                $stream = PrivateFile::readStream($storedPath);
+                if ($stream === null) {
+                    continue; // a file that has gone missing skips, as before
+                }
+
+                try {
+                    $zip->addFileFromStream($entryName, $stream);
+                } finally {
+                    fclose($stream);
+                }
+
+                // The teacher closed the download: stop reading from R2 rather
+                // than pull every remaining file for nobody.
+                if (connection_aborted()) {
+                    return;
+                }
+            }
+
+            $zip->finish();
+        });
+
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->headers->set('Content-Disposition', PrivateFile::dispositionHeader('attachment', $filename));
+        // Tell nginx not to buffer the whole archive before sending it on --
+        // that would undo the streaming and reintroduce the memory cost.
+        $response->headers->set('X-Accel-Buffering', 'no');
+
+        return $response;
+    }
+
+    /**
+     * The ZIP layout: a [entry path, stored file path] pair for every file
+     * that exists, one folder per student, uploads with the same name inside
+     * a folder de-duplicated "foo (2).pdf" as Windows and macOS do.
+     *
+     * @param  \Illuminate\Support\Collection<int,\App\Models\Submission>  $submissions
+     * @return list<array{0:string,1:string}>
+     */
+    private function zipEntries($submissions): array
+    {
+        $entries = [];
         $usedFolders = [];
 
         foreach ($submissions as $submission) {
             $base = $this->safeName($submission->student->name ?? '', 'unknown');
-            // Two students with the same slugified name → disambiguate with id.
+            // Two students with the same safe name: disambiguate with id.
             $folder = $base;
             if (in_array($folder, $usedFolders, true)) {
                 $folder = $base.'_'.$submission->student->id;
             }
             $usedFolders[] = $folder;
 
-            // Track names already used inside THIS student's folder so two
-            // uploads with identical original_name don't clobber each other
-            // in the zip. Mirrors Windows/macOS "foo (2).pdf" behavior.
             $usedInFolder = [];
 
             foreach ($submission->files as $file) {
                 if (! PrivateFile::exists($file->file_path)) {
                     continue;
                 }
-                // Strip path separators from the original name so a crafted
-                // upload like "../foo.pdf" can't escape its folder.
+                // Strip path separators so a crafted upload like "../foo.pdf"
+                // cannot escape its folder.
                 $safeName = str_replace(['/', '\\'], '_', $file->original_name);
 
                 $uniqueName = $safeName;
@@ -154,27 +210,11 @@ class SubmissionController extends Controller
                 }
                 $usedInFolder[] = $uniqueName;
 
-                $entry = $folder.'/'.$uniqueName;
-
-                // Prefer streaming from a local path so a big submission
-                // never gets buffered in PHP memory. Cloud disks (R2/S3)
-                // have no local path, so fall back to reading the bytes.
-                $localPath = PrivateFile::path($file->file_path);
-                if ($localPath !== null) {
-                    $zip->addFile($localPath, $entry);
-                } else {
-                    $zip->addFromString($entry, PrivateFile::get($file->file_path));
-                }
+                $entries[] = [$folder.'/'.$uniqueName, $file->file_path];
             }
         }
 
-        $zip->close();
-
-        $filename = $this->downloadName($material, 'zip');
-
-        return response()
-            ->download($tmpPath, $filename, ['Content-Type' => 'application/zip'])
-            ->deleteFileAfterSend(true);
+        return $entries;
     }
 
     /**
@@ -213,8 +253,8 @@ class SubmissionController extends Controller
      * Removed instead: path separators, so a name cannot point elsewhere;
      * control characters; and the set Windows refuses in a name, so a title
      * like "Homework: Week 1" stays saveable. Spaces, Chinese and ordinary
-     * punctuation all survive — ZipArchive stores UTF-8 entry names, and
-     * Laravel percent-encodes the filename into Content-Disposition.
+     * punctuation all survive — the ZIP stores UTF-8 entry names, and the
+     * filename is RFC 5987-encoded into Content-Disposition.
      */
     private function safeName(string $raw, string $fallback): string
     {
