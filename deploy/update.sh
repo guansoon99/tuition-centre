@@ -112,7 +112,14 @@ for _ in 1 2 3 4 5 6; do
     systemctl is-active --quiet tuition-queue 2>/dev/null && break
     sleep 2
 done
-echo "  queue worker: $(systemctl is-active tuition-queue 2>/dev/null || echo not-installed)"
+# is-active exits non-zero for every state but "active", so it cannot double
+# as the "is the unit installed" test: caught mid-restart it printed
+# "activating" AND "not-installed" (2026-09-13). Existence is a separate check.
+if systemctl cat tuition-queue > /dev/null 2>&1; then
+    echo "  queue worker: $(systemctl is-active tuition-queue 2>/dev/null || true)"
+else
+    echo "  queue worker: not-installed"
+fi
 
 # An app route that ends in an image extension. nginx's static-asset block
 # swallowed these with a bare 404 until 2026-09-08; the fix is a try_files
