@@ -4,7 +4,8 @@
 
 @section('content')
     @php
-        $canBulkDelete = auth()->user()->can('users.delete');
+        $canDeleteAll = auth()->user()->can('users.delete');
+        $canBulkDelete = $canDeleteAll || auth()->user()->can('users.delete_student');
     @endphp
     <div class="space-y-6"
          x-data="{
@@ -134,8 +135,12 @@
                         <tr>
                             @if ($canBulkDelete)
                                 <td class="px-4 py-3">
-                                    <input type="checkbox" x-model="selected" value="{{ $u->id }}"
-                                           class="user-checkbox rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                                    {{-- Delete Student alone: a box on student rows only, so
+                                         select-all cannot pick up staff. --}}
+                                    @if ($canDeleteAll || $u->hasExactRoles(['student']))
+                                        <input type="checkbox" x-model="selected" value="{{ $u->id }}"
+                                               class="user-checkbox rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+                                    @endif
                                 </td>
                             @endif
                             <td class="px-4 py-3 text-slate-800">{{ $u->name }}</td>

@@ -127,11 +127,18 @@ class UserController extends Controller
      * delete is an UPDATE, and ON DELETE CASCADE only fires on a DELETE.
      * That's the intent here: the history is the point.
      *
+     * Two permissions reach here. Delete removes any non-admin account.
+     * Delete Student removes students only — an account that is a student
+     * and nothing else — so a role can be trusted with clearing out a
+     * graduating class without being able to remove staff.
+     *
      * Skipped IDs are silently ignored — no flash message is set.
      */
     public function bulkDestroy(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->can('users.delete'), 403);
+        $actor = $request->user();
+        $deleteAll = $actor->can('users.delete');
+        abort_unless($deleteAll || $actor->can('users.delete_student'), 403);
 
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
@@ -143,6 +150,9 @@ class UserController extends Controller
 
         foreach ($candidates as $user) {
             if ($user->id === $selfId || $user->hasRole('admin')) {
+                continue;
+            }
+            if (! $deleteAll && ! $user->hasExactRoles(['student'])) {
                 continue;
             }
             $user->delete();

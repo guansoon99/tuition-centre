@@ -248,9 +248,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/users/{user}/activate', [AdminUserController::class, 'activate'])->name('users.activate');
     });
 
-    // Permanent bulk delete — separate permission from deactivate. Controller
-    // enforces safety rules (can't delete self, can't delete admin users).
-    Route::middleware('permission:users.delete')->group(function () {
+    // Permanent bulk delete — separate permission from deactivate. Either
+    // Delete (any role) or Delete Student (students only) opens the door;
+    // the controller enforces which accounts each may actually remove, plus
+    // the safety rules (can't delete self, can't delete admin users).
+    Route::middleware('permission:users.delete|users.delete_student')->group(function () {
         Route::post('/users/bulk-destroy', [AdminUserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
     });
 
