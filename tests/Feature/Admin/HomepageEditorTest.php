@@ -27,19 +27,27 @@ class HomepageEditorTest extends TestCase
 
     private User $editor;
 
+    private User $viewer;
+
     private User $nobody;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        Permission::firstOrCreate(['name' => 'homepage.edit', 'guard_name' => 'web']);
+        foreach (['homepage.view', 'homepage.edit'] as $perm) {
+            Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+        }
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        Role::firstOrCreate(['name' => 'webmaster', 'guard_name' => 'web'])->syncPermissions(['homepage.edit']);
+        Role::firstOrCreate(['name' => 'webmaster', 'guard_name' => 'web'])->syncPermissions(['homepage.view', 'homepage.edit']);
+        Role::firstOrCreate(['name' => 'reviewer', 'guard_name' => 'web'])->syncPermissions(['homepage.view']);
         Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
 
         $this->editor = User::factory()->create(['is_active' => true]);
         $this->editor->assignRole('webmaster');
+
+        $this->viewer = User::factory()->create(['is_active' => true]);
+        $this->viewer->assignRole('reviewer');
 
         $this->nobody = User::factory()->create(['is_active' => true]);
         $this->nobody->assignRole('teacher');
@@ -69,9 +77,55 @@ class HomepageEditorTest extends TestCase
         return $this->as($this->editor)->putJson(route('homepage.update', $block), $data);
     }
 
-    public function test_the_permission_is_offered_in_its_own_group(): void
+    public function test_the_permissions_are_offered_in_their_own_group_view_first(): void
     {
-        $this->assertSame(['homepage.edit' => 'Edit'], PermissionCatalog::GROUPS['Homepage']);
+        $this->assertSame(['homepage.view' => 'View', 'homepage.edit' => 'Edit'], PermissionCatalog::GROUPS['Homepage']);
+    }
+
+    public function test_a_viewer_sees_the_page_but_none_of_the_controls_and_cannot_save(): void
+    {
+        $html = $this->as($this->viewer)->get(route('homepage.edit'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Systematic Classes', $html);
+        $this->assertStringContainsString('data-homepage-viewer', $html);
+        $this->assertStringContainsString('Viewing the homepage', $html);
+        $this->assertStringNotContainsString('data-homepage-editor', $html);
+        $this->assertStringNotContainsString('aria-label="Edit feature cards"', $html);
+        $this->assertStringNotContainsString('data-editing', $html);
+
+        $this->as($this->viewer)
+            ->putJson(route('homepage.update', 'cta'), ['heading' => 'x', 'button' => 'y'])
+            ->assertForbidden();
+        $this->as($this->viewer)
+            ->post(route('homepage.upload-image'), ['image' => UploadedFile::fake()->image('x.png')])
+            ->assertForbidden();
+    }
+
+    public function test_edit_alone_still_opens_the_page_with_the_controls(): void
+    {
+        Role::findByName('webmaster', 'web')->syncPermissions(['homepage.edit']);
+
+        $html = $this->as($this->editor)->get(route('homepage.edit'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-homepage-editor', $html);
+        $this->assertStringNotContainsString('data-homepage-viewer', $html);
+    }
+
+    public function test_the_settings_sidebar_reads_banner_contact_homepage_announcement_website_settings(): void
+    {
+        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+
+        $this->as($admin)->get('/')
+            ->assertOk()
+            ->assertSeeInOrder([
+                route('banner.index'),
+                route('contacts.index'),
+                route('homepage.edit'),
+                route('announcements.index'),
+                route('settings.show'),
+            ]);
     }
 
     public function test_the_editor_is_for_permission_holders_only(): void
@@ -390,9 +444,10 @@ class HomepageEditorTest extends TestCase
         $this->assertSame(['button' => 'B', 'heading' => 'H', 'text' => 'T'], $stored);
     }
 
-    public function test_the_sidebar_offers_the_editor_to_permission_holders(): void
+    public function test_the_sidebar_offers_the_page_to_viewers_and_editors_only(): void
     {
         $this->as($this->editor)->get('/')->assertOk()->assertSee(route('homepage.edit'));
+        $this->as($this->viewer)->get('/')->assertOk()->assertSee(route('homepage.edit'));
         $this->as($this->nobody)->get('/')->assertOk()->assertDontSee(route('homepage.edit'));
     }
 

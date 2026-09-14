@@ -51,6 +51,7 @@ class PermissionCatalog
             'roles.delete' => 'Delete',
         ],
         'Homepage' => [
+            'homepage.view' => 'View',
             'homepage.edit' => 'Edit',
         ],
         'Banner' => [

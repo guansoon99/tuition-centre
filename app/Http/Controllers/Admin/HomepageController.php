@@ -18,16 +18,21 @@ use Illuminate\Http\Request;
  */
 class HomepageController extends Controller
 {
-    public function edit(): View
+    public function edit(Request $request): View
     {
+        // A viewer gets the page as visitors see it, with a bar saying so;
+        // an editor gets the controls as well.
+        $editing = $request->user()->can('homepage.edit');
+
         return view('public.home', [
             'slides' => BannerSlide::where('is_active', true)
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get(),
             'content' => HomepageContent::all(),
-            'editorContent' => HomepageContent::forEditor(),
-            'editing' => true,
+            'editorContent' => $editing ? HomepageContent::forEditor() : null,
+            'editing' => $editing,
+            'backoffice' => true,
         ]);
     }
 

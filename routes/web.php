@@ -257,10 +257,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/users/bulk-destroy', [AdminUserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
     });
 
-    // Homepage — edited on the page itself. One permission covers the
-    // editor view and the per-block saves.
-    Route::middleware('permission:homepage.edit')->group(function () {
+    // Homepage — edited on the page itself. View opens the page in the back
+    // office as visitors see it; Edit adds the controls and the saves.
+    Route::middleware('permission:homepage.view|homepage.edit')->group(function () {
         Route::get('/homepage/edit', [HomepageController::class, 'edit'])->name('homepage.edit');
+    });
+    Route::middleware('permission:homepage.edit')->group(function () {
         Route::post('/homepage/upload-image', [HomepageController::class, 'uploadImage'])->name('homepage.upload-image');
         Route::put('/homepage/{block}', [HomepageController::class, 'update'])->name('homepage.update');
     });

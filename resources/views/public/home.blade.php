@@ -252,6 +252,18 @@
         </div>
     </section>
 
+    @if (! $editing && ($backoffice ?? false))
+        {{-- Opened from the back office by someone who may view but not
+             edit: the visitor's page, and a bar that says which this is. --}}
+        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-orange-200 bg-white/95 backdrop-blur" data-homepage-viewer>
+            <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 text-sm sm:px-8 lg:px-14 xl:px-24">
+                <p class="text-slate-700"><span class="font-semibold text-orange-600">Viewing the homepage</span> as visitors see it. Editing it needs the Homepage: Edit permission.</p>
+                <a href="{{ route('home') }}" class="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Back to admin</a>
+            </div>
+        </div>
+        <div class="h-16" aria-hidden="true"></div>
+    @endif
+
     @if ($editing)
         {{-- ======================================================== The editor --}}
         {{-- One panel for every block. An "Edit" button anywhere on the page
