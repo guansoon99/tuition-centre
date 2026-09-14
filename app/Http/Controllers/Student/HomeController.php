@@ -7,6 +7,7 @@ use App\Models\BannerSlide;
 use App\Models\Course;
 use App\Models\User;
 use App\Support\Cache\CacheKeys;
+use App\Support\HomepageContent;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -31,7 +32,10 @@ class HomeController extends Controller
                 ->get()
         );
 
-        return view('public.home', ['slides' => $slides]);
+        return view('public.home', [
+            'slides' => $slides,
+            'content' => HomepageContent::all(),
+        ]);
     }
 
     private function dashboard(User $user): View

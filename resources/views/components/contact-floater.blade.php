@@ -1,15 +1,6 @@
 @php
-    // Cache the active-contacts query so every page render doesn't hit the DB.
-    // The ContactController invalidates 'public:contacts' on any CRUD change.
-    $contacts = \Illuminate\Support\Facades\Cache::remember(
-        'public:contacts',
-        3600,
-        fn () => \App\Models\Contact::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get()
-    );
+    // Cached; ContactController forgets 'public:contacts' on any change.
+    $contacts = \App\Models\Contact::activeCached();
 @endphp
 
 @if ($contacts->isNotEmpty())

@@ -33,6 +33,26 @@ class Contact extends Model
     ];
 
     /**
+     * The active contacts in display order, cached. Shared by the floating
+     * contact buttons and the public footer; ContactController forgets
+     * 'public:contacts' on any change.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,self>
+     */
+    public static function activeCached(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            'public:contacts',
+            3600,
+            fn () => static::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+        );
+    }
+
+    /**
      * Convert the stored value into a clickable URL. Phone → tel:, WhatsApp →
      * wa.me/, Telegram → t.me/. Returns null if no sensible URL applies.
      */

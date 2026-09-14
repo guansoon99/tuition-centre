@@ -38,6 +38,9 @@
 
     // "Settings" section — visibility gated by the .view perm of each area.
     $settingsItems = [];
+    if ($user?->can('homepage.edit')) {
+        $settingsItems[] = ['label' => 'Homepage', 'route' => 'homepage.edit', 'active' => request()->routeIs('homepage.*')];
+    }
     if ($user?->can('banner.view')) {
         $settingsItems[] = ['label' => 'Banner', 'route' => 'banner.index', 'active' => request()->routeIs('banner.*')];
     }

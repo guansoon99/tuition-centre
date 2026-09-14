@@ -5,6 +5,7 @@ use App\Http\Controllers\AnnouncementImageController;
 use App\Http\Controllers\CourseMediaController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\BannerController;
+use App\Http\Controllers\Admin\HomepageController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\EventController;
@@ -254,6 +255,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     // the safety rules (can't delete self, can't delete admin users).
     Route::middleware('permission:users.delete|users.delete_student')->group(function () {
         Route::post('/users/bulk-destroy', [AdminUserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+    });
+
+    // Homepage — edited on the page itself. One permission covers the
+    // editor view and the per-block saves.
+    Route::middleware('permission:homepage.edit')->group(function () {
+        Route::get('/homepage/edit', [HomepageController::class, 'edit'])->name('homepage.edit');
+        Route::post('/homepage/upload-image', [HomepageController::class, 'uploadImage'])->name('homepage.upload-image');
+        Route::put('/homepage/{block}', [HomepageController::class, 'update'])->name('homepage.update');
     });
 
     // Banner — split per-action so admins can grant view/create/edit/delete separately.

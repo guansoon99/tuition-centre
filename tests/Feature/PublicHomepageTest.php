@@ -1,0 +1,151 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\BannerSlide;
+use App\Models\Contact;
+use App\Models\SiteSettings;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * The public homepage a guest sees at "/". Round 1: the layout with the data
+ * the site already has. The hero is the uploaded banner posters themselves,
+ * shown as they are; the rest is fixed copy until it becomes editable.
+ */
+class PublicHomepageTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function page(): string
+    {
+        return $this->get('/')->assertOk()->getContent();
+    }
+
+    public function test_the_page_carries_every_section(): void
+    {
+        $html = $this->page();
+
+        foreach (['id="top"', 'id="about"', 'id="reviews"', 'id="contact"'] as $anchor) {
+            $this->assertStringContainsString($anchor, $html);
+        }
+        // Login is reachable from the header and from the strip at least.
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'href="'.route('login').'"'));
+    }
+
+    public function test_the_hero_is_the_uploaded_posters_with_nothing_written_over_them(): void
+    {
+        BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'SLIDE_ONE', 'sort_order' => 1, 'is_active' => true]);
+        BannerSlide::create(['image_path' => 'banner-slides/b.jpg', 'title' => 'SLIDE_TWO', 'sort_order' => 2, 'is_active' => true]);
+        BannerSlide::create(['image_path' => 'banner-slides/c.jpg', 'title' => 'SLIDE_OFF', 'sort_order' => 3, 'is_active' => false]);
+
+        $html = $this->page();
+
+        $hero = substr($html, strpos($html, 'id="top"'), strpos($html, 'id="about"') - strpos($html, 'id="top"'));
+
+        $this->assertStringContainsString('alt="SLIDE_ONE"', $hero);
+        $this->assertStringContainsString('alt="SLIDE_TWO"', $hero);
+        $this->assertStringNotContainsString('SLIDE_OFF', $hero);
+        $this->assertLessThan(strpos($hero, 'SLIDE_TWO'), strpos($hero, 'SLIDE_ONE'), 'Slides keep their sort order.');
+        // The poster is the message: no headline, tagline or button on top of it.
+        $this->assertStringNotContainsString('<h1', $hero);
+        $this->assertStringNotContainsString('Login to Oster', $hero);
+        $this->assertStringNotContainsString('Selamat datang', $hero);
+        // Two slides: arrows and dots to move between them.
+        $this->assertStringContainsString('aria-label="Next slide"', $hero);
+        $this->assertStringContainsString('aria-label="Slide 2"', $hero);
+    }
+
+    public function test_a_single_poster_shows_without_arrows(): void
+    {
+        BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'ONLY_ONE', 'sort_order' => 1, 'is_active' => true]);
+
+        $html = $this->page();
+
+        $this->assertStringContainsString('alt="ONLY_ONE"', $html);
+        $this->assertStringNotContainsString('aria-label="Next slide"', $html);
+    }
+
+    public function test_without_posters_the_hero_is_a_placeholder_with_a_login_button(): void
+    {
+        SiteSettings::row()->update(['name' => 'Qin: STPM Pengajian Am']);
+        SiteSettings::forgetCache();
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Selamat datang')
+            ->assertSee('Qin: STPM Pengajian Am')
+            ->assertSee('Login to Oster');
+    }
+
+    public function test_the_feature_cards_and_reviews_are_present(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSeeInOrder(['Systematic Classes', 'Complete Notes', 'Recordings', 'Exam Resources'])
+            ->assertSee('What Our Students Say')
+            ->assertSee('Already a student?');
+    }
+
+    public function test_features_and_reviews_are_sideways_sliders_with_arrows(): void
+    {
+        $html = $this->page();
+
+        foreach (['features', 'reviews'] as $slider) {
+            $this->assertStringContainsString('data-slider="'.$slider.'"', $html);
+            $this->assertStringContainsString('aria-label="More '.$slider.'"', $html);
+            $this->assertStringContainsString('aria-label="Previous '.$slider.'"', $html);
+        }
+        // The arrows are always drawn; they grey out (disabled) at the ends
+        // rather than vanish, so the control is discoverable.
+        $this->assertSame(2, substr_count($html, ':disabled="! canPrev"'));
+        $this->assertSame(2, substr_count($html, ':disabled="! canNext"'));
+        $this->assertStringNotContainsString('x-show="canNext"', $html);
+        // The tracks scroll sideways and snap to cards.
+        $this->assertSame(2, substr_count($html, 'snap-x snap-mandatory'));
+        $this->assertStringContainsString('window.homeSlider', $html);
+    }
+
+    public function test_the_footer_lists_active_contacts_with_working_links(): void
+    {
+        Contact::create(['type' => Contact::TYPE_WHATSAPP, 'value' => '011 7240 3112', 'label' => '', 'sort_order' => 1, 'is_active' => true]);
+        Contact::create(['type' => Contact::TYPE_PHONE, 'value' => '03 1234 5678', 'label' => 'Office', 'sort_order' => 2, 'is_active' => true]);
+        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@hidden_one', 'label' => 'HIDDEN_CONTACT', 'sort_order' => 3, 'is_active' => false]);
+
+        $html = $this->page();
+
+        $this->assertStringContainsString('href="https://wa.me/01172403112"', $html);
+        $this->assertStringContainsString('011 7240 3112', $html);
+        $this->assertStringContainsString('href="tel:+0312345678"', $html);
+        $this->assertStringContainsString('Office', $html);
+        $this->assertStringNotContainsString('HIDDEN_CONTACT', $html);
+        // Copyright on the left, contacts on the right: in the markup the
+        // copyright line comes first.
+        $this->assertLessThan(strpos($html, 'wa.me/01172403112'), strpos($html, 'Hak cipta terpelihara'));
+    }
+
+    public function test_the_footer_shows_address_hours_and_the_malay_copyright(): void
+    {
+        SiteSettings::row()->update([
+            'name' => 'Qin: STPM Pengajian Am',
+            'contact_address' => '12, Jalan Contoh, Ipoh',
+            'contact_hours' => 'Mon–Sat 9am–6pm',
+        ]);
+        SiteSettings::forgetCache();
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('12, Jalan Contoh, Ipoh')
+            ->assertSee('Mon–Sat 9am–6pm')
+            ->assertSee('© '.date('Y').' Qin: STPM Pengajian Am. Hak cipta terpelihara.');
+    }
+
+    public function test_a_logged_in_user_still_gets_the_dashboard_not_the_homepage(): void
+    {
+        $user = \App\Models\User::factory()->create(['is_active' => true]);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'student', 'guard_name' => 'web']);
+        $user->assignRole('student');
+
+        $this->actingAs($user)->get('/')->assertOk()->assertDontSee('Already a student?');
+    }
+}
