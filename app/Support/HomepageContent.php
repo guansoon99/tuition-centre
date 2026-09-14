@@ -143,6 +143,7 @@ final class HomepageContent
                 'contacts.*.type' => ['required', Rule::in(array_keys(Contact::TYPES))],
                 'contacts.*.value' => ['required', 'string', 'max:100'],
                 'contacts.*.label' => ['nullable', 'string', 'max:100'],
+                'contacts.*.icon' => ['nullable', 'string', 'max:255', 'regex:#^'.self::IMAGE_FOLDER.'/[A-Za-z0-9._-]+$#'],
                 'contacts.*.active' => ['nullable', 'boolean'],
             ],
             default => throw new \InvalidArgumentException("Unknown homepage block [{$block}]."),
@@ -255,6 +256,8 @@ final class HomepageContent
                 'type' => $c->type,
                 'value' => $c->value,
                 'label' => (string) $c->label,
+                'icon' => (string) $c->icon_path,
+                'icon_url' => (string) ($c->icon_url ?? ''),
                 'active' => (bool) $c->is_active,
             ])
             ->values()
@@ -297,12 +300,16 @@ final class HomepageContent
             $contacts = $data['contacts'] ?? [];
             ksort($contacts);
 
+            // Icons no contact points at afterwards are deleted from the disk.
+            $iconsBefore = Contact::query()->whereNotNull('icon_path')->pluck('icon_path')->all();
+
             $keep = [];
             foreach (array_values($contacts) as $i => $c) {
                 $attrs = [
                     'type' => $c['type'],
                     'value' => $c['value'],
                     'label' => (string) ($c['label'] ?? ''),
+                    'icon_path' => ($c['icon'] ?? '') !== '' ? $c['icon'] : null,
                     'sort_order' => $i + 1,
                     'is_active' => (bool) ($c['active'] ?? true),
                 ];
@@ -315,6 +322,11 @@ final class HomepageContent
                 $keep[] = $row->id;
             }
             Contact::query()->whereNotIn('id', $keep)->delete();
+
+            $iconsAfter = Contact::query()->whereNotNull('icon_path')->pluck('icon_path')->all();
+            foreach (array_diff($iconsBefore, $iconsAfter) as $orphan) {
+                PublicFile::forget($orphan);
+            }
         });
 
         SiteSettings::forgetCache();

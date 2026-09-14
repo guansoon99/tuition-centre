@@ -34,7 +34,7 @@
         <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Value</label>
             <input type="text" name="value" required maxlength="100"
-                   :placeholder="type === 'telegram' ? 'e.g. @myhandle' : 'e.g. 60123456789'"
+                   :placeholder="({ telegram: 'e.g. @myhandle', facebook: 'e.g. https://facebook.com/yourpage or yourpage', xhs: 'e.g. the profile link, or the profile id' })[type] || 'e.g. 60123456789'"
                    value="{{ old('value', $contact?->value) }}"
                    class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
             @error('value') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror

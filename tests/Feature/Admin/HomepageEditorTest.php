@@ -289,6 +289,48 @@ class HomepageEditorTest extends TestCase
         $this->assertSame([true, true, false], array_column($contacts, 'active'));
     }
 
+    public function test_facebook_and_xhs_contacts_show_in_the_footer_and_can_wear_their_own_icon(): void
+    {
+        Storage::fake(PublicFile::disk());
+        $icon = $this->as($this->editor)->post(route('homepage.upload-image'), ['image' => UploadedFile::fake()->image('fb.png', 64, 64)])->json();
+
+        $this->saveBlock('footer', [
+            'copyright' => 'x',
+            'contacts' => [
+                ['type' => 'facebook', 'value' => 'qin.stpm', 'label' => 'Qin: STPM Pengajian Am', 'icon' => $icon['path'], 'active' => true],
+                ['type' => 'xhs', 'value' => 'https://www.xiaohongshu.com/user/profile/abc123', 'label' => 'Qin | STPM', 'icon' => '', 'active' => true],
+            ],
+        ])->assertOk();
+
+        // The footer, as a visitor.
+        $html = $this->asGuest()->get('/')->assertOk()->getContent();
+        $this->assertStringContainsString('href="https://www.facebook.com/qin.stpm"', $html);
+        $this->assertStringContainsString('href="https://www.xiaohongshu.com/user/profile/abc123"', $html);
+        $this->assertSame(1, substr_count($html, 'data-contact-icon'), 'Only the Facebook button wears an uploaded icon.');
+        $this->assertStringContainsString($icon['url'], $html);
+        $this->assertStringContainsString('>XHS</span>', $html, 'The XHS button uses the built-in badge.');
+
+        // The floating buttons, on a logged-in page, use the same icon.
+        $inside = $this->as($this->editor)->get('/')->assertOk()->getContent();
+        $this->assertStringContainsString('data-contact-icon', $inside);
+        $this->assertStringContainsString($icon['url'], $inside);
+
+        // Stored on the row, previewed in the editor.
+        $this->assertSame($icon['path'], Contact::where('type', 'facebook')->first()->icon_path);
+        $contacts = HomepageContent::forEditor()['footer']['contacts'];
+        $this->assertSame($icon['url'], $contacts[0]['icon_url']);
+        $this->assertSame('', $contacts[1]['icon_url']);
+
+        // Dropping the icon deletes the file; a path outside the folder is refused.
+        $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [
+            ['id' => Contact::where('type', 'facebook')->first()->id, 'type' => 'facebook', 'value' => 'qin.stpm', 'label' => '', 'icon' => '', 'active' => true],
+        ]])->assertOk();
+        Storage::disk(PublicFile::disk())->assertMissing($icon['path']);
+        $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [['type' => 'facebook', 'value' => 'x', 'icon' => 'banner-slides/no.jpg']]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['contacts.0.icon']);
+    }
+
     public function test_the_footer_refuses_an_unknown_contact_type(): void
     {
         $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [['type' => 'fax', 'value' => '1']]])

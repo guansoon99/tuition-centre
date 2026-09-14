@@ -13,17 +13,22 @@ class Contact extends Model
     public const TYPE_PHONE = 'phone';
     public const TYPE_WHATSAPP = 'whatsapp';
     public const TYPE_TELEGRAM = 'telegram';
+    public const TYPE_FACEBOOK = 'facebook';
+    public const TYPE_XHS = 'xhs';
 
     public const TYPES = [
         self::TYPE_PHONE => 'Phone',
         self::TYPE_WHATSAPP => 'WhatsApp',
         self::TYPE_TELEGRAM => 'Telegram',
+        self::TYPE_FACEBOOK => 'Facebook',
+        self::TYPE_XHS => 'Xiaohongshu (XHS)',
     ];
 
     protected $fillable = [
         'type',
         'value',
         'label',
+        'icon_path',
         'sort_order',
         'is_active',
     ];
@@ -65,9 +70,29 @@ class Contact extends Model
                 self::TYPE_PHONE => $digits ? 'tel:+'.$digits : null,
                 self::TYPE_WHATSAPP => $digits ? 'https://wa.me/'.$digits : null,
                 self::TYPE_TELEGRAM => 'https://t.me/'.ltrim($this->value, '@'),
+                // A full link is used as given; a bare page name or profile
+                // id is put on the site's profile URL.
+                self::TYPE_FACEBOOK => self::linkOr($this->value, 'https://www.facebook.com/'),
+                self::TYPE_XHS => self::linkOr($this->value, 'https://www.xiaohongshu.com/user/profile/'),
                 default => null,
             };
         });
+    }
+
+    private static function linkOr(?string $value, string $base): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return preg_match('#^https?://#i', $value) ? $value : $base.ltrim($value, '@/');
+    }
+
+    /** The uploaded icon's URL, or null to use the built-in glyph. */
+    protected function iconUrl(): Attribute
+    {
+        return Attribute::get(fn () => \App\Support\PublicFile::url($this->icon_path));
     }
 
     protected function typeLabel(): Attribute

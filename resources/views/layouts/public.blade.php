@@ -67,7 +67,15 @@
                     @else
                         <span class="inline-flex items-center gap-2" title="{{ $contact->type_label }}">
                     @endif
-                            @if ($contact->type === \App\Models\Contact::TYPE_WHATSAPP)
+                            @if ($contact->icon_url)
+                                <img src="{{ $contact->icon_url }}" alt="" class="h-6 w-6 rounded-full object-cover" data-contact-icon />
+                            @elseif ($contact->type === \App\Models\Contact::TYPE_FACEBOOK)
+                                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1877F2] text-white" aria-hidden="true">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="''' + FB_PATH + '''"/></svg>
+                                </span>
+                            @elseif ($contact->type === \App\Models\Contact::TYPE_XHS)
+                                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#FF2442] text-[7px] font-extrabold text-white" aria-hidden="true">XHS</span>
+                            @elseif ($contact->type === \App\Models\Contact::TYPE_WHATSAPP)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#25D366] text-white" aria-hidden="true">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>
                                 </span>

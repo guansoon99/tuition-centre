@@ -457,6 +457,25 @@
                                                     <button type="button" @click="remove('contacts', i)" class="rounded-md border border-red-300 px-2 py-0.5 text-xs text-red-700" aria-label="Remove contact">✕</button>
                                                 </div>
                                             </div>
+                                            {{-- The button's icon: the built-in one for its
+                                                 type, or an uploaded icon of the admin's own. --}}
+                                            <div class="flex items-center gap-3" data-contact-picture>
+                                                <template x-if="c.icon">
+                                                    <img :src="c.icon_url" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200" data-contact-preview />
+                                                </template>
+                                                <template x-if="! c.icon">
+                                                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[9px] font-extrabold text-white" x-text="({ phone: 'TEL', whatsapp: 'WA', telegram: 'TG', facebook: 'FB', xhs: 'XHS' })[c.type] || '?'"></span>
+                                                </template>
+                                                <div class="flex flex-col gap-1">
+                                                    <label class="cursor-pointer rounded-md border border-slate-300 px-2.5 py-1 text-center text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">
+                                                        <span x-text="c.icon ? 'Change icon' : 'Upload icon'"></span>
+                                                        <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="uploadImage(c, $event, 'icon')" data-contact-upload />
+                                                    </label>
+                                                    <button type="button" x-show="c.icon" @click="c.icon = ''; c.icon_url = ''"
+                                                            class="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:border-orange-400 hover:text-orange-600">Use the default icon</button>
+                                                </div>
+                                                <p class="text-xs text-slate-600">Without an upload, the built-in icon for the type is used.</p>
+                                            </div>
                                             <div class="grid grid-cols-[8rem,1fr] gap-2">
                                                 <label class="block">
                                                     <span class="text-xs text-slate-600">Type</span>
@@ -467,8 +486,8 @@
                                                     </select>
                                                 </label>
                                                 <label class="block">
-                                                    <span class="text-xs text-slate-600">Number or username</span>
-                                                    <input type="text" x-model="c.value" maxlength="100" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" placeholder="011 7240 3112 or @username" />
+                                                    <span class="text-xs text-slate-600">Number, username or link</span>
+                                                    <input type="text" x-model="c.value" maxlength="100" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" placeholder="011 7240 3112, @username, or a page link" />
                                                 </label>
                                             </div>
                                             <label class="block">
@@ -477,7 +496,7 @@
                                             </label>
                                         </div>
                                     </template>
-                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', active: true })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
+                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', icon: '', icon_url: '', active: true })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
                                 </div>
                             </div>
                         </template>
@@ -508,7 +527,7 @@
                     uploading: false,
                     // A card's own image: sent as soon as it is picked, so the
                     // card previews it and Save only has a path to store.
-                    async uploadImage(item, event) {
+                    async uploadImage(item, event, field = 'image') {
                         const file = event.target.files && event.target.files[0];
                         if (! file || this.uploading) return;
                         this.uploading = true;
@@ -532,8 +551,8 @@
                             }
                             if (! res.ok) throw new Error('Upload failed (' + res.status + ').');
                             const data = await res.json();
-                            item.image = data.path;
-                            item.image_url = data.url;
+                            item[field] = data.path;
+                            item[field + '_url'] = data.url;
                         } catch (e) {
                             this.errors = [e.message];
                         } finally {
