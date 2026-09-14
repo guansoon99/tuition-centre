@@ -338,7 +338,11 @@ class HomepageEditorTest extends TestCase
     {
         $this->saveBlock('cta', ['heading' => 'H', 'text' => 'T', 'button' => 'B', 'evil' => '<script>'])->assertOk();
 
-        $this->assertSame(['heading' => 'H', 'text' => 'T', 'button' => 'B'], HomepageBlock::find('cta')->data);
+        // MySQL's JSON column stores object keys in its own order (SQLite keeps
+        // the text as given), so compare with the keys sorted.
+        $stored = HomepageBlock::find('cta')->data;
+        ksort($stored);
+        $this->assertSame(['button' => 'B', 'heading' => 'H', 'text' => 'T'], $stored);
     }
 
     public function test_the_sidebar_offers_the_editor_to_permission_holders(): void
