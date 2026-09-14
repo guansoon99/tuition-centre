@@ -26,17 +26,18 @@
 @section('content')
     {{-- ============================================================ Hero --}}
     {{-- The hero IS the uploaded banners: posters designed by the admin,
-         shown as they are, edge to edge inside the page width. No text is
-         laid over them -- whatever the poster says is the message. --}}
+         shown as they are, the full width of the window with nothing around
+         them. No text is laid over them -- whatever the poster says is the
+         message. --}}
     <section id="top" class="bg-amber-50">
-        <div class="relative mx-auto max-w-6xl px-4 py-6 sm:py-8">
+        <div class="relative">
             @if ($editing)
                 @can('banner.view')
-                    <a href="{{ route('banner.index') }}" class="{{ $editButton }} right-8 top-10" aria-label="Manage posters">{!! $pencil !!} Manage posters</a>
+                    <a href="{{ route('banner.index') }}" class="{{ $editButton }}" aria-label="Manage posters">{!! $pencil !!} Manage posters</a>
                 @endcan
             @endif
             @if ($slides->isNotEmpty())
-                <div class="relative overflow-hidden rounded-3xl bg-white shadow-2xl shadow-orange-100 ring-1 ring-orange-100"
+                <div class="relative overflow-hidden bg-white"
                      x-data="{
                         current: 0,
                         total: {{ $slides->count() }},
@@ -48,12 +49,11 @@
                      @mouseenter="paused = true"
                      @mouseleave="paused = false">
                     {{-- The first slide sizes the frame at its natural aspect
-                         ratio, capped at 70% of the viewport so a tall poster
-                         cannot push everything else off screen; the rest are
-                         overlaid so the cross-fade never changes the height.
-                         Posters should share one size (the banner form
-                         recommends 1600x500). --}}
-                    <img src="{{ $slides->first()->image_url }}" alt="" aria-hidden="true" class="invisible block h-auto max-h-[70vh] w-full" />
+                         ratio, however tall that is; the rest are overlaid so
+                         the cross-fade never changes the height. Posters
+                         should share one size (the banner form recommends
+                         1600x500). --}}
+                    <img src="{{ $slides->first()->image_url }}" alt="" aria-hidden="true" class="invisible block h-auto w-full" />
                     @foreach ($slides as $i => $slide)
                         <img src="{{ $slide->image_url }}"
                              alt="{{ $slide->title }}"
@@ -89,7 +89,7 @@
             @else
                 {{-- No poster uploaded yet: a warm placeholder at the same
                      spot, so the page still opens on something. --}}
-                <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-amber-400 to-amber-300 px-8 py-16 text-white shadow-2xl shadow-orange-100 sm:px-14 sm:py-24">
+                <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-amber-300 px-6 py-16 text-white sm:px-12 sm:py-24">
                     <div class="absolute -right-10 -top-10 h-56 w-56 rounded-full bg-white/20 blur-2xl" aria-hidden="true"></div>
                     <div class="absolute -bottom-16 -left-16 h-72 w-72 rounded-full bg-orange-700/30 blur-2xl" aria-hidden="true"></div>
                     <div class="relative max-w-2xl">
@@ -109,7 +109,7 @@
 
     {{-- ============================================================ Features --}}
     <section id="about" class="scroll-mt-20 bg-white">
-        <div class="relative mx-auto max-w-6xl px-4 py-14">
+        <div class="relative px-5 py-14 sm:px-8 lg:px-14 xl:px-24">
         @if ($editing)
             <button type="button" @click="$dispatch('homepage-edit', 'features')" class="{{ $editButton }} top-4" aria-label="Edit feature cards">{!! $pencil !!} Edit</button>
         @endif
@@ -169,7 +169,7 @@
     {{-- ============================================================ Reviews --}}
     @if ($editing || count($reviews['items']) > 0)
     <section id="reviews" class="scroll-mt-20 bg-amber-50/60">
-        <div class="relative mx-auto max-w-6xl px-4 py-14">
+        <div class="relative px-5 py-14 sm:px-8 lg:px-14 xl:px-24">
             @if ($editing)
                 <button type="button" @click="$dispatch('homepage-edit', 'reviews')" class="{{ $editButton }} top-4" aria-label="Edit student reviews">{!! $pencil !!} Edit</button>
             @endif
@@ -227,7 +227,7 @@
 
     {{-- ============================================================ Already a student --}}
     <section class="bg-white">
-        <div class="mx-auto max-w-6xl px-4 py-12">
+        <div class="px-5 py-12 sm:px-8 lg:px-14 xl:px-24">
             <div class="relative flex flex-col items-start gap-6 rounded-3xl bg-amber-100 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-10">
                 @if ($editing)
                     <button type="button" @click="$dispatch('homepage-edit', 'cta')" class="{{ $editButton }}" aria-label="Edit the already-a-student strip">{!! $pencil !!} Edit</button>
@@ -264,13 +264,13 @@
                 $editorUrls[$key] = route('homepage.update', $key);
             }
         @endphp
-        <div x-data="homepageEditor(@js($editorContent ?? $content), @js($editorUrls), @js(\App\Support\HomepageContent::labels()), @js(route('homepage.upload-image')))"
+        <div x-data="homepageEditor(@js($editorContent ?? $content), @js($editorUrls), @js(\App\Support\HomepageContent::labels()), @js(route('homepage.upload-image')), @js(\App\Models\Contact::builtInIconUrls()))"
              @homepage-edit.window="open($event.detail)"
              @keydown.escape.window="close()"
              data-homepage-editor>
             {{-- The bar that says this is edit mode --}}
             <div class="fixed inset-x-0 bottom-0 z-40 border-t border-orange-200 bg-white/95 backdrop-blur">
-                <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 text-sm sm:px-8 lg:px-14 xl:px-24">
                     <p class="text-slate-700"><span class="font-semibold text-orange-600">Editing the homepage.</span> Click <span class="font-semibold">Edit</span> on a block. Changes go live when you save.</p>
                     <a href="{{ route('home') }}" class="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Back to admin</a>
                 </div>
@@ -463,7 +463,10 @@
                                                 <template x-if="c.icon">
                                                     <img :src="c.icon_url" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200" data-contact-preview />
                                                 </template>
-                                                <template x-if="! c.icon">
+                                                <template x-if="! c.icon && builtIn[c.type]">
+                                                    <img :src="builtIn[c.type]" alt="" class="h-9 w-9 shrink-0 object-contain" data-contact-builtin />
+                                                </template>
+                                                <template x-if="! c.icon && ! builtIn[c.type]">
                                                     <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[9px] font-extrabold text-white" x-text="({ phone: 'TEL', whatsapp: 'WA', telegram: 'TG', facebook: 'FB', xhs: 'XHS' })[c.type] || '?'"></span>
                                                 </template>
                                                 <div class="flex flex-col gap-1">
@@ -517,9 +520,10 @@
         </div>
 
         <script>
-            window.homepageEditor = function (content, urls, labels, uploadUrl) {
+            window.homepageEditor = function (content, urls, labels, uploadUrl, builtIn) {
                 return {
                     content, urls, labels, uploadUrl,
+                    builtIn: builtIn || {},
                     block: null,
                     draft: {},
                     errors: [],

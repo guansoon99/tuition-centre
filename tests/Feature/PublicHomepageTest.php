@@ -56,6 +56,24 @@ class PublicHomepageTest extends TestCase
         $this->assertStringContainsString('aria-label="Slide 2"', $hero);
     }
 
+    public function test_the_hero_spans_the_full_width_and_the_rest_lines_up_with_it(): void
+    {
+        BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'WIDE', 'sort_order' => 1, 'is_active' => true]);
+
+        $html = $this->page();
+        $hero = substr($html, strpos($html, 'id="top"'), strpos($html, 'id="about"') - strpos($html, 'id="top"'));
+
+        // No centred column, no side padding, no rounded frame around the poster.
+        $this->assertStringNotContainsString('max-w-', $hero);
+        $this->assertStringNotContainsString('px-5', $hero);
+        $this->assertStringNotContainsString('rounded-3xl', $hero);
+        // And no height cap: the poster is as tall as its width makes it.
+        $this->assertStringNotContainsString('max-h-', $hero);
+        // Header, sections and footer are full width too, on one padding scale.
+        $this->assertStringNotContainsString('max-w-6xl', $html);
+        $this->assertGreaterThanOrEqual(5, substr_count($html, 'px-5 py-'), 'Header, three sections and the footer share the padding scale.');
+    }
+
     public function test_a_single_poster_shows_without_arrows(): void
     {
         BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'ONLY_ONE', 'sort_order' => 1, 'is_active' => true]);
@@ -119,9 +137,25 @@ class PublicHomepageTest extends TestCase
         $this->assertStringContainsString('href="tel:+0312345678"', $html);
         $this->assertStringContainsString('Office', $html);
         $this->assertStringNotContainsString('HIDDEN_CONTACT', $html);
+        // Each type wears its built-in icon image from public/images/icons.
+        $this->assertStringContainsString('images/icons/whatsapp.webp', $html);
+        $this->assertStringContainsString('images/icons/phone.webp', $html);
+        $this->assertSame(2, substr_count($html, 'data-contact-icon="built-in"'));
         // Copyright on the left, contacts on the right: in the markup the
         // copyright line comes first.
         $this->assertLessThan(strpos($html, 'wa.me/01172403112'), strpos($html, 'Hak cipta terpelihara'));
+    }
+
+    public function test_a_type_without_a_built_in_icon_file_keeps_its_glyph(): void
+    {
+        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@qin', 'label' => 'Telegram us', 'sort_order' => 1, 'is_active' => true]);
+
+        $html = $this->page();
+
+        $this->assertStringContainsString('href="https://t.me/qin"', $html);
+        $this->assertStringNotContainsString('data-contact-icon', $html);
+        $this->assertNull(Contact::builtInIconUrl(Contact::TYPE_TELEGRAM));
+        $this->assertStringEndsWith('images/icons/whatsapp.webp', Contact::builtInIconUrl(Contact::TYPE_WHATSAPP));
     }
 
     public function test_the_footer_shows_address_hours_and_the_malay_copyright(): void

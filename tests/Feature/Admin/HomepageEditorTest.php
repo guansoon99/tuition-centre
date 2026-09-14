@@ -306,14 +306,17 @@ class HomepageEditorTest extends TestCase
         $html = $this->asGuest()->get('/')->assertOk()->getContent();
         $this->assertStringContainsString('href="https://www.facebook.com/qin.stpm"', $html);
         $this->assertStringContainsString('href="https://www.xiaohongshu.com/user/profile/abc123"', $html);
-        $this->assertSame(1, substr_count($html, 'data-contact-icon'), 'Only the Facebook button wears an uploaded icon.');
+        $this->assertSame(1, substr_count($html, 'data-contact-icon="uploaded"'), 'Only the Facebook button wears an uploaded icon.');
         $this->assertStringContainsString($icon['url'], $html);
-        $this->assertStringContainsString('>XHS</span>', $html, 'The XHS button uses the built-in badge.');
+        $this->assertSame(1, substr_count($html, 'data-contact-icon="built-in"'), 'The XHS button uses the built-in icon image.');
+        $this->assertStringContainsString('images/icons/xhs.webp', $html);
+        $this->assertStringNotContainsString('images/icons/facebook.webp', $html, 'The uploaded icon replaces the built-in one.');
 
-        // The floating buttons, on a logged-in page, use the same icon.
+        // The floating buttons, on a logged-in page, use the same icons.
         $inside = $this->as($this->editor)->get('/')->assertOk()->getContent();
-        $this->assertStringContainsString('data-contact-icon', $inside);
+        $this->assertStringContainsString('data-contact-icon="uploaded"', $inside);
         $this->assertStringContainsString($icon['url'], $inside);
+        $this->assertStringContainsString('images/icons/xhs.webp', $inside);
 
         // Stored on the row, previewed in the editor.
         $this->assertSame($icon['path'], Contact::where('type', 'facebook')->first()->icon_path);

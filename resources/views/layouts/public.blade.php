@@ -24,7 +24,7 @@
     @endphp
 
     <header class="sticky top-0 z-30 border-b border-orange-100 bg-white/90 backdrop-blur">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+        <div class="flex items-center justify-between gap-4 px-5 py-3 sm:px-8 lg:px-14 xl:px-24">
             <a href="{{ url('/') }}" class="flex items-center">
                 <x-brand size="md" />
             </a>
@@ -42,7 +42,7 @@
     </main>
 
     <footer id="contact" class="scroll-mt-20 border-t border-orange-100 bg-white">
-        <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-4 px-5 py-6 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-14 xl:px-24">
             <p class="flex items-center gap-3 text-slate-600 sm:shrink-0">
                 <span>{{ \App\Support\HomepageContent::fill(\App\Support\HomepageContent::get('footer')['copyright']) }}</span>
                 @if ($editing)
@@ -68,7 +68,9 @@
                         <span class="inline-flex items-center gap-2" title="{{ $contact->type_label }}">
                     @endif
                             @if ($contact->icon_url)
-                                <img src="{{ $contact->icon_url }}" alt="" class="h-6 w-6 rounded-full object-cover" data-contact-icon />
+                                <img src="{{ $contact->icon_url }}" alt="" class="h-6 w-6 rounded-full object-cover" data-contact-icon="uploaded" />
+                            @elseif ($contact->display_icon_url)
+                                <img src="{{ $contact->display_icon_url }}" alt="" class="h-6 w-6 object-contain" data-contact-icon="built-in" />
                             @elseif ($contact->type === \App\Models\Contact::TYPE_FACEBOOK)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1877F2] text-white" aria-hidden="true">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="''' + FB_PATH + '''"/></svg>

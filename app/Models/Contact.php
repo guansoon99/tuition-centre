@@ -24,6 +24,18 @@ class Contact extends Model
         self::TYPE_XHS => 'Xiaohongshu (XHS)',
     ];
 
+    /**
+     * The built-in icon per type: image files under public/images/icons,
+     * used wherever a contact has no uploaded icon of its own. A type with
+     * no file here (Telegram) falls back to an inline glyph.
+     */
+    public const BUILT_IN_ICONS = [
+        self::TYPE_PHONE => 'images/icons/phone.webp',
+        self::TYPE_WHATSAPP => 'images/icons/whatsapp.webp',
+        self::TYPE_FACEBOOK => 'images/icons/facebook.webp',
+        self::TYPE_XHS => 'images/icons/xhs.webp',
+    ];
+
     protected $fillable = [
         'type',
         'value',
@@ -89,10 +101,39 @@ class Contact extends Model
         return preg_match('#^https?://#i', $value) ? $value : $base.ltrim($value, '@/');
     }
 
-    /** The uploaded icon's URL, or null to use the built-in glyph. */
+    /** The uploaded icon's URL, or null when the contact has none. */
     protected function iconUrl(): Attribute
     {
         return Attribute::get(fn () => \App\Support\PublicFile::url($this->icon_path));
+    }
+
+    /** The built-in icon image for a type, or null if there is no file for it. */
+    public static function builtInIconUrl(string $type): ?string
+    {
+        $path = self::BUILT_IN_ICONS[$type] ?? null;
+
+        return $path && is_file(public_path($path)) ? asset($path) : null;
+    }
+
+    /** @return array<string,?string> type => built-in icon URL (null = none) */
+    public static function builtInIconUrls(): array
+    {
+        $urls = [];
+        foreach (array_keys(self::TYPES) as $type) {
+            $urls[$type] = self::builtInIconUrl($type);
+        }
+
+        return $urls;
+    }
+
+    /**
+     * The icon image to show, if any: the uploaded one first, else the
+     * built-in one for the type. Null means "draw the inline glyph".
+     * Callers that care which of the two it is can compare with icon_url.
+     */
+    protected function displayIconUrl(): Attribute
+    {
+        return Attribute::get(fn () => $this->icon_url ?? self::builtInIconUrl($this->type));
     }
 
     protected function typeLabel(): Attribute

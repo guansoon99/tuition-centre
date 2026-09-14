@@ -20,10 +20,13 @@
                @if ($contact->type !== \App\Models\Contact::TYPE_PHONE) target="_blank" rel="noopener" @endif
                title="{{ $contact->label ?: $contact->type_label.' — '.$contact->value }}"
                aria-label="{{ $contact->label ?: $contact->type_label }}"
-               class="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-white shadow-lg transition-transform hover:scale-110 {{ $style }}">
+               class="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-white transition-transform hover:scale-110 {{ $contact->display_icon_url ? '' : $style.' shadow-lg' }}">
                 @if ($contact->icon_url)
                     {{-- The admin's own icon, uploaded from the homepage editor --}}
-                    <img src="{{ $contact->icon_url }}" alt="" class="h-full w-full object-cover" data-contact-icon />
+                    <img src="{{ $contact->icon_url }}" alt="" class="h-full w-full object-cover" data-contact-icon="uploaded" />
+                @elseif ($contact->display_icon_url)
+                    {{-- The built-in icon image for the type (public/images/icons) --}}
+                    <img src="{{ $contact->display_icon_url }}" alt="" class="h-full w-full object-contain" data-contact-icon="built-in" />
                 @elseif ($contact->type === \App\Models\Contact::TYPE_FACEBOOK)
                     {{-- Facebook glyph --}}
                     <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="''' + FB_PATH + '''"/></svg>
