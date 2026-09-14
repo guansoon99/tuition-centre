@@ -1,6 +1,10 @@
-@extends('layouts.public')
+{{-- Visitors get the public layout. Opened from the back office (view or
+     edit), the same page renders inside the admin layout, sidebar and all,
+     with the public header and footer included so it still reads as the
+     visitor's page. --}}
+@extends(($backoffice ?? false) ? 'layouts.app' : 'layouts.public')
 
-@section('title', \App\Models\SiteSettings::current()->displayName())
+@section('title', ($backoffice ?? false) ? 'Homepage' : \App\Models\SiteSettings::current()->displayName())
 
 @php
     $settings = \App\Models\SiteSettings::current();
@@ -24,6 +28,14 @@
 @endphp
 
 @section('content')
+    @if ($backoffice ?? false)
+        {{-- Cancel the admin content padding so the page fills the area edge
+             to edge. The admin body is already an Alpine tree, so the Edit
+             buttons can $dispatch to the editor panel from anywhere here. --}}
+        <div class="-mx-4 -my-6 sm:-mx-6 lg:-mx-8" @if ($editing) data-editing @endif>
+        @include('public._header', ['sticky' => false])
+    @endif
+
     {{-- ============================================================ Hero --}}
     {{-- The hero IS the uploaded banners: posters designed by the admin,
          shown as they are, the full width of the window with nothing around
@@ -252,16 +264,9 @@
         </div>
     </section>
 
-    @if (! $editing && ($backoffice ?? false))
-        {{-- Opened from the back office by someone who may view but not
-             edit: the visitor's page, and a bar that says which this is. --}}
-        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-orange-200 bg-white/95 backdrop-blur" data-homepage-viewer>
-            <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 text-sm sm:px-8 lg:px-14 xl:px-24">
-                <p class="text-slate-700"><span class="font-semibold text-orange-600">Viewing the homepage</span> as visitors see it. Editing it needs the Homepage: Edit permission.</p>
-                <a href="{{ route('home') }}" class="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Back to admin</a>
-            </div>
+    @if ($backoffice ?? false)
+        @include('public._footer')
         </div>
-        <div class="h-16" aria-hidden="true"></div>
     @endif
 
     @if ($editing)
@@ -280,18 +285,10 @@
              @homepage-edit.window="open($event.detail)"
              @keydown.escape.window="close()"
              data-homepage-editor>
-            {{-- The bar that says this is edit mode --}}
-            <div class="fixed inset-x-0 bottom-0 z-40 border-t border-orange-200 bg-white/95 backdrop-blur">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 text-sm sm:px-8 lg:px-14 xl:px-24">
-                    <p class="text-slate-700"><span class="font-semibold text-orange-600">Editing the homepage.</span> Click <span class="font-semibold">Edit</span> on a block. Changes go live when you save.</p>
-                    <a href="{{ route('home') }}" class="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Back to admin</a>
-                </div>
-            </div>
-
             {{-- The panel --}}
             <div x-cloak x-show="block !== null" class="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" :aria-label="block ? labels[block] : ''">
                 <div class="flex-1 bg-slate-900/40" @click="close()"></div>
-                <form @submit.prevent="save()" class="flex w-full max-w-lg flex-col bg-white shadow-2xl">
+                <form @submit.prevent="save()" data-no-spinner class="flex w-full max-w-lg flex-col bg-white shadow-2xl">
                     <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                         <h2 class="text-base font-semibold text-slate-900" x-text="block ? labels[block] : ''"></h2>
                         <button type="button" @click="close()" class="rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label="Close">

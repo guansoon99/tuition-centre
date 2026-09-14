@@ -87,8 +87,9 @@ class HomepageEditorTest extends TestCase
         $html = $this->as($this->viewer)->get(route('homepage.edit'))->assertOk()->getContent();
 
         $this->assertStringContainsString('Systematic Classes', $html);
-        $this->assertStringContainsString('data-homepage-viewer', $html);
-        $this->assertStringContainsString('Viewing the homepage', $html);
+        // Inside the admin layout: the sidebar is there, no bar at the bottom.
+        $this->assertStringContainsString('<aside', $html);
+        $this->assertStringNotContainsString('Back to admin', $html);
         $this->assertStringNotContainsString('data-homepage-editor', $html);
         $this->assertStringNotContainsString('aria-label="Edit feature cards"', $html);
         $this->assertStringNotContainsString('data-editing', $html);
@@ -108,7 +109,7 @@ class HomepageEditorTest extends TestCase
         $html = $this->as($this->editor)->get(route('homepage.edit'))->assertOk()->getContent();
 
         $this->assertStringContainsString('data-homepage-editor', $html);
-        $this->assertStringNotContainsString('data-homepage-viewer', $html);
+        $this->assertStringContainsString('<aside', $html);
     }
 
     public function test_the_settings_sidebar_reads_banner_contact_homepage_announcement_website_settings(): void
@@ -152,8 +153,13 @@ class HomepageEditorTest extends TestCase
             $this->assertStringContainsString('aria-label="'.$label.'"', $html);
         }
         $this->assertStringContainsString('data-homepage-editor', $html);
-        $this->assertStringContainsString('Editing the homepage.', $html);
         $this->assertStringContainsString('data-editing', $html);
+        // ...inside the admin layout, with the public header and footer in
+        // the page and no bar pinned to the bottom.
+        $this->assertStringContainsString('<aside', $html);
+        $this->assertStringContainsString('Hak cipta terpelihara', $html);
+        $this->assertStringNotContainsString('Back to admin', $html);
+        $this->assertStringNotContainsString('Editing the homepage.', $html);
         // @js() hands the editor its URL map inside JSON.parse('...'), so the
         // slashes come out escaped twice over; strip every backslash to compare.
         $this->assertStringContainsString(route('homepage.update', 'features'), str_replace(chr(92), '', $html));
@@ -164,9 +170,9 @@ class HomepageEditorTest extends TestCase
         $html = $this->get('/')->assertOk()->getContent();
 
         $this->assertStringNotContainsString('data-homepage-editor', $html);
-        $this->assertStringNotContainsString('Editing the homepage.', $html);
         $this->assertStringNotContainsString('aria-label="Edit feature cards"', $html);
         $this->assertStringNotContainsString('data-editing', $html);
+        $this->assertStringNotContainsString('<aside', $html, 'Visitors never get the admin sidebar.');
     }
 
     public function test_saved_feature_cards_replace_the_defaults_on_the_public_page(): void
