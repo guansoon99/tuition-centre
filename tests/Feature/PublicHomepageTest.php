@@ -74,6 +74,27 @@ class PublicHomepageTest extends TestCase
         $this->assertGreaterThanOrEqual(5, substr_count($html, 'px-5 py-'), 'Header, three sections and the footer share the padding scale.');
     }
 
+    public function test_long_words_in_cards_and_reviews_are_allowed_to_wrap(): void
+    {
+        \App\Models\HomepageBlock::create(['key' => 'features', 'data' => ['items' => [
+            ['icon' => 'book', 'image' => '', 'title' => 'Supercalifragilisticexpialidocious_and_then_some', 'text' => 'https://example.com/a/very/long/unbroken/path/that/would/otherwise/overflow'],
+        ]]]);
+        \App\Models\HomepageBlock::create(['key' => 'reviews', 'data' => ['heading' => 'R', 'items' => [
+            ['name' => 'Averyveryveryverylongsinglewordname', 'stars' => 5, 'image' => '', 'quote' => 'Line one.
+Line two after a break.'],
+        ]]]);
+        \App\Support\HomepageContent::forgetCache();
+
+        $html = $this->page();
+
+        // The text column may shrink and its words may break.
+        $this->assertStringContainsString('<div class="min-w-0 flex-1">', $html);
+        $this->assertStringContainsString('class="break-words text-base font-semibold text-slate-900">Supercalifragilisticexpialidocious_and_then_some<', $html);
+        $this->assertStringContainsString('whitespace-pre-line break-words text-sm text-slate-600">https://example.com/a/very/long', $html);
+        $this->assertStringContainsString('class="break-words font-semibold text-slate-900">Averyveryveryverylongsinglewordname<', $html);
+        $this->assertStringContainsString('whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">Line one.', $html);
+    }
+
     public function test_a_single_poster_shows_without_arrows(): void
     {
         BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'ONLY_ONE', 'sort_order' => 1, 'is_active' => true]);

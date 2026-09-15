@@ -159,9 +159,9 @@
                         @endswitch
                         @endif
                     </span>
-                    <div>
-                        <h2 class="text-base font-semibold text-slate-900">{{ $fill($feature['title']) }}</h2>
-                        <p class="mt-1 text-sm text-slate-600">{{ $fill($feature['text']) }}</p>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="break-words text-base font-semibold text-slate-900">{{ $fill($feature['title']) }}</h2>
+                        <p class="mt-1 whitespace-pre-line break-words text-sm text-slate-600">{{ $fill($feature['text']) }}</p>
                     </div>
                 </div>
             @endforeach
@@ -211,8 +211,8 @@
                             @else
                                 <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-base font-semibold text-orange-700" aria-hidden="true">{{ $initials($review['name']) }}</span>
                             @endif
-                            <div>
-                                <p class="font-semibold text-slate-900">{{ $review['name'] }}</p>
+                            <div class="min-w-0">
+                                <p class="break-words font-semibold text-slate-900">{{ $review['name'] }}</p>
                                 <p class="flex gap-0.5 text-orange-500" aria-label="{{ $review['stars'] }} out of 5 stars">
                                     @for ($s = 0; $s < (int) $review['stars']; $s++)
                                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"/></svg>
@@ -220,7 +220,7 @@
                                 </p>
                             </div>
                         </figcaption>
-                        <blockquote class="mt-4 text-sm leading-relaxed text-slate-700">{{ $review['quote'] }}</blockquote>
+                        <blockquote class="mt-4 whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{{ $review['quote'] }}</blockquote>
                     </figure>
                 @endforeach
             </div>
