@@ -16,7 +16,9 @@ class UpdatePasswordRequest extends FormRequest
     {
         return [
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            // Six, the same floor as the admin's user form and the length of
+            // a generated student password.
+            'password' => ['required', 'confirmed', Password::min(6)],
         ];
     }
 }

@@ -51,9 +51,51 @@ class HardeningTest extends TestCase
     // ---- 4. Admin-set passwords have a floor --------------------------------
 
     /**
-     * Same minimum as the self-service change. Without it an admin could set
-     * "1", and a student who never changes their password keeps it for good.
+     * Six characters, the length of a generated student password. Without a
+     * floor an admin could set "1", and a student who never changes their
+     * password keeps it for good.
      */
+    public function test_an_admin_can_set_a_six_character_password_but_not_five(): void
+    {
+        $student = User::factory()->create(['is_active' => true, 'username' => 'stu6']);
+        $student->assignRole('student');
+
+        $this->actingAs($this->admin)
+            ->patch(route('users.update', $student), $this->userPayload([
+                'username' => 'stu6',
+                'password' => 'abd12',
+                'password_confirmation' => 'abd12',
+            ]))
+            ->assertSessionHasErrors('password');
+
+        $this->actingAs($this->admin)
+            ->patch(route('users.update', $student), $this->userPayload([
+                'username' => 'stu6',
+                'password' => 'abd123',
+                'password_confirmation' => 'abd123',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('abd123', $student->fresh()->password));
+    }
+
+    public function test_a_user_changing_their_own_password_has_the_same_six_character_floor(): void
+    {
+        Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
+        $teacher = User::factory()->create(['is_active' => true, 'username' => 'tea6', 'password' => 'oldpass1']);
+        $teacher->assignRole('teacher');
+
+        $this->actingAs($teacher)
+            ->post(route('account.password'), ['current_password' => 'oldpass1', 'password' => 'abd12', 'password_confirmation' => 'abd12'])
+            ->assertSessionHasErrors('password');
+
+        $this->actingAs($teacher)
+            ->post(route('account.password'), ['current_password' => 'oldpass1', 'password' => 'abd123', 'password_confirmation' => 'abd123'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('abd123', $teacher->fresh()->password));
+    }
+
     public function test_an_admin_cannot_create_a_user_with_a_short_password(): void
     {
         $this->actingAs($this->admin)
