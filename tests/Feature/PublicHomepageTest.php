@@ -33,6 +33,17 @@ class PublicHomepageTest extends TestCase
         $this->assertGreaterThanOrEqual(2, substr_count($html, 'href="'.route('login').'"'));
     }
 
+    public function test_the_header_button_reads_student_login_with_a_person_icon(): void
+    {
+        $html = $this->page();
+
+        $button = substr($html, strpos($html, 'data-student-login'), 700);
+
+        $this->assertStringContainsString('Student Login', $button);
+        $this->assertStringContainsString('<svg', $button, 'The person icon sits in the button.');
+        $this->assertStringContainsString('href="'.route('login').'"', substr($html, strpos($html, 'data-student-login') - 80, 100));
+    }
+
     public function test_the_hero_is_the_uploaded_posters_with_nothing_written_over_them(): void
     {
         BannerSlide::create(['image_path' => 'banner-slides/a.jpg', 'title' => 'SLIDE_ONE', 'sort_order' => 1, 'is_active' => true]);
