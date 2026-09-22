@@ -498,13 +498,11 @@
                                 </label>
                                 <div class="space-y-3">
                                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Contact buttons</p>
-                                    <p class="text-xs text-slate-600">Shown in the footer and as the floating buttons on every page. Switch one off to hide it without deleting it.</p>
+                                    <p class="text-xs text-slate-600">The buttons in this footer. The floating buttons on the logged-in pages are a separate list, under Settings › Contact.</p>
                                     <template x-for="(c, i) in draft.contacts" :key="i">
                                         <div class="space-y-2 rounded-xl border border-slate-200 p-3">
                                             <div class="flex items-center justify-between">
-                                                <label class="inline-flex items-center gap-2 text-xs text-slate-700">
-                                                    <input type="checkbox" x-model="c.active" class="rounded border-slate-300" /> Shown
-                                                </label>
+                                                <span class="text-xs font-semibold uppercase tracking-wide text-slate-600" x-text="'Contact ' + (i + 1)"></span>
                                                 <div class="flex gap-1">
                                                     <button type="button" @click="move('contacts', i, -1)" :disabled="i === 0" class="rounded-md border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-30" aria-label="Move contact up">↑</button>
                                                     <button type="button" @click="move('contacts', i, 1)" :disabled="i === draft.contacts.length - 1" class="rounded-md border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-30" aria-label="Move contact down">↓</button>
@@ -553,7 +551,7 @@
                                             </label>
                                         </div>
                                     </template>
-                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', icon: '', icon_url: '', active: true })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
+                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', icon: '', icon_url: '' })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
                                 </div>
                             </div>
                         </template>

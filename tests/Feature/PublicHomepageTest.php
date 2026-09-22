@@ -207,11 +207,20 @@ Line two after a break."],
         $this->assertStringContainsString('window.homeSlider', $html);
     }
 
-    public function test_the_footer_lists_active_contacts_with_working_links(): void
+    /** The footer's contacts live with the homepage content, not in the Contact rows. */
+    private function footerContacts(array $contacts): void
     {
-        Contact::create(['type' => Contact::TYPE_WHATSAPP, 'value' => '011 7240 3112', 'label' => '', 'sort_order' => 1, 'is_active' => true]);
-        Contact::create(['type' => Contact::TYPE_PHONE, 'value' => '03 1234 5678', 'label' => 'Office', 'sort_order' => 2, 'is_active' => true]);
-        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@hidden_one', 'label' => 'HIDDEN_CONTACT', 'sort_order' => 3, 'is_active' => false]);
+        \App\Support\HomepageContent::save('footer', ['contacts' => $contacts]);
+    }
+
+    public function test_the_footer_lists_the_homepages_own_contacts_with_working_links(): void
+    {
+        $this->footerContacts([
+            ['type' => Contact::TYPE_WHATSAPP, 'value' => '011 7240 3112', 'label' => ''],
+            ['type' => Contact::TYPE_PHONE, 'value' => '03 1234 5678', 'label' => 'Office'],
+        ]);
+        // A Contact row (Settings > Contact) is for the logged-in pages only.
+        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@hidden_one', 'label' => 'HIDDEN_CONTACT', 'sort_order' => 3, 'is_active' => true]);
 
         $html = $this->page();
 
@@ -231,7 +240,7 @@ Line two after a break."],
 
     public function test_a_type_without_a_built_in_icon_file_keeps_its_glyph(): void
     {
-        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@qin', 'label' => 'Telegram us', 'sort_order' => 1, 'is_active' => true]);
+        $this->footerContacts([['type' => Contact::TYPE_TELEGRAM, 'value' => '@qin', 'label' => 'Telegram us']]);
 
         $html = $this->page();
 

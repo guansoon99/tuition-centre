@@ -6,7 +6,6 @@ use App\Models\Contact;
 use App\Models\HomepageBlock;
 use App\Models\SiteSettings;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -82,10 +81,28 @@ final class HomepageContent
                 'label' => 'Footer',
                 'defaults' => [
                     'copyright' => '© {year} {name}. Hak cipta terpelihara.',
+                    // The homepage's own contact buttons (type, value, label,
+                    // icon). Separate from the Contact rows managed under
+                    // Settings > Contact, which feed the floating buttons on
+                    // the logged-in pages.
+                    'contacts' => [],
                 ],
             ],
         ];
     }
+
+    /**
+     * The list fields each block carries, with the fields of one row. Lists
+     * are cleaned row by row on save (only these fields, in this order).
+     */
+    private const LISTS = [
+        'features' => ['items' => ['icon', 'image', 'title', 'text']],
+        'reviews' => ['items' => ['name', 'stars', 'image', 'quote']],
+        'footer' => ['contacts' => ['type', 'value', 'label', 'icon']],
+    ];
+
+    /** Row fields that hold an uploaded picture (deleted from the disk when dropped). */
+    private const PICTURE_FIELDS = ['image', 'icon'];
 
     public static function isBlock(string $block): bool
     {
@@ -145,12 +162,10 @@ final class HomepageContent
                 'address' => ['nullable', 'string', 'max:500'],
                 'hours' => ['nullable', 'string', 'max:255'],
                 'contacts' => ['nullable', 'array', 'max:10'],
-                'contacts.*.id' => ['nullable', 'integer'],
                 'contacts.*.type' => ['required', Rule::in(array_keys(Contact::TYPES))],
                 'contacts.*.value' => ['required', 'string', 'max:100'],
                 'contacts.*.label' => ['nullable', 'string', 'max:100'],
                 'contacts.*.icon' => ['nullable', 'string', 'max:255', 'regex:#^'.self::IMAGE_FOLDER.'/[A-Za-z0-9._-]+$#'],
-                'contacts.*.active' => ['nullable', 'boolean'],
             ],
             default => throw new \InvalidArgumentException("Unknown homepage block [{$block}]."),
         };
@@ -190,55 +205,95 @@ final class HomepageContent
     public static function save(string $block, array $data): void
     {
         $defaults = self::blocks()[$block]['defaults'] ?? throw new \InvalidArgumentException("Unknown homepage block [{$block}].");
+        $lists = self::LISTS[$block] ?? [];
 
         $clean = [];
-        foreach ($defaults as $field => $default) {
+        foreach (array_keys($defaults) as $field) {
             if (! array_key_exists($field, $data)) {
                 continue;
             }
-            if ($field === 'items') {
-                $shape = array_keys($default[0] ?? []);
+            if (isset($lists[$field])) {
                 // validated() can hand nested rows back out of index order
                 // (it rebuilds them rule by rule); the index is the order.
-                $items = $data['items'];
-                ksort($items);
-                $clean['items'] = array_values(array_map(function ($item) use ($shape) {
-                    $row = [];
-                    foreach ($shape as $k) {
-                        $row[$k] = match ($k) {
-                            'stars' => (int) ($item[$k] ?? 0),
-                            // The editor's HTML, cleaned the same way material
-                            // bodies are: tags, classes and colours Quill emits,
-                            // nothing else.
-                            'quote' => HtmlSanitizer::clean((string) ($item[$k] ?? '')),
-                            default => (string) ($item[$k] ?? ''),
-                        };
-                    }
-
-                    return $row;
-                }, $items));
+                $rows = is_array($data[$field]) ? $data[$field] : [];
+                ksort($rows);
+                $clean[$field] = array_values(array_map(
+                    fn ($row) => self::cleanRow($lists[$field], (array) $row),
+                    $rows,
+                ));
             } else {
                 $clean[$field] = (string) ($data[$field] ?? '');
             }
         }
 
-        // An image a card no longer points at is deleted from the disk, so
+        // Fields the request did not send keep their stored value: a
+        // copyright-only save must not wipe the footer's contacts.
+        $stored = HomepageBlock::find($block)?->data ?? [];
+        $merged = array_merge($stored, $clean);
+
+        // A picture no row points at afterwards is deleted from the disk, so
         // replacing or removing one does not leave the old file behind.
-        $before = array_filter(array_column(self::get($block)['items'] ?? [], 'image'));
-        $after = array_filter(array_column($clean['items'] ?? [], 'image'));
+        $before = self::pictures($block, $stored);
+        $after = self::pictures($block, $merged);
         foreach (array_diff($before, $after) as $orphan) {
             PublicFile::forget($orphan);
         }
 
-        HomepageBlock::updateOrCreate(['key' => $block], ['data' => $clean]);
+        HomepageBlock::updateOrCreate(['key' => $block], ['data' => $merged]);
         self::forgetCache();
     }
 
     /**
-     * What the on-page editor works with: every block, plus the footer's
-     * neighbours that live elsewhere -- the address and hours in
-     * SiteSettings, the contact buttons as Contact rows -- so the footer
-     * is edited as one thing. Inactive contacts are included, switched off.
+     * One list row, reduced to the fields the shape knows, each in its
+     * proper type.
+     *
+     * @param  list<string>  $shape
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private static function cleanRow(array $shape, array $row): array
+    {
+        $clean = [];
+        foreach ($shape as $k) {
+            $clean[$k] = match ($k) {
+                'stars' => (int) ($row[$k] ?? 0),
+                // The editor's HTML, cleaned the same way material bodies
+                // are: tags, classes and colours Quill emits, nothing else.
+                'quote' => HtmlSanitizer::clean((string) ($row[$k] ?? '')),
+                default => (string) ($row[$k] ?? ''),
+            };
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Every uploaded picture the block's lists point at.
+     *
+     * @param  array<string,mixed>  $data
+     * @return list<string>
+     */
+    private static function pictures(string $block, array $data): array
+    {
+        $paths = [];
+        foreach (self::LISTS[$block] ?? [] as $field => $shape) {
+            foreach ($data[$field] ?? [] as $row) {
+                foreach (self::PICTURE_FIELDS as $k) {
+                    if (($row[$k] ?? '') !== '') {
+                        $paths[] = (string) $row[$k];
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * What the on-page editor works with: every block, with a preview URL
+     * for each uploaded picture (worked out here, never stored), plus the
+     * footer's address and hours, which live in SiteSettings but are edited
+     * with the footer.
      *
      * @return array<string,array<string,mixed>>
      */
@@ -247,103 +302,49 @@ final class HomepageContent
         $all = self::all();
         $settings = SiteSettings::current();
 
-        // The editor previews a card's image and a reviewer's photo; the
-        // URL is worked out here and never stored.
-        foreach (['features', 'reviews'] as $block) {
-            $all[$block]['items'] = array_map(function (array $item) {
-                $item['image'] = (string) ($item['image'] ?? '');
-                $item['image_url'] = $item['image'] !== '' ? (string) PublicFile::url($item['image']) : '';
+        foreach (self::LISTS as $block => $lists) {
+            foreach ($lists as $field => $shape) {
+                $all[$block][$field] = array_map(function (array $row) use ($shape) {
+                    foreach (self::PICTURE_FIELDS as $k) {
+                        if (in_array($k, $shape, true)) {
+                            $row[$k] = (string) ($row[$k] ?? '');
+                            $row[$k.'_url'] = $row[$k] !== '' ? (string) PublicFile::url($row[$k]) : '';
+                        }
+                    }
 
-                return $item;
-            }, $all[$block]['items']);
+                    return $row;
+                }, $all[$block][$field] ?? []);
+            }
         }
 
         $all['footer']['address'] = (string) $settings->contact_address;
         $all['footer']['hours'] = (string) $settings->contact_hours;
-        $all['footer']['contacts'] = Contact::query()
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Contact $c) => [
-                'id' => $c->id,
-                'type' => $c->type,
-                'value' => $c->value,
-                'label' => (string) $c->label,
-                'icon' => (string) $c->icon_path,
-                'icon_url' => (string) ($c->icon_url ?? ''),
-                'active' => (bool) $c->is_active,
-            ])
-            ->values()
-            ->all();
 
         return $all;
     }
 
     /**
-     * The footer's neighbours, saved alongside the block: address and hours
-     * into SiteSettings, the contact list synced onto the Contact rows --
-     * rows with an id are updated, rows without are created, rows left out
-     * are deleted, and the order given is the order shown.
+     * The footer's neighbours in SiteSettings, saved alongside the block:
+     * only what was sent is touched, so a copyright-only save leaves the
+     * address and hours as they were.
      *
      * @param  array<string,mixed>  $data
      */
     public static function saveFooterExtras(array $data): void
     {
-        DB::transaction(function () use ($data) {
-            // Only what was sent is touched: a copyright-only save leaves
-            // the address, hours and contacts exactly as they were.
-            $settings = [];
-            if (array_key_exists('address', $data)) {
-                $settings['contact_address'] = $data['address'];
-            }
-            if (array_key_exists('hours', $data)) {
-                $settings['contact_hours'] = $data['hours'];
-            }
-            if ($settings !== []) {
-                SiteSettings::row()->update($settings);
-            }
+        $settings = [];
+        if (array_key_exists('address', $data)) {
+            $settings['contact_address'] = $data['address'];
+        }
+        if (array_key_exists('hours', $data)) {
+            $settings['contact_hours'] = $data['hours'];
+        }
+        if ($settings === []) {
+            return;
+        }
 
-            if (! array_key_exists('contacts', $data)) {
-                return;
-            }
-
-            // validated() rebuilds nested rows rule by rule, so a new contact
-            // (no id) can come back after the ones that have one; the index
-            // is the order the admin arranged.
-            $contacts = $data['contacts'] ?? [];
-            ksort($contacts);
-
-            // Icons no contact points at afterwards are deleted from the disk.
-            $iconsBefore = Contact::query()->whereNotNull('icon_path')->pluck('icon_path')->all();
-
-            $keep = [];
-            foreach (array_values($contacts) as $i => $c) {
-                $attrs = [
-                    'type' => $c['type'],
-                    'value' => $c['value'],
-                    'label' => (string) ($c['label'] ?? ''),
-                    'icon_path' => ($c['icon'] ?? '') !== '' ? $c['icon'] : null,
-                    'sort_order' => $i + 1,
-                    'is_active' => (bool) ($c['active'] ?? true),
-                ];
-                $row = ! empty($c['id']) ? Contact::find($c['id']) : null;
-                if ($row) {
-                    $row->update($attrs);
-                } else {
-                    $row = Contact::create($attrs);
-                }
-                $keep[] = $row->id;
-            }
-            Contact::query()->whereNotIn('id', $keep)->delete();
-
-            $iconsAfter = Contact::query()->whereNotNull('icon_path')->pluck('icon_path')->all();
-            foreach (array_diff($iconsBefore, $iconsAfter) as $orphan) {
-                PublicFile::forget($orphan);
-            }
-        });
-
+        SiteSettings::row()->update($settings);
         SiteSettings::forgetCache();
-        Cache::forget('public:contacts');
     }
 
     /**

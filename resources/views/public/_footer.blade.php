@@ -4,9 +4,10 @@
     @php
         $settings = \App\Models\SiteSettings::current();
         $editing = $editing ?? false;
-        // Same cached query the floating buttons use; ContactController
-        // clears 'public:contacts' on any change.
-        $contacts = \App\Models\Contact::activeCached();
+        // The homepage's own contact buttons, edited on the page. The
+        // Contact rows under Settings > Contact are a separate list that
+        // feeds the floating buttons on the logged-in pages.
+        $contacts = \App\Support\HomepageContent::get('footer')['contacts'] ?? [];
     @endphp
     <footer id="contact" class="scroll-mt-20 border-t border-orange-100 bg-white">
         <div class="flex flex-col gap-4 px-5 py-6 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-14 xl:px-24">
@@ -21,34 +22,39 @@
                 @endif
             </p>
             <div class="flex flex-wrap items-center gap-x-6 gap-y-2 sm:justify-end">
-                @foreach ($contacts as $contact)
+                @foreach ($contacts as $c)
                     @php
-                        $text = $contact->label ?: $contact->value;
-                        $external = $contact->type !== \App\Models\Contact::TYPE_PHONE;
+                        $type = (string) ($c['type'] ?? '');
+                        $url = \App\Models\Contact::linkFor($type, $c['value'] ?? '');
+                        $text = ($c['label'] ?? '') !== '' ? $c['label'] : ($c['value'] ?? '');
+                        $typeLabel = \App\Models\Contact::labelFor($type);
+                        $external = $type !== \App\Models\Contact::TYPE_PHONE;
+                        $uploadedIcon = ($c['icon'] ?? '') !== '' ? \App\Support\PublicFile::url($c['icon']) : null;
+                        $builtInIcon = \App\Models\Contact::builtInIconUrl($type);
                     @endphp
-                    @if ($contact->url)
-                        <a href="{{ $contact->url }}"
+                    @if ($url)
+                        <a href="{{ $url }}"
                            @if ($external) target="_blank" rel="noopener" @endif
                            class="inline-flex items-center gap-2 hover:text-orange-600"
-                           title="{{ $contact->type_label }}: {{ $contact->value }}">
+                           title="{{ $typeLabel }}: {{ $c['value'] ?? '' }}">
                     @else
-                        <span class="inline-flex items-center gap-2" title="{{ $contact->type_label }}">
+                        <span class="inline-flex items-center gap-2" title="{{ $typeLabel }}">
                     @endif
-                            @if ($contact->icon_url)
-                                <img src="{{ $contact->icon_url }}" alt="" class="h-6 w-6 rounded-full object-cover" data-contact-icon="uploaded" />
-                            @elseif ($contact->display_icon_url)
-                                <img src="{{ $contact->display_icon_url }}" alt="" class="h-6 w-6 object-contain" data-contact-icon="built-in" />
-                            @elseif ($contact->type === \App\Models\Contact::TYPE_FACEBOOK)
+                            @if ($uploadedIcon)
+                                <img src="{{ $uploadedIcon }}" alt="" class="h-6 w-6 rounded-full object-cover" data-contact-icon="uploaded" />
+                            @elseif ($builtInIcon)
+                                <img src="{{ $builtInIcon }}" alt="" class="h-6 w-6 object-contain" data-contact-icon="built-in" />
+                            @elseif ($type === \App\Models\Contact::TYPE_FACEBOOK)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1877F2] text-white" aria-hidden="true">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="''' + FB_PATH + '''"/></svg>
                                 </span>
-                            @elseif ($contact->type === \App\Models\Contact::TYPE_XHS)
+                            @elseif ($type === \App\Models\Contact::TYPE_XHS)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#FF2442] text-[7px] font-extrabold text-white" aria-hidden="true">XHS</span>
-                            @elseif ($contact->type === \App\Models\Contact::TYPE_WHATSAPP)
+                            @elseif ($type === \App\Models\Contact::TYPE_WHATSAPP)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#25D366] text-white" aria-hidden="true">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>
                                 </span>
-                            @elseif ($contact->type === \App\Models\Contact::TYPE_TELEGRAM)
+                            @elseif ($type === \App\Models\Contact::TYPE_TELEGRAM)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#2AABEE] text-white" aria-hidden="true">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
                                 </span>
@@ -58,7 +64,7 @@
                                 </span>
                             @endif
                             <span>{{ $text }}</span>
-                    @if ($contact->url)
+                    @if ($url)
                         </a>
                     @else
                         </span>

@@ -312,19 +312,19 @@ class HomepageEditorTest extends TestCase
             ->assertJsonValidationErrors(['items.0.image']);
     }
 
-    public function test_the_footer_edits_copyright_address_hours_and_contacts_as_one(): void
+    public function test_the_footer_edits_copyright_address_hours_and_its_own_contacts_as_one(): void
     {
-        $keep = Contact::create(['type' => 'phone', 'value' => '03 1111 2222', 'label' => 'Office', 'sort_order' => 1, 'is_active' => true]);
-        $gone = Contact::create(['type' => 'telegram', 'value' => '@old', 'label' => 'OLD_CONTACT', 'sort_order' => 2, 'is_active' => true]);
+        // A Contact row under Settings > Contact: it feeds the floating
+        // buttons on logged-in pages and has nothing to do with the footer.
+        $admin = Contact::create(['type' => 'telegram', 'value' => '@office_only', 'label' => 'BACKOFFICE_CONTACT', 'sort_order' => 1, 'is_active' => true]);
 
         $this->saveBlock('footer', [
             'copyright' => '© {year} Qin.',
             'address' => '12, Jalan Contoh, Ipoh',
             'hours' => 'Mon–Sat 9am–6pm',
             'contacts' => [
-                ['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => '', 'active' => true],
-                ['id' => $keep->id, 'type' => 'phone', 'value' => '03 1111 2222', 'label' => 'Front desk', 'active' => true],
-                ['type' => 'telegram', 'value' => '@quiet', 'label' => 'QUIET_ONE', 'active' => false],
+                ['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => ''],
+                ['type' => 'phone', 'value' => '03 1111 2222', 'label' => 'Front desk'],
             ],
         ])->assertOk();
 
@@ -333,20 +333,55 @@ class HomepageEditorTest extends TestCase
         $this->assertStringContainsString('© '.date('Y').' Qin.', $html);
         $this->assertStringContainsString('12, Jalan Contoh, Ipoh', $html);
         $this->assertStringContainsString('Mon–Sat 9am–6pm', $html);
-        // Order as given: the new WhatsApp first, the renamed phone second.
+        $this->assertStringContainsString('href="https://wa.me/01172403112"', $html);
+        $this->assertStringContainsString('href="tel:+0311112222"', $html);
+        // Order as given: WhatsApp first, the phone second.
         $this->assertLessThan(strpos($html, 'Front desk'), strpos($html, 'wa.me/01172403112'));
-        $this->assertStringNotContainsString('OLD_CONTACT', $html);
-        $this->assertStringNotContainsString('QUIET_ONE', $html, 'A contact switched off is kept but not shown.');
+        // The back-office contact is not on the homepage...
+        $this->assertStringNotContainsString('BACKOFFICE_CONTACT', $html);
+        $this->assertStringNotContainsString('t.me/office_only', $html);
+        // ...and the homepage save left the Contact rows alone.
+        $this->assertSame(1, Contact::count());
+        $this->assertSame('BACKOFFICE_CONTACT', $admin->fresh()->label);
 
-        $this->assertDatabaseMissing('contacts', ['id' => $gone->id]);
-        $this->assertSame('Front desk', $keep->fresh()->label);
-        $this->assertSame(3, Contact::count());
-        $this->assertFalse(Contact::where('label', 'QUIET_ONE')->first()->is_active);
+        // The floating buttons on a logged-in page show the Contact row, not
+        // the footer's list.
+        $inside = $this->as($this->editor)->get('/')->assertOk()->getContent();
+        $this->assertStringContainsString('t.me/office_only', $inside);
+        $this->assertStringNotContainsString('wa.me/01172403112', $inside);
 
-        // The editor sees all three, the hidden one switched off.
+        // Stored with the block; the editor reads it back in order.
         $contacts = HomepageContent::forEditor()['footer']['contacts'];
-        $this->assertSame(['011 7240 3112', '03 1111 2222', '@quiet'], array_column($contacts, 'value'));
-        $this->assertSame([true, true, false], array_column($contacts, 'active'));
+        $this->assertSame(['011 7240 3112', '03 1111 2222'], array_column($contacts, 'value'));
+        $this->assertSame(['whatsapp', 'phone'], array_column($contacts, 'type'));
+    }
+
+    public function test_the_deploy_migration_copies_the_current_contacts_into_the_footer_once(): void
+    {
+        Contact::create(['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => '', 'icon_path' => 'homepage/images/wa.webp', 'sort_order' => 2, 'is_active' => true]);
+        Contact::create(['type' => 'facebook', 'value' => 'qin.stpm', 'label' => 'Qin', 'sort_order' => 1, 'is_active' => true]);
+        Contact::create(['type' => 'telegram', 'value' => '@off', 'label' => 'OFF', 'sort_order' => 3, 'is_active' => false]);
+
+        $migration = require base_path('database/migrations/2026_09_22_130000_copy_contacts_into_the_homepage_footer.php');
+        $migration->up();
+
+        $contacts = HomepageContent::get('footer')['contacts'];
+        $this->assertSame(['facebook', 'whatsapp'], array_column($contacts, 'type'), 'Active rows, in their order; the inactive one left out.');
+        $this->assertSame('homepage/images/wa.webp', $contacts[1]['icon']);
+
+        // Running it again changes nothing once the footer has contacts.
+        HomepageContent::save('footer', ['contacts' => [['type' => 'phone', 'value' => '03 1111 2222', 'label' => '']]]);
+        $migration->up();
+        $this->assertSame(['phone'], array_column(HomepageContent::get('footer')['contacts'], 'type'));
+    }
+
+    public function test_a_copyright_only_save_keeps_the_footers_contacts(): void
+    {
+        $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => '']]])->assertOk();
+        $this->saveBlock('footer', ['copyright' => '© {year} Qin.'])->assertOk();
+
+        $this->assertCount(1, HomepageContent::get('footer')['contacts']);
+        $this->assertStringContainsString('wa.me/01172403112', $this->asGuest()->get('/')->getContent());
     }
 
     public function test_facebook_and_xhs_contacts_show_in_the_footer_and_can_wear_their_own_icon(): void
@@ -357,8 +392,8 @@ class HomepageEditorTest extends TestCase
         $this->saveBlock('footer', [
             'copyright' => 'x',
             'contacts' => [
-                ['type' => 'facebook', 'value' => 'qin.stpm', 'label' => 'Qin: STPM Pengajian Am', 'icon' => $icon['path'], 'active' => true],
-                ['type' => 'xhs', 'value' => 'https://www.xiaohongshu.com/user/profile/abc123', 'label' => 'Qin | STPM', 'icon' => '', 'active' => true],
+                ['type' => 'facebook', 'value' => 'qin.stpm', 'label' => 'Qin: STPM Pengajian Am', 'icon' => $icon['path']],
+                ['type' => 'xhs', 'value' => 'https://www.xiaohongshu.com/user/profile/abc123', 'label' => 'Qin | STPM', 'icon' => ''],
             ],
         ])->assertOk();
 
@@ -372,21 +407,22 @@ class HomepageEditorTest extends TestCase
         $this->assertStringContainsString('images/icons/xhs.webp', $html);
         $this->assertStringNotContainsString('images/icons/facebook.webp', $html, 'The uploaded icon replaces the built-in one.');
 
-        // The floating buttons, on a logged-in page, use the same icons.
+        // The floating buttons on a logged-in page are a different list
+        // (the Contact rows, none here), so they show none of this.
         $inside = $this->as($this->editor)->get('/')->assertOk()->getContent();
-        $this->assertStringContainsString('data-contact-icon="uploaded"', $inside);
-        $this->assertStringContainsString($icon['url'], $inside);
-        $this->assertStringContainsString('images/icons/xhs.webp', $inside);
+        $this->assertStringNotContainsString('facebook.com/qin.stpm', $inside);
+        $this->assertSame(0, Contact::count());
 
-        // Stored on the row, previewed in the editor.
-        $this->assertSame($icon['path'], Contact::where('type', 'facebook')->first()->icon_path);
+        // Stored with the block, previewed in the editor.
+        $stored = HomepageContent::get('footer')['contacts'];
+        $this->assertSame($icon['path'], $stored[0]['icon']);
         $contacts = HomepageContent::forEditor()['footer']['contacts'];
         $this->assertSame($icon['url'], $contacts[0]['icon_url']);
         $this->assertSame('', $contacts[1]['icon_url']);
 
         // Dropping the icon deletes the file; a path outside the folder is refused.
         $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [
-            ['id' => Contact::where('type', 'facebook')->first()->id, 'type' => 'facebook', 'value' => 'qin.stpm', 'label' => '', 'icon' => '', 'active' => true],
+            ['type' => 'facebook', 'value' => 'qin.stpm', 'label' => '', 'icon' => ''],
         ]])->assertOk();
         Storage::disk(PublicFile::disk())->assertMissing($icon['path']);
         $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [['type' => 'facebook', 'value' => 'x', 'icon' => 'banner-slides/no.jpg']]])

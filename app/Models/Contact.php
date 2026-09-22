@@ -75,20 +75,34 @@ class Contact extends Model
      */
     protected function url(): Attribute
     {
-        return Attribute::get(function () {
-            $digits = preg_replace('/\D/', '', (string) $this->value);
+        return Attribute::get(fn () => self::linkFor($this->type, $this->value));
+    }
 
-            return match ($this->type) {
-                self::TYPE_PHONE => $digits ? 'tel:+'.$digits : null,
-                self::TYPE_WHATSAPP => $digits ? 'https://wa.me/'.$digits : null,
-                self::TYPE_TELEGRAM => 'https://t.me/'.ltrim($this->value, '@'),
-                // A full link is used as given; a bare page name or profile
-                // id is put on the site's profile URL.
-                self::TYPE_FACEBOOK => self::linkOr($this->value, 'https://www.facebook.com/'),
-                self::TYPE_XHS => self::linkOr($this->value, 'https://www.xiaohongshu.com/user/profile/'),
-                default => null,
-            };
-        });
+    /**
+     * Where a contact of this type and value links to, or null if no
+     * sensible link applies. Shared with the homepage footer, whose
+     * contacts are stored with the homepage content rather than as rows.
+     */
+    public static function linkFor(string $type, ?string $value): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $value);
+
+        return match ($type) {
+            self::TYPE_PHONE => $digits ? 'tel:+'.$digits : null,
+            self::TYPE_WHATSAPP => $digits ? 'https://wa.me/'.$digits : null,
+            self::TYPE_TELEGRAM => 'https://t.me/'.ltrim((string) $value, '@'),
+            // A full link is used as given; a bare page name or profile
+            // id is put on the site's profile URL.
+            self::TYPE_FACEBOOK => self::linkOr($value, 'https://www.facebook.com/'),
+            self::TYPE_XHS => self::linkOr($value, 'https://www.xiaohongshu.com/user/profile/'),
+            default => null,
+        };
+    }
+
+    /** The human label for a type ("WhatsApp"), or the type itself if unknown. */
+    public static function labelFor(string $type): string
+    {
+        return self::TYPES[$type] ?? ucfirst($type);
     }
 
     private static function linkOr(?string $value, string $base): ?string
