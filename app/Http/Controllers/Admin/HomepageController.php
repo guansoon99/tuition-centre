@@ -33,6 +33,7 @@ class HomepageController extends Controller
             'editorContent' => $editing ? HomepageContent::forEditor() : null,
             'editing' => $editing,
             'backoffice' => true,
+            'ownFloater' => true,
         ]);
     }
 

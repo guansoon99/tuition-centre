@@ -98,7 +98,7 @@ final class HomepageContent
     private const LISTS = [
         'features' => ['items' => ['icon', 'image', 'title', 'text']],
         'reviews' => ['items' => ['name', 'stars', 'image', 'quote']],
-        'footer' => ['contacts' => ['type', 'value', 'label', 'icon']],
+        'footer' => ['contacts' => ['type', 'value', 'label', 'icon', 'floating']],
     ];
 
     /** Row fields that hold an uploaded picture (deleted from the disk when dropped). */
@@ -166,6 +166,8 @@ final class HomepageContent
                 'contacts.*.value' => ['required', 'string', 'max:100'],
                 'contacts.*.label' => ['nullable', 'string', 'max:100'],
                 'contacts.*.icon' => ['nullable', 'string', 'max:255', 'regex:#^'.self::IMAGE_FOLDER.'/[A-Za-z0-9._-]+$#'],
+                // Ticked: the contact also floats at the side of the homepage.
+                'contacts.*.floating' => ['nullable', 'boolean'],
             ],
             default => throw new \InvalidArgumentException("Unknown homepage block [{$block}]."),
         };
@@ -257,6 +259,8 @@ final class HomepageContent
         foreach ($shape as $k) {
             $clean[$k] = match ($k) {
                 'stars' => (int) ($row[$k] ?? 0),
+                // Absent (a row from before the tick existed) means shown.
+                'floating' => (bool) ($row[$k] ?? true),
                 // The editor's HTML, cleaned the same way material bodies
                 // are: tags, classes and colours Quill emits, nothing else.
                 'quote' => HtmlSanitizer::clean((string) ($row[$k] ?? '')),
@@ -319,8 +323,27 @@ final class HomepageContent
 
         $all['footer']['address'] = (string) $settings->contact_address;
         $all['footer']['hours'] = (string) $settings->contact_hours;
+        $all['footer']['contacts'] = array_map(function (array $c) {
+            $c['floating'] = (bool) ($c['floating'] ?? true);
+
+            return $c;
+        }, $all['footer']['contacts'] ?? []);
 
         return $all;
+    }
+
+    /**
+     * The footer contacts ticked to float at the side of the homepage. A
+     * contact from before the tick existed floats until unticked.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function floatingContacts(): array
+    {
+        return array_values(array_filter(
+            self::get('footer')['contacts'] ?? [],
+            fn (array $c) => (bool) ($c['floating'] ?? true),
+        ));
     }
 
     /**

@@ -302,6 +302,11 @@
         </div>
     @endif
 
+    {{-- The homepage's own floating buttons: the footer contacts ticked
+         "show at the side". The back office hands the page its floater
+         (ownFloater) so the admin list's buttons do not sit on top. --}}
+    <x-contact-floater :items="\App\Support\HomepageContent::floatingContacts()" />
+
     @if ($editing)
         @push('head')
             @vite('resources/js/quill.js')
@@ -431,7 +436,6 @@
                                                 <button type="button" x-show="item.image" @click="item.image = ''; item.image_url = ''"
                                                         class="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:border-orange-400 hover:text-orange-600">Use the initial instead</button>
                                             </div>
-                                            <p class="text-xs text-slate-600">No photo: the first letter of the name is shown.</p>
                                         </div>
                                         <div class="grid grid-cols-[1fr,7rem] gap-2">
                                             <label class="block">
@@ -499,7 +503,6 @@
                                 </label>
                                 <div class="space-y-3">
                                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Contact buttons</p>
-                                    <p class="text-xs text-slate-600">The buttons in this footer. The floating buttons on the logged-in pages are a separate list, under Settings › Contact.</p>
                                     <template x-for="(c, i) in draft.contacts" :key="i">
                                         <div class="space-y-2 rounded-xl border border-slate-200 p-3">
                                             <div class="flex items-center justify-between">
@@ -549,9 +552,12 @@
                                                 <span class="text-xs text-slate-600">Label shown (optional)</span>
                                                 <input type="text" x-model="c.label" maxlength="100" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" placeholder="Leave empty to show the number" />
                                             </label>
+                                            <label class="inline-flex items-center gap-2 text-xs text-slate-700">
+                                                <input type="checkbox" x-model="c.floating" class="rounded border-slate-300" data-contact-floating /> Also show at the side of the page
+                                            </label>
                                         </div>
                                     </template>
-                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', icon: '', icon_url: '' })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
+                                    <button type="button" @click="add('contacts', { type: 'whatsapp', value: '', label: '', icon: '', icon_url: '', floating: true })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add contact</button>
                                 </div>
                             </div>
                         </template>

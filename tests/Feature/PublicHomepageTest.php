@@ -242,13 +242,48 @@ Line two after a break."],
         $this->assertStringContainsString('href="tel:+0312345678"', $html);
         $this->assertStringContainsString('Office', $html);
         $this->assertStringNotContainsString('HIDDEN_CONTACT', $html);
-        // Each type wears its built-in icon image from public/images/icons.
-        $this->assertStringContainsString('images/icons/whatsapp.webp', $html);
-        $this->assertStringContainsString('images/icons/phone.webp', $html);
-        $this->assertSame(2, substr_count($html, 'data-contact-icon="built-in"'));
-        // Copyright on the left, contacts on the right: in the markup the
-        // copyright line comes first.
-        $this->assertLessThan(strpos($html, 'wa.me/01172403112'), strpos($html, 'Hak cipta terpelihara'));
+        // Each type wears its built-in icon image from public/images/icons
+        // (counted in the footer; the side buttons carry them too).
+        $footer = substr($html, strpos($html, '<footer'));
+        $this->assertStringContainsString('images/icons/whatsapp.webp', $footer);
+        $this->assertStringContainsString('images/icons/phone.webp', $footer);
+        $this->assertSame(2, substr_count($footer, 'data-contact-icon="built-in"'));
+        // Copyright on the left, contacts on the right: within the footer the
+        // copyright line comes first (the side buttons, earlier in the page,
+        // carry the same link).
+        $this->assertLessThan(strpos($footer, 'wa.me/01172403112'), strpos($footer, 'Hak cipta terpelihara'));
+    }
+
+    public function test_ticked_footer_contacts_float_at_the_side_of_the_homepage(): void
+    {
+        $this->footerContacts([
+            ['type' => Contact::TYPE_WHATSAPP, 'value' => '011 7240 3112', 'label' => 'FLOATS', 'floating' => true],
+            ['type' => Contact::TYPE_PHONE, 'value' => '03 1234 5678', 'label' => 'FOOTER_ONLY', 'floating' => false],
+        ]);
+        // A back-office Contact row never floats on the public homepage.
+        Contact::create(['type' => Contact::TYPE_TELEGRAM, 'value' => '@office_only', 'label' => 'BACKOFFICE_CONTACT', 'sort_order' => 1, 'is_active' => true]);
+
+        $html = $this->page();
+
+        $this->assertSame(1, substr_count($html, 'data-contact-floater'));
+        $floater = substr($html, strpos($html, 'data-contact-floater'), strpos($html, '</div>', strpos($html, 'data-contact-floater')) - strpos($html, 'data-contact-floater'));
+        $this->assertStringContainsString('wa.me/01172403112', $floater);
+        $this->assertStringContainsString('aria-label="FLOATS"', $floater);
+        $this->assertStringNotContainsString('tel:+0312345678', $floater, 'Unticked: footer only.');
+        $this->assertStringNotContainsString('office_only', $floater);
+        // Both are still in the footer.
+        $this->assertStringContainsString('FOOTER_ONLY', $html);
+    }
+
+    public function test_a_contact_from_before_the_tick_existed_floats_until_unticked(): void
+    {
+        \App\Models\HomepageBlock::create(['key' => 'footer', 'data' => ['contacts' => [
+            ['type' => Contact::TYPE_WHATSAPP, 'value' => '011 7240 3112', 'label' => 'OLD_ROW', 'icon' => ''],
+        ]]]);
+        \App\Support\HomepageContent::forgetCache();
+
+        $this->assertCount(1, \App\Support\HomepageContent::floatingContacts());
+        $this->assertStringContainsString('data-contact-floater', $this->page());
     }
 
     public function test_a_type_without_a_built_in_icon_file_keeps_its_glyph(): void

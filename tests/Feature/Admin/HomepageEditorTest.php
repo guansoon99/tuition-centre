@@ -375,6 +375,33 @@ class HomepageEditorTest extends TestCase
         $this->assertSame(['phone'], array_column(HomepageContent::get('footer')['contacts'], 'type'));
     }
 
+    public function test_the_side_tick_is_saved_and_the_editor_shows_the_homepages_floater_not_the_admin_one(): void
+    {
+        Contact::create(['type' => 'telegram', 'value' => '@office_only', 'label' => 'BACKOFFICE_CONTACT', 'sort_order' => 1, 'is_active' => true]);
+
+        $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [
+            ['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => '', 'floating' => true],
+            ['type' => 'phone', 'value' => '03 1111 2222', 'label' => 'Front desk', 'floating' => false],
+        ]])->assertOk();
+
+        $stored = HomepageContent::get('footer')['contacts'];
+        $this->assertSame([true, false], array_column($stored, 'floating'));
+        $this->assertSame([true, false], array_column(HomepageContent::forEditor()['footer']['contacts'], 'floating'));
+
+        // The edit page previews the homepage's floater (the ticked one), and
+        // the admin list's floater stays off it.
+        $html = $this->as($this->editor)->get(route('homepage.edit'))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, 'data-contact-floater'));
+        $this->assertStringContainsString('wa.me/01172403112', $html);
+        $this->assertStringNotContainsString('office_only', $html);
+        $this->assertStringContainsString('data-contact-floating', $html);
+
+        // Every other logged-in page still floats the Contact rows.
+        $dash = $this->as($this->editor)->get('/')->assertOk()->getContent();
+        $this->assertStringContainsString('office_only', $dash);
+        $this->assertStringNotContainsString('wa.me/01172403112', $dash);
+    }
+
     public function test_a_copyright_only_save_keeps_the_footers_contacts(): void
     {
         $this->saveBlock('footer', ['copyright' => 'x', 'contacts' => [['type' => 'whatsapp', 'value' => '011 7240 3112', 'label' => '']]])->assertOk();
@@ -397,14 +424,15 @@ class HomepageEditorTest extends TestCase
             ],
         ])->assertOk();
 
-        // The footer, as a visitor.
+        // The footer, as a visitor (the side buttons repeat the icons; count the footer).
         $html = $this->asGuest()->get('/')->assertOk()->getContent();
-        $this->assertStringContainsString('href="https://www.facebook.com/qin.stpm"', $html);
-        $this->assertStringContainsString('href="https://www.xiaohongshu.com/user/profile/abc123"', $html);
-        $this->assertSame(1, substr_count($html, 'data-contact-icon="uploaded"'), 'Only the Facebook button wears an uploaded icon.');
-        $this->assertStringContainsString($icon['url'], $html);
-        $this->assertSame(1, substr_count($html, 'data-contact-icon="built-in"'), 'The XHS button uses the built-in icon image.');
-        $this->assertStringContainsString('images/icons/xhs.webp', $html);
+        $footer = substr($html, strpos($html, '<footer'));
+        $this->assertStringContainsString('href="https://www.facebook.com/qin.stpm"', $footer);
+        $this->assertStringContainsString('href="https://www.xiaohongshu.com/user/profile/abc123"', $footer);
+        $this->assertSame(1, substr_count($footer, 'data-contact-icon="uploaded"'), 'Only the Facebook button wears an uploaded icon.');
+        $this->assertStringContainsString($icon['url'], $footer);
+        $this->assertSame(1, substr_count($footer, 'data-contact-icon="built-in"'), 'The XHS button uses the built-in icon image.');
+        $this->assertStringContainsString('images/icons/xhs.webp', $footer);
         $this->assertStringNotContainsString('images/icons/facebook.webp', $html, 'The uploaded icon replaces the built-in one.');
 
         // The floating buttons on a logged-in page are a different list

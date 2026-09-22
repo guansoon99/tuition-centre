@@ -36,7 +36,9 @@
             </div>
         </div>
 
-        <x-contact-floater />
+        @unless ($ownFloater ?? false)
+            <x-contact-floater />
+        @endunless
     @else
         <main class="mx-auto max-w-6xl px-4 py-6">
             @yield('content')
