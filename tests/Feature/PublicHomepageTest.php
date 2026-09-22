@@ -37,9 +37,11 @@ class PublicHomepageTest extends TestCase
     {
         $html = $this->page();
 
-        $button = substr($html, strpos($html, 'data-student-login'), 700);
+        $button = substr($html, strpos($html, 'data-student-login'), 1200);
 
-        $this->assertStringContainsString('Student Login', $button);
+        // "Student Login" from tablet widths up, just "Login" on a phone.
+        $this->assertStringContainsString('<span class="hidden sm:inline">Student Login</span>', $button);
+        $this->assertStringContainsString('<span class="sm:hidden">Login</span>', $button);
         $this->assertStringContainsString('<svg', $button, 'The person icon sits in the button.');
         // On a phone the button must not wrap and the brand steps down a size.
         $this->assertStringContainsString('whitespace-nowrap', $button);

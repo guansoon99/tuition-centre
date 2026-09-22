@@ -18,7 +18,9 @@
                     {{-- person --}}
                     <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM3.75 20.25a8.25 8.25 0 0116.5 0 .75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75z"/></svg>
                     <span class="h-4 w-px bg-white/60 sm:h-5" aria-hidden="true"></span>
-                    Student Login
+                    {{-- "Login" on a phone, "Student Login" from sm up --}}
+                    <span class="sm:hidden">Login</span>
+                    <span class="hidden sm:inline">Student Login</span>
                 </a>
             </nav>
         </div>
