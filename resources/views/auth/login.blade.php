@@ -5,13 +5,6 @@
 @section('content')
     <h2 class="mb-6 text-lg font-medium text-slate-900">Sign in to your account</h2>
 
-    @if (request('signed_out') === 'elsewhere')
-        <div class="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800" data-signed-out-elsewhere>
-            You were signed out because this account signed in on another device or browser.
-            Only one sign-in at a time is allowed. Sign in again to continue here.
-        </div>
-    @endif
-
     <form method="POST" action="{{ route('login') }}" class="space-y-4">
         @csrf
 

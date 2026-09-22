@@ -82,9 +82,9 @@ class LoginTest extends TestCase
 
     /**
      * The single-session check: once the account signs in elsewhere, this
-     * session's next request must land on the login page with an
-     * explanation, not on a blank 401 (which is what the framework does
-     * when no redirect is configured for that path).
+     * session's next request must land on the plain login page, not on a
+     * blank 401 (which is what the framework does when no redirect is
+     * configured for that path).
      */
     public function test_a_session_ended_by_a_login_elsewhere_is_sent_to_the_login_page(): void
     {
@@ -102,12 +102,13 @@ class LoginTest extends TestCase
         $this->app['auth']->forgetGuards();
 
         $this->get('/users')
-            ->assertRedirect(route('login', ['signed_out' => 'elsewhere']));
+            ->assertRedirect(route('login'));
         $this->assertGuest();
 
-        $this->get(route('login', ['signed_out' => 'elsewhere']))
+        // The plain login page, with nothing added to the address or the page.
+        $this->get(route('login'))
             ->assertOk()
-            ->assertSee('signed in on another device');
+            ->assertDontSee('signed in on another device');
 
         // Signing in again works as normal.
         $this->post('/login', ['username' => 'twice', 'password' => 'secret123'])->assertRedirect('/users');

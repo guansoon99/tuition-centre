@@ -38,8 +38,8 @@ class AppServiceProvider extends ServiceProvider
         // One session per account: when the account signs in elsewhere, the
         // AuthenticateSession middleware ends this session on its next
         // request. Without a redirect of its own it hands the browser a
-        // blank 401 (seen on production, 2026-09-22). Send it to the login
-        // page instead, flagged so the page can say what happened.
-        AuthenticateSession::redirectUsing(fn () => route('login', ['signed_out' => 'elsewhere']));
+        // blank 401 (seen on production, 2026-09-22). Send it to the plain
+        // login page instead.
+        AuthenticateSession::redirectUsing(fn () => route('login'));
     }
 }

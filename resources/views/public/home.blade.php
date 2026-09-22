@@ -530,7 +530,6 @@
                                                     <button type="button" x-show="c.icon" @click="c.icon = ''; c.icon_url = ''"
                                                             class="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:border-orange-400 hover:text-orange-600">Use the default icon</button>
                                                 </div>
-                                                <p class="text-xs text-slate-600">Without an upload, the built-in icon for the type is used.</p>
                                             </div>
                                             <div class="grid grid-cols-[8rem,1fr] gap-2">
                                                 <label class="block">
