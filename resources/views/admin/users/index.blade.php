@@ -125,6 +125,7 @@
                         <th class="px-4 py-3">Active</th>
                         <th class="px-4 py-3">Username</th>
                         <th class="px-4 py-3">Password</th>
+                        <th class="px-4 py-3">Login count</th>
                         <th class="px-4 py-3">Last login</th>
                         <th class="px-4 py-3">Created</th>
                         <th class="px-4 py-3"></th>
@@ -170,6 +171,7 @@
                                     {{ $u->plain_password ?? '—' }}
                                 @endif
                             </td>
+                            <td class="px-4 py-3 font-mono text-sm text-slate-800" data-login-count>{{ $u->login_count }}</td>
                             <td class="px-4 py-3 font-mono text-sm">
                                 {{ $u->last_login_at?->format('Y-m-d H:i') ?? '—' }}
                             </td>
@@ -214,7 +216,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="{{ $canBulkDelete ? 9 : 8 }}" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
+                        <tr><td colspan="{{ $canBulkDelete ? 10 : 9 }}" class="px-4 py-8 text-center text-sm text-slate-400">No users match.</td></tr>
                     @endforelse
                 </tbody>
             </table>

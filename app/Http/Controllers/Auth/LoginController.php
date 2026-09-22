@@ -22,7 +22,7 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
-        $user->forceFill(['last_login_at' => now()])->save();
+        $user->increment('login_count', 1, ['last_login_at' => now()]);
 
         // Single-session-per-account: invalidate any other active sessions for this user.
         // AuthenticateSession middleware (registered in Kernel) catches the mismatch on

@@ -80,6 +80,27 @@ class LoginTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_every_login_bumps_the_login_count(): void
+    {
+        $user = User::factory()->create(['username' => 'counted', 'password' => 'secret123']);
+        $user->assignRole('student');
+        $this->assertSame(0, $user->fresh()->login_count);
+
+        $this->post('/login', ['username' => 'counted', 'password' => 'secret123'])->assertRedirect('/');
+        $this->assertSame(1, $user->fresh()->login_count);
+        $this->assertNotNull($user->fresh()->last_login_at);
+
+        // Out and back in: two.
+        $this->post('/logout');
+        $this->post('/login', ['username' => 'counted', 'password' => 'secret123'])->assertRedirect('/');
+        $this->assertSame(2, $user->fresh()->login_count);
+
+        // A failed attempt is not a login.
+        $this->post('/logout');
+        $this->post('/login', ['username' => 'counted', 'password' => 'wrong'])->assertSessionHasErrors('username');
+        $this->assertSame(2, $user->fresh()->login_count);
+    }
+
     public function test_wrong_password_fails(): void
     {
         $user = User::factory()->create(['username' => 'someone', 'password' => 'secret123']);

@@ -34,6 +34,7 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
             'Active',
             'Username',
             'Password',
+            'Login Count',
             'Last Login',
             'Created',
             'Phone',
@@ -55,6 +56,7 @@ class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
             // Only tracked for student users; other roles show blank so
             // staff passwords never leak into the export.
             $roleName === 'student' ? $user->plain_password : null,
+            (int) $user->login_count,
             $user->last_login_at?->format('Y-m-d H:i'),
             $user->created_at->format('Y-m-d H:i'),
             $user->phone,

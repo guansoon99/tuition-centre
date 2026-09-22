@@ -36,18 +36,18 @@ class ServicesTest extends TestCase
         $this->assertSame('student3', $third);
     }
 
-    public function test_password_generator_avoids_ambiguous_chars_and_meets_length(): void
+    public function test_password_generator_makes_three_letters_then_three_digits(): void
     {
         $g = new PasswordGenerator;
 
-        for ($i = 0; $i < 25; $i++) {
-            $pw = $g->generate(10);
-            $this->assertSame(10, strlen($pw));
-            $this->assertDoesNotMatchRegularExpression('/[0O1Il]/', $pw);
-            $this->assertMatchesRegularExpression('/[A-Z]/', $pw);
-            $this->assertMatchesRegularExpression('/[a-z]/', $pw);
-            $this->assertMatchesRegularExpression('/\d/', $pw);
+        $seen = [];
+        for ($i = 0; $i < 50; $i++) {
+            $pw = $g->generate();
+            // Six characters: lowercase letters first, digits after, e.g. "abd123".
+            $this->assertMatchesRegularExpression('/^[a-z]{3}[0-9]{3}$/', $pw);
+            $seen[$pw] = true;
         }
+        $this->assertGreaterThan(45, count($seen), 'Passwords are random, not repeated.');
     }
 
     public function test_student_importer_creates_users_and_enrollments(): void

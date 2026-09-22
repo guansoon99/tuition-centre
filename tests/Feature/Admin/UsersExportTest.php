@@ -139,12 +139,20 @@ class UsersExportTest extends TestCase
 
     // ---- The route ----------------------------------------------------------
 
+    public function test_the_login_count_reaches_the_sheet(): void
+    {
+        $u = User::factory()->create(['login_count' => 12]);
+        $u->assignRole('teacher');
+
+        $this->assertSame(12, $this->rowFor($u)[$this->columnIndex('Login Count')]);
+    }
+
     /** The sheet leads with the /users table's columns, in the table's order. */
     public function test_the_first_columns_follow_the_users_table_order(): void
     {
         $this->assertSame(
-            ['Name', 'Role', 'Active', 'Username', 'Password', 'Last Login', 'Created'],
-            array_slice((new UsersExport(User::query()))->headings(), 0, 7),
+            ['Name', 'Role', 'Active', 'Username', 'Password', 'Login Count', 'Last Login', 'Created'],
+            array_slice((new UsersExport(User::query()))->headings(), 0, 8),
         );
     }
 

@@ -2,32 +2,36 @@
 
 namespace App\Services;
 
+/**
+ * The password a student gets from the batch import: six characters, three
+ * lowercase letters followed by three digits, e.g. "abd123".
+ *
+ * The fixed shape is what keeps it readable on paper: a character in the
+ * first half is always a letter and one in the second half always a digit,
+ * so "l" and "1", or "o" and "0", can never be mistaken for each other.
+ */
 class PasswordGenerator
 {
-    private const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I, O
-    private const LOWER = 'abcdefghijkmnopqrstuvwxyz'; // no l
-    private const DIGIT = '23456789'; // no 0, 1
+    private const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
-    public function generate(int $length = 10): string
+    private const DIGITS = '0123456789';
+
+    public const LETTER_COUNT = 3;
+
+    public const DIGIT_COUNT = 3;
+
+    public function generate(): string
     {
-        if ($length < 4) {
-            $length = 4;
+        $password = '';
+
+        for ($i = 0; $i < self::LETTER_COUNT; $i++) {
+            $password .= self::LETTERS[random_int(0, strlen(self::LETTERS) - 1)];
         }
 
-        $all = self::UPPER.self::LOWER.self::DIGIT;
-
-        $chars = [
-            self::UPPER[random_int(0, strlen(self::UPPER) - 1)],
-            self::LOWER[random_int(0, strlen(self::LOWER) - 1)],
-            self::DIGIT[random_int(0, strlen(self::DIGIT) - 1)],
-        ];
-
-        for ($i = count($chars); $i < $length; $i++) {
-            $chars[] = $all[random_int(0, strlen($all) - 1)];
+        for ($i = 0; $i < self::DIGIT_COUNT; $i++) {
+            $password .= self::DIGITS[random_int(0, strlen(self::DIGITS) - 1)];
         }
 
-        shuffle($chars);
-
-        return implode('', $chars);
+        return $password;
     }
 }

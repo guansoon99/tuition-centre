@@ -25,6 +25,7 @@ class User extends Authenticatable
         'plain_password',
         'is_active',
         'last_login_at',
+        'login_count',
         'notes',
     ];
 
@@ -36,6 +37,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'last_login_at' => 'datetime',
+        'login_count' => 'integer',
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];

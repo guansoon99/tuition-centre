@@ -35,12 +35,23 @@ class UsersIndexColumnsTest extends TestCase
         return $this->actingAs($this->admin)->get(route('users.index'))->assertOk()->getContent();
     }
 
+    public function test_the_login_count_column_shows_each_users_count(): void
+    {
+        $u = User::factory()->create(['name' => 'Counted Person', 'login_count' => 7]);
+        $u->assignRole('student');
+
+        $html = $this->index();
+
+        $row = substr($html, strpos($html, 'Counted Person'), 2000);
+        $this->assertStringContainsString('data-login-count>7<', $row);
+    }
+
     public function test_the_columns_are_in_the_agreed_order(): void
     {
         $html = $this->index();
 
         $positions = [];
-        foreach (['Name', 'Role', 'Active', 'Username', 'Password', 'Last login', 'Created'] as $heading) {
+        foreach (['Name', 'Role', 'Active', 'Username', 'Password', 'Login count', 'Last login', 'Created'] as $heading) {
             $pos = strpos($html, '<th class="px-4 py-3">'.$heading.'</th>');
             $this->assertNotFalse($pos, "Heading {$heading} is missing.");
             $positions[] = $pos;
