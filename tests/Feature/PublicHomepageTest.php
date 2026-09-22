@@ -151,6 +151,8 @@ Line two after a break."],
         // only when the text really overflows four lines.
         $this->assertSame(3, substr_count($reviews, 'x-ref="quote"'));
         $this->assertSame(3, substr_count($reviews, 'review-quote mt-4 max-h-24 overflow-hidden'));
+        // No fade mask: it washed out words, on short quotes too.
+        $this->assertStringNotContainsString('mask-image', $reviews);
         $this->assertSame(3, substr_count($reviews, 'data-review-toggle'));
         $this->assertSame(3, substr_count($reviews, 'x-data="reviewCard()"'));
         $this->assertStringContainsString('x-show="clamped || open"', $reviews);

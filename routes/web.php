@@ -313,6 +313,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('/contacts/reorder', [ContactController::class, 'reorder'])->name('contacts.reorder');
         Route::get('/contacts/{contact}/edit', [ContactController::class, 'edit'])->name('contacts.edit');
         Route::patch('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+        Route::post('/contacts/{contact}/deactivate', [ContactController::class, 'deactivate'])->name('contacts.deactivate');
+        Route::post('/contacts/{contact}/activate', [ContactController::class, 'activate'])->name('contacts.activate');
     });
     Route::middleware('permission:contact.delete')->group(function () {
         Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');

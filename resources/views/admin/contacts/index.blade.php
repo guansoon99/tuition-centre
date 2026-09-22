@@ -27,12 +27,13 @@
                             <th class="px-4 py-3">Label</th>
                             <th class="px-4 py-3">Type</th>
                             <th class="px-4 py-3">Value</th>
+                            <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100" data-sortable-contacts>
                         @foreach ($contacts as $contact)
-                            <tr data-contact-id="{{ $contact->id }}">
+                            <tr data-contact-id="{{ $contact->id }}" class="{{ $contact->is_active ? 'bg-emerald-50' : '' }}">
                                 <td class="px-2 py-3 text-center">
                                     <button type="button" title="Drag to reorder"
                                             class="contact-drag-handle inline-flex h-8 w-8 cursor-grab select-none items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-200 active:cursor-grabbing">
@@ -50,6 +51,13 @@
                                 <td class="px-4 py-3 font-mono text-sm text-slate-800">
                                     {{ $contact->value }}
                                 </td>
+                                <td class="px-4 py-3">
+                                    @if ($contact->is_active)
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">Active</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">Inactive</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
                                         @can('contact.edit')
@@ -57,6 +65,23 @@
                                                class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700">
                                                 Edit
                                             </a>
+                                            @if ($contact->is_active)
+                                                <form method="POST" action="{{ route('contacts.deactivate', $contact) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-amber-600">
+                                                        Deactivate
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('contacts.activate', $contact) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="min-w-[96px] rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-700">
+                                                        Activate
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @endcan
                                         @can('contact.delete')
                                             <form method="POST" action="{{ route('contacts.destroy', $contact) }}"

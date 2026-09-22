@@ -239,10 +239,11 @@
                         </figcaption>
                         {{-- Rich text from the editor. Clamped by height rather than
                              by line count, since the quote is paragraphs, not one
-                             run of text; a fade at the foot shows there is more. --}}
+                             run of text. No fade: it washed out the last visible
+                             line, and the whole of a short quote. --}}
                         <blockquote x-ref="quote" :id="$id('review-quote')"
-                                    :class="{ 'max-h-24 overflow-hidden [mask-image:linear-gradient(to_bottom,black_60%,transparent)]': ! open }"
-                                    class="review-quote mt-4 max-h-24 overflow-hidden break-words text-sm leading-relaxed text-slate-700 [mask-image:linear-gradient(to_bottom,black_60%,transparent)]">{!! \App\Support\HomepageContent::quoteHtml($review['quote']) !!}</blockquote>
+                                    :class="{ 'max-h-24 overflow-hidden': ! open }"
+                                    class="review-quote mt-4 max-h-24 overflow-hidden break-words text-sm leading-relaxed text-slate-700">{!! \App\Support\HomepageContent::quoteHtml($review['quote']) !!}</blockquote>
                         {{-- Right-aligned pill; the whole row is hidden when the
                              quote fits, so it takes no space then. --}}
                         <div x-cloak x-show="clamped || open" class="mt-3 flex justify-end">

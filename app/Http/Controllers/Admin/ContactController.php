@@ -29,7 +29,7 @@ class ContactController extends Controller
     public function store(ContactRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $data['is_active'] = true; // Contacts are always active — no toggle in the UI.
+        $data['is_active'] = true; // New contacts start active; the list has the switch.
         // Auto-append to the end of the existing order.
         $data['sort_order'] = (int) Contact::max('sort_order') + 1;
 
@@ -42,6 +42,31 @@ class ContactController extends Controller
             ->with('status', 'Contact added.');
     }
 
+    public function deactivate(Contact $contact): RedirectResponse
+    {
+        return $this->setActive($contact, false, 'Contact deactivated. Its floating button is hidden.');
+    }
+
+    public function activate(Contact $contact): RedirectResponse
+    {
+        return $this->setActive($contact, true, 'Contact activated.');
+    }
+
+    /**
+     * Hide or show a contact without deleting it. The floating buttons read
+     * active contacts from a cache, so the flip clears it.
+     */
+    private function setActive(Contact $contact, bool $active, string $status): RedirectResponse
+    {
+        $contact->update(['is_active' => $active]);
+
+        $this->forgetCache();
+
+        return redirect()
+            ->route('contacts.index')
+            ->with('status', $status);
+    }
+
     public function edit(Contact $contact): View
     {
         return view('admin.contacts.edit', ['contact' => $contact]);
@@ -49,10 +74,8 @@ class ContactController extends Controller
 
     public function update(ContactRequest $request, Contact $contact): RedirectResponse
     {
-        $data = $request->validated();
-        $data['is_active'] = true;
-
-        $contact->update($data);
+        // Editing keeps the contact's active/inactive state as it is.
+        $contact->update($request->validated());
 
         $this->forgetCache();
 
