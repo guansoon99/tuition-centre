@@ -126,6 +126,41 @@ Line two after a break.'],
             ->assertSee('Already a student?');
     }
 
+    public function test_long_reviews_are_cut_to_four_lines_with_a_more_toggle(): void
+    {
+        $html = $this->page();
+
+        $reviews = substr($html, strpos($html, 'id="reviews"'), strpos($html, 'Already a student?') - strpos($html, 'id="reviews"'));
+
+        // Every quote starts clamped, with a More/Less button the page shows
+        // only when the text really overflows four lines.
+        $this->assertSame(3, substr_count($reviews, 'x-ref="quote"'));
+        $this->assertSame(3, substr_count($reviews, 'line-clamp-4 whitespace-pre-line'));
+        $this->assertSame(3, substr_count($reviews, 'data-review-toggle'));
+        $this->assertStringContainsString('x-show="clamped || open"', $reviews);
+        $this->assertStringContainsString("x-text=\"open ? 'Less' : 'More'\"", $reviews);
+    }
+
+    public function test_the_reviews_section_fades_in_when_scrolled_into_view(): void
+    {
+        $html = $this->page();
+
+        $section = substr($html, strpos($html, '<section id="reviews"'), 1200);
+
+        $this->assertStringContainsString('opacity-0 translate-y-6 transition-all duration-700', $section);
+        $this->assertStringContainsString('IntersectionObserver', $section);
+        // Object form: Alpine removes the hidden-state classes too, static or not.
+        $this->assertStringContainsString("{ 'opacity-100 translate-y-0': shown, 'opacity-0 translate-y-6': ! shown }", $section);
+        $this->assertStringContainsString('motion-reduce:opacity-100', $section);
+    }
+
+    public function test_the_student_reviews_line_is_bold(): void
+    {
+        $html = $this->page();
+
+        $this->assertStringContainsString('font-bold uppercase tracking-[0.3em] text-orange-600" data-reviews-eyebrow>Student Reviews<', $html);
+    }
+
     public function test_feature_card_icons_have_no_background(): void
     {
         $html = $this->page();

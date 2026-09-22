@@ -180,14 +180,28 @@
 
     {{-- ============================================================ Reviews --}}
     @if ($editing || count($reviews['items']) > 0)
-    <section id="reviews" class="scroll-mt-20 bg-amber-50/60">
+    {{-- Fades in once it scrolls into view (and after a short wait
+         regardless, so nothing can stay hidden). Reduced-motion users get
+         it shown straight away. --}}
+    <section id="reviews"
+             class="scroll-mt-20 bg-amber-50/60 opacity-0 translate-y-6 transition-all duration-700 ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0"
+             x-data="{ shown: false }"
+             x-init="(() => {
+                 const reveal = () => { shown = true };
+                 if (! ('IntersectionObserver' in window)) { reveal(); return; }
+                 const io = new IntersectionObserver((entries) => { if (entries.some(e => e.isIntersecting)) { reveal(); io.disconnect(); } }, { threshold: 0.15 });
+                 io.observe($el);
+                 setTimeout(reveal, 2500);
+             })()"
+             :class="{ 'opacity-100 translate-y-0': shown, 'opacity-0 translate-y-6': ! shown }"
+             data-fade-in>
         <div class="relative px-5 py-14 sm:px-8 lg:px-14 xl:px-24">
             @if ($editing)
                 <button type="button" @click="$dispatch('homepage-edit', 'reviews')" class="{{ $editButton }} top-4" aria-label="Edit student reviews">{!! $pencil !!} Edit</button>
             @endif
             <div class="text-center">
                 @if ($reviews['eyebrow'])
-                    <p class="text-xs font-semibold uppercase tracking-[0.3em] text-orange-600">{{ $fill($reviews['eyebrow']) }}</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.3em] text-orange-600" data-reviews-eyebrow>{{ $fill($reviews['eyebrow']) }}</p>
                 @endif
                 <h2 class="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{{ $fill($reviews['heading']) }}</h2>
                 @if ($reviews['subheading'])
@@ -203,7 +217,15 @@
             <div x-ref="track" data-slider="reviews" @scroll.passive="update()"
                  class="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 @foreach ($reviews['items'] as $review)
-                    <figure class="relative w-[85%] shrink-0 snap-start rounded-2xl border border-orange-100 bg-white p-6 shadow-sm shadow-orange-50 sm:w-[calc(50%-0.625rem)] md:w-[calc(33.333%-0.834rem)]">
+                    {{-- A long quote is cut to four lines with a More/Less toggle;
+                         the toggle only appears when the text really is cut. --}}
+                    <figure class="relative w-[85%] shrink-0 snap-start rounded-2xl border border-orange-100 bg-white p-6 shadow-sm shadow-orange-50 sm:w-[calc(50%-0.625rem)] md:w-[calc(33.333%-0.834rem)]"
+                            x-data="{
+                                open: false,
+                                clamped: false,
+                                measure() { if (! this.open) this.clamped = this.$refs.quote.scrollHeight > this.$refs.quote.clientHeight + 1 },
+                            }"
+                            x-init="measure(); new ResizeObserver(() => measure()).observe($refs.quote)">
                         <span class="absolute right-5 top-4 text-5xl leading-none text-orange-200" aria-hidden="true">&rdquo;</span>
                         <figcaption class="flex items-center gap-3">
                             @if (! empty($review['image']))
@@ -220,7 +242,10 @@
                                 </p>
                             </div>
                         </figcaption>
-                        <blockquote class="mt-4 whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{{ $review['quote'] }}</blockquote>
+                        <blockquote x-ref="quote" :class="{ 'line-clamp-4': ! open }" class="mt-4 line-clamp-4 whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{{ $review['quote'] }}</blockquote>
+                        <button type="button" x-cloak x-show="clamped || open" @click="open = ! open" :aria-expanded="open"
+                                x-text="open ? 'Less' : 'More'" data-review-toggle
+                                class="mt-2 text-xs font-semibold text-orange-600 hover:text-orange-700"></button>
                     </figure>
                 @endforeach
             </div>
