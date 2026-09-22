@@ -80,6 +80,39 @@ class LoginTest extends TestCase
         $this->assertGuest();
     }
 
+    /**
+     * The single-session check: once the account signs in elsewhere, this
+     * session's next request must land on the login page with an
+     * explanation, not on a blank 401 (which is what the framework does
+     * when no redirect is configured for that path).
+     */
+    public function test_a_session_ended_by_a_login_elsewhere_is_sent_to_the_login_page(): void
+    {
+        $user = User::factory()->create(['username' => 'twice', 'password' => 'secret123']);
+        $user->assignRole('student');
+
+        $this->post('/login', ['username' => 'twice', 'password' => 'secret123'])->assertRedirect('/');
+        $this->get('/')->assertOk();
+
+        // A login on another device re-hashes the password, which is what
+        // makes every other session's stored hash stale.
+        $user->forceFill(['password' => 'secret123'])->save();
+        // The test client keeps one guard across requests, with the user
+        // cached on it; a real request loads the user afresh. Match that.
+        $this->app['auth']->forgetGuards();
+
+        $this->get('/users')
+            ->assertRedirect(route('login', ['signed_out' => 'elsewhere']));
+        $this->assertGuest();
+
+        $this->get(route('login', ['signed_out' => 'elsewhere']))
+            ->assertOk()
+            ->assertSee('signed in on another device');
+
+        // Signing in again works as normal.
+        $this->post('/login', ['username' => 'twice', 'password' => 'secret123'])->assertRedirect('/users');
+    }
+
     public function test_every_login_bumps_the_login_count(): void
     {
         $user = User::factory()->create(['username' => 'counted', 'password' => 'secret123']);

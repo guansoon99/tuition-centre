@@ -83,23 +83,21 @@
                 <table class="w-full min-w-[700px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
                     <thead class="bg-slate-50 text-left text-xs uppercase text-slate-800">
                         <tr>
-                            <th class="px-4 py-3">Username</th>
                             <th class="px-4 py-3">Name</th>
+                            <th class="px-4 py-3">Active</th>
+                            <th class="px-4 py-3">Username</th>
+                            <th class="px-4 py-3">Password</th>
+                            <th class="px-4 py-3">Login count</th>
                             <th class="px-4 py-3">From</th>
                             <th class="px-4 py-3">Ends</th>
                             <th class="px-4 py-3">Last accessed</th>
-                            <th class="px-4 py-3">Active</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($enrollments as $e)
                             <tr>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->user->username }}</td>
                                 <td class="px-4 py-3 text-slate-800">{{ $e->user->name }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->enrolled_at?->format('Y-m-d H:i') }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->expires_at?->format('Y-m-d H:i') ?? '—' }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->last_accessed_at?->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td class="px-4 py-3">
                                     @if ($e->is_active)
                                         <span class="inline-flex min-w-[72px] items-center justify-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -111,6 +109,14 @@
                                         </span>
                                     @endif
                                 </td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->user->username }}</td>
+                                {{-- The generated password students log in with; blank if it was
+                                     never stored (an account made by hand) or has been changed. --}}
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->user->plain_password ?? '—' }}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800" data-login-count>{{ $e->user->login_count }}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->enrolled_at?->format('Y-m-d H:i') }}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->expires_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $e->last_accessed_at?->format('Y-m-d H:i') ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
                                         <form method="POST" action="{{ route('courses.enrollments.destroy', [$course, $e]) }}"
@@ -126,7 +132,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-600">
+                                <td colspan="9" class="px-4 py-8 text-center text-sm text-slate-600">
                                     @if ($studentSearch !== '')
                                         No students match "{{ $studentSearch }}".
                                     @else

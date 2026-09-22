@@ -126,6 +126,16 @@ Line two after a break.'],
             ->assertSee('Already a student?');
     }
 
+    public function test_feature_card_icons_have_no_background(): void
+    {
+        $html = $this->page();
+
+        $about = substr($html, strpos($html, 'id="about"'), strpos($html, 'id="reviews"') - strpos($html, 'id="about"'));
+
+        $this->assertStringContainsString('rounded-xl text-orange-600" aria-hidden="true">', $about);
+        $this->assertStringNotContainsString('bg-amber-100', $about);
+    }
+
     public function test_features_and_reviews_are_sideways_sliders_with_arrows(): void
     {
         $html = $this->page();

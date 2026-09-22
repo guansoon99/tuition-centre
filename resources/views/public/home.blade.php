@@ -134,7 +134,7 @@
              class="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             @foreach ($features as $feature)
                 <div class="flex w-[85%] shrink-0 snap-start gap-4 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm shadow-orange-50 sm:w-[calc(50%-0.625rem)] lg:w-[calc(25%-0.9375rem)]">
-                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-100 text-orange-600" aria-hidden="true">
+                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-orange-600" aria-hidden="true">
                         @if (! empty($feature['image']))
                             <img src="{{ \App\Support\PublicFile::url($feature['image']) }}" alt="" class="h-full w-full object-cover" data-card-image />
                         @else

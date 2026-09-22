@@ -33,12 +33,11 @@
                 <table class="w-full min-w-[700px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
                     <thead class="bg-slate-50 text-left text-xs uppercase text-slate-800">
                         <tr>
-                            <th class="px-4 py-3">Username</th>
                             <th class="px-4 py-3">Name</th>
+                            <th class="px-4 py-3">Active</th>
                             <th class="px-4 py-3">From</th>
                             <th class="px-4 py-3">Ends</th>
                             <th class="px-4 py-3">Last accessed</th>
-                            <th class="px-4 py-3">Active</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -52,11 +51,7 @@
                                 $tActive = $tEnds === null || $tEnds->isFuture();
                             @endphp
                             <tr>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->username }}</td>
                                 <td class="px-4 py-3 text-slate-800">{{ $t->name }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->enrolled_at ? \Carbon\Carbon::parse($t->pivot->enrolled_at)->format('Y-m-d H:i') : '—'}}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $tEnds?->format('Y-m-d H:i') ?? '—' }}</td>
-                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->last_accessed_at ? \Carbon\Carbon::parse($t->pivot->last_accessed_at)->format('Y-m-d H:i') : '—' }}</td>
                                 <td class="px-4 py-3">
                                     @if ($tActive)
                                         <span class="inline-flex min-w-[72px] items-center justify-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -68,6 +63,9 @@
                                         </span>
                                     @endif
                                 </td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->enrolled_at ? \Carbon\Carbon::parse($t->pivot->enrolled_at)->format('Y-m-d H:i') : '—'}}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $tEnds?->format('Y-m-d H:i') ?? '—' }}</td>
+                                <td class="px-4 py-3 font-mono text-sm text-slate-800">{{ $t->pivot->last_accessed_at ? \Carbon\Carbon::parse($t->pivot->last_accessed_at)->format('Y-m-d H:i') : '—' }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex justify-end gap-2">
                                         {{-- A non-admin cannot remove themselves (CourseTeacherController), so no button. --}}
@@ -85,7 +83,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">No teachers assigned.</td></tr>
+                            <tr><td colspan="6" class="px-4 py-8 text-center text-sm text-slate-400">No teachers assigned.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
