@@ -125,7 +125,13 @@ final class HomepageContent
                 'items.*.name' => ['required', 'string', 'max:60'],
                 'items.*.stars' => ['required', 'integer', 'min:1', 'max:5'],
                 'items.*.image' => ['nullable', 'string', 'max:255', 'regex:#^'.self::IMAGE_FOLDER.'/[A-Za-z0-9._-]+$#'],
-                'items.*.quote' => ['required', 'string', 'max:600'],
+                // Rich text from the editor: the limit is on the markup, and
+                // an "empty" Quill document (<p><br></p>) does not count.
+                'items.*.quote' => ['required', 'string', 'max:5000', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags((string) $value)) === '') {
+                        $fail('The quote is required.');
+                    }
+                }],
             ],
             'cta' => [
                 'heading' => ['required', 'string', 'max:80'],
@@ -199,7 +205,14 @@ final class HomepageContent
                 $clean['items'] = array_values(array_map(function ($item) use ($shape) {
                     $row = [];
                     foreach ($shape as $k) {
-                        $row[$k] = $k === 'stars' ? (int) ($item[$k] ?? 0) : (string) ($item[$k] ?? '');
+                        $row[$k] = match ($k) {
+                            'stars' => (int) ($item[$k] ?? 0),
+                            // The editor's HTML, cleaned the same way material
+                            // bodies are: tags, classes and colours Quill emits,
+                            // nothing else.
+                            'quote' => HtmlSanitizer::clean((string) ($item[$k] ?? '')),
+                            default => (string) ($item[$k] ?? ''),
+                        };
                     }
 
                     return $row;
@@ -331,6 +344,23 @@ final class HomepageContent
 
         SiteSettings::forgetCache();
         Cache::forget('public:contacts');
+    }
+
+    /**
+     * A review quote as HTML for the page. Quotes saved from the rich-text
+     * editor are already-cleaned HTML and pass through (cleaned again, cheaply,
+     * in case a row predates the sanitiser); anything older is plain text and
+     * is escaped with its line breaks kept.
+     */
+    public static function quoteHtml(?string $quote): string
+    {
+        $quote = (string) $quote;
+
+        if (str_starts_with(ltrim($quote), '<')) {
+            return HtmlSanitizer::clean($quote);
+        }
+
+        return nl2br(e($quote), false);
     }
 
     /** Replace the {name} and {year} placeholders a text field may carry. */

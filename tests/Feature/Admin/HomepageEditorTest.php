@@ -403,6 +403,29 @@ class HomepageEditorTest extends TestCase
         $this->assertSame(0, Contact::count());
     }
 
+    public function test_review_quotes_are_saved_as_cleaned_html(): void
+    {
+        $this->saveBlock('reviews', ['heading' => 'R', 'items' => [
+            ['name' => 'Aina', 'stars' => 5, 'quote' => '<p>Great <em>notes</em>, <span style="color: rgb(0, 138, 0);">clear</span> lessons.</p><img src=x onerror="alert(1)">'],
+        ]])->assertOk();
+
+        $stored = HomepageBlock::find('reviews')->data['items'][0]['quote'];
+        $this->assertStringContainsString('<em>notes</em>', $stored);
+        $this->assertStringContainsString('color:rgb(0,138,0)', $stored);
+        $this->assertStringNotContainsString('onerror', $stored);
+
+        // The editor loads the rich-text bundle; the public page does not.
+        $this->assertStringContainsString('quill', $this->as($this->editor)->get(route('homepage.edit'))->getContent());
+        $this->assertStringNotContainsString('data-review-quill', $this->asGuest()->get('/')->getContent());
+    }
+
+    public function test_an_empty_looking_quote_is_refused(): void
+    {
+        $this->saveBlock('reviews', ['heading' => 'R', 'items' => [
+            ['name' => 'Aina', 'stars' => 5, 'quote' => '<p><br></p>'],
+        ]])->assertStatus(422)->assertJsonValidationErrors(['items.0.quote']);
+    }
+
     public function test_an_empty_reviews_list_hides_the_section_for_visitors_but_not_the_editor(): void
     {
         $this->saveBlock('reviews', ['heading' => 'Reviews', 'items' => []])->assertOk();

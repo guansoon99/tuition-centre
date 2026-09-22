@@ -80,8 +80,8 @@ class PublicHomepageTest extends TestCase
             ['icon' => 'book', 'image' => '', 'title' => 'Supercalifragilisticexpialidocious_and_then_some', 'text' => 'https://example.com/a/very/long/unbroken/path/that/would/otherwise/overflow'],
         ]]]);
         \App\Models\HomepageBlock::create(['key' => 'reviews', 'data' => ['heading' => 'R', 'items' => [
-            ['name' => 'Averyveryveryverylongsinglewordname', 'stars' => 5, 'image' => '', 'quote' => 'Line one.
-Line two after a break.'],
+            ['name' => 'Averyveryveryverylongsinglewordname', 'stars' => 5, 'image' => '', 'quote' => "Line one.
+Line two after a break."],
         ]]]);
         \App\Support\HomepageContent::forgetCache();
 
@@ -92,7 +92,8 @@ Line two after a break.'],
         $this->assertStringContainsString('class="break-words text-base font-semibold text-slate-900">Supercalifragilisticexpialidocious_and_then_some<', $html);
         $this->assertStringContainsString('whitespace-pre-line break-words text-sm text-slate-600">https://example.com/a/very/long', $html);
         $this->assertStringContainsString('class="break-words font-semibold text-slate-900">Averyveryveryverylongsinglewordname<', $html);
-        $this->assertStringContainsString('whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">Line one.', $html);
+        // A plain-text quote from before the rich editor keeps its line break.
+        $this->assertMatchesRegularExpression('/Line one\.<br>\s*Line two after a break\./', $html);
     }
 
     public function test_a_single_poster_shows_without_arrows(): void
@@ -126,6 +127,20 @@ Line two after a break.'],
             ->assertSee('Already a student?');
     }
 
+    public function test_a_rich_text_quote_keeps_its_styling_and_loses_anything_unsafe(): void
+    {
+        \App\Models\HomepageBlock::create(['key' => 'reviews', 'data' => ['heading' => 'R', 'items' => [
+            ['name' => 'Aina', 'stars' => 5, 'image' => '', 'quote' => '<p class="ql-align-center">Very <strong style="color: rgb(230, 0, 0);">patient</strong> teacher.</p><script>alert(1)</script>'],
+        ]]]);
+        \App\Support\HomepageContent::forgetCache();
+
+        $html = $this->page();
+
+        $this->assertStringContainsString('<p class="ql-align-center">Very <strong style="color:rgb(230,0,0);">patient</strong> teacher.</p>', $html);
+        // The page has scripts of its own; the injected one must be gone.
+        $this->assertStringNotContainsString('alert(1)', $html);
+    }
+
     public function test_long_reviews_are_cut_to_four_lines_with_a_more_toggle(): void
     {
         $html = $this->page();
@@ -135,10 +150,12 @@ Line two after a break.'],
         // Every quote starts clamped, with a More/Less button the page shows
         // only when the text really overflows four lines.
         $this->assertSame(3, substr_count($reviews, 'x-ref="quote"'));
-        $this->assertSame(3, substr_count($reviews, 'line-clamp-4 whitespace-pre-line'));
+        $this->assertSame(3, substr_count($reviews, 'review-quote mt-4 max-h-24 overflow-hidden'));
         $this->assertSame(3, substr_count($reviews, 'data-review-toggle'));
+        $this->assertSame(3, substr_count($reviews, 'x-data="reviewCard()"'));
         $this->assertStringContainsString('x-show="clamped || open"', $reviews);
-        $this->assertStringContainsString("x-text=\"open ? 'Less' : 'More'\"", $reviews);
+        $this->assertStringContainsString("x-text=\"open ? 'Show less' : 'Show more'\"", $reviews);
+        $this->assertStringContainsString('window.reviewCard', $html);
     }
 
     public function test_the_reviews_section_fades_in_when_scrolled_into_view(): void
@@ -147,7 +164,7 @@ Line two after a break.'],
 
         $section = substr($html, strpos($html, '<section id="reviews"'), 1200);
 
-        $this->assertStringContainsString('opacity-0 translate-y-6 transition-all duration-700', $section);
+        $this->assertStringContainsString('opacity-0 translate-y-6 transition-all duration-[1500ms]', $section);
         $this->assertStringContainsString('IntersectionObserver', $section);
         // Object form: Alpine removes the hidden-state classes too, static or not.
         $this->assertStringContainsString("{ 'opacity-100 translate-y-0': shown, 'opacity-0 translate-y-6': ! shown }", $section);

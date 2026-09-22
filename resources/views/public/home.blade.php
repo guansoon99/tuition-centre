@@ -184,7 +184,7 @@
          regardless, so nothing can stay hidden). Reduced-motion users get
          it shown straight away. --}}
     <section id="reviews"
-             class="scroll-mt-20 bg-amber-50/60 opacity-0 translate-y-6 transition-all duration-700 ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0"
+             class="scroll-mt-20 bg-amber-50/60 opacity-0 translate-y-6 transition-all duration-[1500ms] ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0"
              x-data="{ shown: false }"
              x-init="(() => {
                  const reveal = () => { shown = true };
@@ -220,12 +220,7 @@
                     {{-- A long quote is cut to four lines with a More/Less toggle;
                          the toggle only appears when the text really is cut. --}}
                     <figure class="relative w-[85%] shrink-0 snap-start rounded-2xl border border-orange-100 bg-white p-6 shadow-sm shadow-orange-50 sm:w-[calc(50%-0.625rem)] md:w-[calc(33.333%-0.834rem)]"
-                            x-data="{
-                                open: false,
-                                clamped: false,
-                                measure() { if (! this.open) this.clamped = this.$refs.quote.scrollHeight > this.$refs.quote.clientHeight + 1 },
-                            }"
-                            x-init="measure(); new ResizeObserver(() => measure()).observe($refs.quote)">
+                            x-data="reviewCard()" x-id="['review-quote']">
                         <span class="absolute right-5 top-4 text-5xl leading-none text-orange-200" aria-hidden="true">&rdquo;</span>
                         <figcaption class="flex items-center gap-3">
                             @if (! empty($review['image']))
@@ -242,10 +237,22 @@
                                 </p>
                             </div>
                         </figcaption>
-                        <blockquote x-ref="quote" :class="{ 'line-clamp-4': ! open }" class="mt-4 line-clamp-4 whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{{ $review['quote'] }}</blockquote>
-                        <button type="button" x-cloak x-show="clamped || open" @click="open = ! open" :aria-expanded="open"
-                                x-text="open ? 'Less' : 'More'" data-review-toggle
-                                class="mt-2 text-xs font-semibold text-orange-600 hover:text-orange-700"></button>
+                        {{-- Rich text from the editor. Clamped by height rather than
+                             by line count, since the quote is paragraphs, not one
+                             run of text; a fade at the foot shows there is more. --}}
+                        <blockquote x-ref="quote" :id="$id('review-quote')"
+                                    :class="{ 'max-h-24 overflow-hidden [mask-image:linear-gradient(to_bottom,black_60%,transparent)]': ! open }"
+                                    class="review-quote mt-4 max-h-24 overflow-hidden break-words text-sm leading-relaxed text-slate-700 [mask-image:linear-gradient(to_bottom,black_60%,transparent)]">{!! \App\Support\HomepageContent::quoteHtml($review['quote']) !!}</blockquote>
+                        {{-- Right-aligned pill; the whole row is hidden when the
+                             quote fits, so it takes no space then. --}}
+                        <div x-cloak x-show="clamped || open" class="mt-3 flex justify-end">
+                            <button type="button" @click="toggle()"
+                                    :aria-expanded="open" :aria-controls="$id('review-quote')" data-review-toggle
+                                    class="inline-flex items-center gap-1 rounded-full border border-orange-300 bg-white px-3 py-1 text-xs font-semibold text-orange-600 transition hover:border-orange-400 hover:bg-orange-50">
+                                <span x-text="open ? 'Show less' : 'Show more'"></span>
+                                <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="{ 'rotate-180': open }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                            </button>
+                        </div>
                     </figure>
                 @endforeach
             </div>
@@ -295,6 +302,13 @@
     @endif
 
     @if ($editing)
+        @push('head')
+            @vite('resources/js/quill.js')
+            <style>
+                .review-quill .ql-editor { min-height: 6rem; font-size: 0.875rem; }
+                .review-quill .ql-toolbar.ql-snow { line-height: 0; padding: 4px 6px; }
+            </style>
+        @endpush
         {{-- ======================================================== The editor --}}
         {{-- One panel for every block. An "Edit" button anywhere on the page
              dispatches the block's name; the panel opens with a copy of that
@@ -432,10 +446,16 @@
                                                 </select>
                                             </label>
                                         </div>
-                                        <label class="block">
+                                        <div class="block">
                                             <span class="text-xs text-slate-600">Quote</span>
-                                            <textarea x-model="item.quote" maxlength="600" rows="3" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"></textarea>
-                                        </label>
+                                            {{-- The same editor the course materials use, with the
+                                                 text-styling buttons only. Mounted per review; a
+                                                 re-render (add, remove, reorder) mounts it afresh
+                                                 from the draft. --}}
+                                            <div class="mt-1 overflow-hidden rounded-md border border-slate-300 bg-white">
+                                                <div x-init="mountQuote($el, item)" class="review-quill" data-review-quill></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </template>
                                 <button type="button" @click="add('items', { name: '', stars: 5, image: '', image_url: '', quote: '' })" class="rounded-md border border-dashed border-slate-400 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600">+ Add review</button>
@@ -563,6 +583,41 @@
                     errors: [],
                     saving: false,
                     uploading: false,
+                    // A review's quote: a Quill editor with the styling buttons,
+                    // kept in step with the draft so Save sends its HTML.
+                    mountQuote(el, item) {
+                        if (! window.Quill) {
+                            // The editor bundle has not loaded (or cannot): fall
+                            // back to a plain box rather than lose the field.
+                            const box = document.createElement('textarea');
+                            box.rows = 3;
+                            box.className = 'w-full px-2 py-1.5 text-sm';
+                            box.value = item.quote || '';
+                            box.addEventListener('input', () => { item.quote = box.value; });
+                            el.replaceWith(box);
+                            return;
+                        }
+                        const quill = new window.Quill(el, {
+                            theme: 'snow',
+                            placeholder: 'What the student said…',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    [{ color: [] }, { background: [] }],
+                                    [{ align: [] }],
+                                    ['clean'],
+                                ],
+                            },
+                        });
+                        const initial = item.quote || '';
+                        if (initial.trim().startsWith('<')) {
+                            quill.clipboard.dangerouslyPasteHTML(initial);
+                        } else if (initial !== '') {
+                            quill.setText(initial);
+                        }
+                        quill.on('text-change', () => { item.quote = quill.root.innerHTML; });
+                        el.__quill = quill;
+                    },
                     // A card's own image: sent as soon as it is picked, so the
                     // card previews it and Save only has a path to store.
                     async uploadImage(item, event, field = 'image') {
@@ -648,7 +703,39 @@
         </script>
     @endif
 
+    <style>
+        .review-quote p { margin: 0 0 0.5rem; }
+        .review-quote p:last-child { margin-bottom: 0; }
+        .review-quote .ql-align-center { text-align: center; }
+        .review-quote .ql-align-right { text-align: right; }
+        .review-quote .ql-align-justify { text-align: justify; }
+        .review-quote ul { list-style: disc; padding-left: 1.25rem; }
+        .review-quote ol { list-style: decimal; padding-left: 1.25rem; }
+        .review-quote a { color: rgb(2 132 199); text-decoration: underline; }
+    </style>
     <script>
+        // A review card: the quote is cut to four lines, and a "Show more"
+        // control appears only when the text really overflows. Registered
+        // in the body so it exists before Alpine (a deferred module) starts.
+        window.reviewCard = function () {
+            return {
+                open: false,
+                clamped: false,
+                init() {
+                    this.measure();
+                    new ResizeObserver(() => this.measure()).observe(this.$refs.quote);
+                },
+                measure() {
+                    if (this.open) return;
+                    const quote = this.$refs.quote;
+                    this.clamped = quote.scrollHeight > quote.clientHeight + 1;
+                },
+                toggle() {
+                    this.open = ! this.open;
+                },
+            };
+        };
+
         // The two sliders above. Registered here, in the body, so it exists
         // before Alpine (a deferred module from the head) starts and reads
         // x-data="homeSlider()". Native scrolling does the moving: a swipe
