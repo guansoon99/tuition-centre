@@ -41,6 +41,12 @@ class PublicHomepageTest extends TestCase
 
         $this->assertStringContainsString('Student Login', $button);
         $this->assertStringContainsString('<svg', $button, 'The person icon sits in the button.');
+        // On a phone the button must not wrap and the brand steps down a size.
+        $this->assertStringContainsString('whitespace-nowrap', $button);
+        $header = substr($html, strpos($html, '<header'), strpos($html, '</header>') - strpos($html, '<header'));
+        $this->assertStringContainsString('<span class="sm:hidden">', $header);
+        $this->assertStringContainsString('<span class="hidden sm:inline-flex">', $header);
+        $this->assertSame(2, substr_count($header, \App\Models\SiteSettings::current()->displayName()), 'The name once per size variant.');
         $this->assertStringContainsString('href="'.route('login').'"', substr($html, strpos($html, 'data-student-login') - 80, 100));
     }
 
