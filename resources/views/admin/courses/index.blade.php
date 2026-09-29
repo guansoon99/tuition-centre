@@ -31,7 +31,7 @@
          }">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Courses</h1>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap justify-end gap-2">
                 @if ($canBulkDelete)
                     {{-- Delete button: always visible, disabled until at least one row is ticked. --}}
                     <button type="button" @click="deleteSelected()"
@@ -76,10 +76,10 @@
             <input type="text" name="q" placeholder="Search code or name"
                    value="{{ $filters['q'] ?? '' }}"
                    @input.debounce.500ms="sessionStorage.setItem('courses-q-focus', '1'); $el.form.submit()"
-                   class="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+                   class="min-w-0 flex-1 basis-40 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
 
             <select name="active" onchange="this.form.submit()"
-                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                    class="max-w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Status</option>
                 <option value="1" @selected(($filters['active'] ?? '') === '1')>Active</option>
                 <option value="0" @selected(($filters['active'] ?? '') === '0')>Inactive</option>

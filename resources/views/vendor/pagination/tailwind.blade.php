@@ -16,8 +16,10 @@
             <span class="font-semibold">{{ $paginator->total() }}</span> results
         </p>
 
-        {{-- Page buttons --}}
-        <div class="inline-flex items-center gap-1">
+        {{-- Page buttons. They wrap onto a second line on a phone: a long
+             run of page numbers is wider than the screen, and a row that
+             cannot wrap makes the whole page scroll sideways. --}}
+        <div class="flex max-w-full flex-wrap items-center justify-center gap-1" data-pager-buttons>
             {{-- Previous --}}
             @if ($paginator->onFirstPage())
                 <span aria-disabled="true"

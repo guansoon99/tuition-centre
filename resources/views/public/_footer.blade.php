@@ -46,7 +46,7 @@
                                 <img src="{{ $builtInIcon }}" alt="" class="h-6 w-6 object-contain" data-contact-icon="built-in" />
                             @elseif ($type === \App\Models\Contact::TYPE_FACEBOOK)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1877F2] text-white" aria-hidden="true">
-                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="''' + FB_PATH + '''"/></svg>
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.8c0-.9.3-1.6 1.6-1.6h1.7V4.3c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.4H7.5V14h2.7v8h3.3z"/></svg>
                                 </span>
                             @elseif ($type === \App\Models\Contact::TYPE_XHS)
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#FF2442] text-[7px] font-extrabold text-white" aria-hidden="true">XHS</span>

@@ -25,7 +25,7 @@
          }">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-xl font-semibold text-slate-900">Users</h1>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap justify-end gap-2">
                 @if ($canBulkDelete)
                     <button type="button" @click="deleteSelected()"
                             :disabled="selected.length === 0"
@@ -74,10 +74,10 @@
             <input type="text" name="q" placeholder="Search username or name"
                    value="{{ $filters['q'] ?? '' }}"
                    @input.debounce.500ms="sessionStorage.setItem('users-q-focus', '1'); $el.form.submit()"
-                   class="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+                   class="min-w-0 flex-1 basis-40 rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
 
             <select name="role" onchange="this.form.submit()"
-                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                    class="max-w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Roles</option>
                 @foreach ($roleOptions as $r)
                     <option value="{{ $r }}" @selected(($filters['role'] ?? '') === $r)>{{ ucfirst($r) }}</option>
@@ -85,7 +85,7 @@
             </select>
 
             <select name="course" onchange="this.form.submit()"
-                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                    class="max-w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Courses</option>
                 @foreach ($courseOptions as $c)
                     <option value="{{ $c->id }}" @selected((string) ($filters['course'] ?? '') === (string) $c->id)>{{ $c->code }} — {{ $c->name }}</option>
@@ -93,14 +93,14 @@
             </select>
 
             <select name="enrollment" onchange="this.form.submit()"
-                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                    class="max-w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Enrollment</option>
                 <option value="enrolled" @selected(($filters['enrollment'] ?? '') === 'enrolled')>Enrolled</option>
                 <option value="unenrolled" @selected(($filters['enrollment'] ?? '') === 'unenrolled')>Unenrolled</option>
             </select>
 
             <select name="active" onchange="this.form.submit()"
-                    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+                    class="max-w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
                 <option value="">All Status</option>
                 <option value="1" @selected(($filters['active'] ?? '') === '1')>Active</option>
                 <option value="0" @selected(($filters['active'] ?? '') === '0')>Inactive</option>

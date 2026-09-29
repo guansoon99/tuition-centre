@@ -55,7 +55,7 @@
                     <img src="{{ $b['builtin'] }}" alt="" class="h-full w-full object-contain" data-contact-icon="built-in" />
                 @elseif ($b['type'] === \App\Models\Contact::TYPE_FACEBOOK)
                     {{-- Facebook glyph --}}
-                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="''' + FB_PATH + '''"/></svg>
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.8c0-.9.3-1.6 1.6-1.6h1.7V4.3c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.4H7.5V14h2.7v8h3.3z"/></svg>
                 @elseif ($b['type'] === \App\Models\Contact::TYPE_XHS)
                     <span class="text-[10px] font-extrabold tracking-wide" aria-hidden="true">XHS</span>
                 @elseif ($b['type'] === \App\Models\Contact::TYPE_WHATSAPP)
