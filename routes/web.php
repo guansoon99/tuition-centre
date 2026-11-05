@@ -384,6 +384,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         // The run is a background job; the page polls this until it is done.
         Route::get('/import-students/status/{import}', [ImportStudentsController::class, 'status'])
             ->whereNumber('import')->name('import.status');
+        Route::get('/import-students/errors', [ImportStudentsController::class, 'downloadPreviewErrors'])->name('import.preview-errors');
+        Route::get('/import-students/errors/{import}', [ImportStudentsController::class, 'downloadErrors'])
+            ->whereNumber('import')->name('import.errors');
         Route::get('/import-students/credentials/{import}', [ImportStudentsController::class, 'downloadCredentials'])
             ->whereNumber('import')->name('import.credentials');
     });

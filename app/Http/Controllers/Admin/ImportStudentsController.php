@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\StudentImportErrorsExport;
 use App\Exports\StudentImportSampleExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\ImportStudents;
@@ -59,7 +60,7 @@ class ImportStudentsController extends Controller
         // previous visit — clean it up so /imports does not accumulate.
         if (! $preview && ! $import && ! $active && ($path = Session::get('import_file_path'))) {
             Storage::disk('local')->delete($path);
-            Session::forget(['import_file_path', 'import_file_original_name']);
+            Session::forget(['import_file_path', 'import_file_original_name', 'import_preview_errors']);
         }
 
         return view('admin.import.show', [
@@ -90,6 +91,10 @@ class ImportStudentsController extends Controller
         $result = $importer->processRows($importer->parseFile($uploaded), dryRun: true);
 
         Session::flash('preview', $result);
+
+        // The preview is flashed for one page view; this stays for the
+        // "Download Students to Fix" button on that page.
+        Session::put('import_preview_errors', $result['errors']);
 
         return back();
     }
@@ -125,7 +130,7 @@ class ImportStudentsController extends Controller
         ]);
 
         // The upload now belongs to the import; the job deletes it when done.
-        Session::forget(['import_file_path', 'import_file_original_name']);
+        Session::forget(['import_file_path', 'import_file_original_name', 'import_preview_errors']);
 
         try {
             ImportStudents::dispatch($import);
@@ -156,7 +161,7 @@ class ImportStudentsController extends Controller
         if ($stashedPath = Session::get('import_file_path')) {
             Storage::disk('local')->delete($stashedPath);
         }
-        Session::forget(['import_file_path', 'import_file_original_name']);
+        Session::forget(['import_file_path', 'import_file_original_name', 'import_preview_errors']);
 
         return redirect()
             ->route('import.show')
@@ -203,6 +208,34 @@ class ImportStudentsController extends Controller
         return Excel::download(
             new StudentImportSampleExport($sampleCode),
             'students_import_sample.xlsx'
+        );
+    }
+
+    /** The rows the current preview found errors in, to fix and upload again. */
+    public function downloadPreviewErrors(): BinaryFileResponse|RedirectResponse
+    {
+        return $this->errorsDownload(Session::get('import_preview_errors', []));
+    }
+
+    /** The rows a finished import could not use, to fix and upload again. */
+    public function downloadErrors(Request $request, StudentImport $import): BinaryFileResponse|RedirectResponse
+    {
+        abort_unless($import->user_id === $request->user()->id, 403);
+
+        return $this->errorsDownload($import->result['errors'] ?? []);
+    }
+
+    private function errorsDownload(array $errors): BinaryFileResponse|RedirectResponse
+    {
+        if ($errors === []) {
+            return redirect()
+                ->route('import.show')
+                ->withErrors(['file' => 'There are no rows with errors to download.']);
+        }
+
+        return Excel::download(
+            new StudentImportErrorsExport($errors),
+            'students_to_fix_'.now()->format('Y-m-d_His').'.xlsx',
         );
     }
 

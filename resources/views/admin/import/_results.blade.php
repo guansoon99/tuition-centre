@@ -19,6 +19,13 @@
     </div>
 
     @if (! empty($result['errors']))
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm text-slate-700">Download these rows, fix them, and upload that file again.</p>
+            <a href="{{ $errorsUrl }}" data-import-errors-download
+               class="inline-flex rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700">
+                Download Students to Fix ({{ count($result['errors']) }})
+            </a>
+        </div>
         <div class="overflow-hidden rounded-md border border-red-200 bg-white">
             <table class="w-full text-sm">
                 <thead class="bg-red-50 text-left text-xs uppercase text-red-700">

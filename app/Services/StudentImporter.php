@@ -13,6 +13,9 @@ use Throwable;
 
 class StudentImporter
 {
+    /** The columns of an import file, in the order the sample file has them. */
+    public const ROW_COLUMNS = ['name', 'phone', 'email', 'ic_number', 'candidate_number', 'course_code', 'expires_at'];
+
     public function __construct(
         private readonly UsernameGenerator $usernames,
         private readonly PasswordGenerator $passwords,
@@ -339,6 +342,15 @@ class StudentImporter
                 'plain_password' => $password,
                 'course' => $course?->code,
             ];
+        }
+
+        // Each error keeps its whole row, so the admin can download the rows
+        // that failed, correct them and upload just those again.
+        foreach ($results['errors'] as $i => $error) {
+            $results['errors'][$i]['row'] = array_intersect_key(
+                $records[$error['line'] - 2],
+                array_flip(self::ROW_COLUMNS),
+            );
         }
 
         if ($onProgress !== null) {

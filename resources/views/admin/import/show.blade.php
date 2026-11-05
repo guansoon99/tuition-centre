@@ -91,7 +91,7 @@
             </form>
 
             @if ($preview)
-                @include('admin.import._results', ['result' => $preview, 'title' => 'Preview'])
+                @include('admin.import._results', ['result' => $preview, 'title' => 'Preview', 'errorsUrl' => route('import.preview-errors')])
 
                 @if ($dupCount > 0)
                     <div class="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
@@ -151,7 +151,7 @@
                         <p class="mt-2">Fix the cause and run the file again from the top of this page.</p>
                     </div>
                 @else
-                    @include('admin.import._results', ['result' => $import->result ?? [], 'title' => 'Import result'])
+                    @include('admin.import._results', ['result' => $import->result ?? [], 'title' => 'Import result', 'errorsUrl' => route('import.errors', $import)])
 
                     @if ($import->credentials_path)
                         <a href="{{ route('import.credentials', $import) }}"
