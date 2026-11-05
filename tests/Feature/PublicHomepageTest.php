@@ -167,9 +167,9 @@ Line two after a break."],
         $reviews = substr($html, strpos($html, 'id="reviews"'), strpos($html, 'Already a student?') - strpos($html, 'id="reviews"'));
 
         // Every quote starts clamped, with a More/Less button the page shows
-        // only when the text really overflows four lines.
+        // only when the text really overflows six lines.
         $this->assertSame(3, substr_count($reviews, 'x-ref="quote"'));
-        $this->assertSame(3, substr_count($reviews, 'review-quote mt-4 max-h-24 overflow-hidden'));
+        $this->assertSame(3, substr_count($reviews, 'review-quote mt-4 max-h-[9.75em] overflow-hidden is-clamped'));
         // No fade mask: it washed out words, on short quotes too.
         $this->assertStringNotContainsString('mask-image', $reviews);
         $this->assertSame(3, substr_count($reviews, 'data-review-toggle'));
@@ -207,6 +207,18 @@ Line two after a break."],
 
         $this->assertStringContainsString('rounded-xl text-orange-600" aria-hidden="true">', $about);
         $this->assertStringNotContainsString('bg-amber-100', $about);
+    }
+
+    public function test_only_the_feature_cards_move_by_themselves(): void
+    {
+        $html = $this->page();
+
+        $features = substr($html, strpos($html, 'id="about"'), strpos($html, 'id="reviews"') - strpos($html, 'id="about"'));
+        $reviews = substr($html, strpos($html, 'id="reviews"'));
+
+        $this->assertStringContainsString('x-data="homeSlider(3000)"', $features);
+        $this->assertStringContainsString('x-data="homeSlider()"', $reviews);
+        $this->assertStringNotContainsString('homeSlider(3000)', $reviews);
     }
 
     public function test_features_and_reviews_are_sideways_sliders_with_arrows(): void
@@ -260,6 +272,23 @@ Line two after a break."],
         // copyright line comes first (the side buttons, earlier in the page,
         // carry the same link).
         $this->assertLessThan(strpos($footer, 'wa.me/01172403112'), strpos($footer, 'Hak cipta terpelihara'));
+    }
+
+    public function test_the_footer_contacts_are_a_list_on_a_phone_and_one_row_on_a_desktop(): void
+    {
+        $this->footerContacts([
+            ['type' => Contact::TYPE_WHATSAPP, 'value' => '01172403112', 'label' => 'WhatsApp us'],
+        ]);
+
+        $html = $this->get('/')->assertOk()->getContent();
+        $footer = substr($html, strpos($html, '<footer'));
+
+        $this->assertSame(1, preg_match('/<div class="([^"]*)" data-footer-contacts>/', $footer, $m));
+        $classes = explode(' ', $m[1]);
+        $this->assertContains('flex-col', $classes);
+        $this->assertContains('items-start', $classes);
+        $this->assertContains('xl:flex-row', $classes);
+        $this->assertStringContainsString('Contact Us', $footer);
     }
 
     public function test_ticked_footer_contacts_float_at_the_side_of_the_homepage(): void

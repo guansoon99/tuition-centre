@@ -128,8 +128,9 @@
         {{-- A slider, not a grid: cards sit in one row that scrolls sideways
              (swipe, or the arrows at either end), so more can be added than
              fit on screen. Four fill a desktop row exactly; the arrows grey
-             out when there is nothing further that way. --}}
-        <div x-data="homeSlider()" class="relative">
+             out when there is nothing further that way. It also moves on by
+             itself, except in edit mode, where cards should hold still. --}}
+        <div x-data="homeSlider({{ $editing ? 0 : 3000 }})" class="relative">
         <div x-ref="track" data-slider="features" @scroll.passive="update()"
              class="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             @foreach ($features as $feature)
@@ -217,7 +218,7 @@
             <div x-ref="track" data-slider="reviews" @scroll.passive="update()"
                  class="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 @foreach ($reviews['items'] as $review)
-                    {{-- A long quote is cut to four lines with a More/Less toggle;
+                    {{-- A long quote is cut to six lines with a More/Less toggle;
                          the toggle only appears when the text really is cut. --}}
                     <figure class="relative w-[85%] shrink-0 snap-start rounded-2xl border border-orange-100 bg-white p-6 shadow-sm shadow-orange-50 sm:w-[calc(50%-0.625rem)] md:w-[calc(33.333%-0.834rem)]"
                             x-data="reviewCard()" x-id="['review-quote']">
@@ -237,13 +238,14 @@
                                 </p>
                             </div>
                         </figcaption>
-                        {{-- Rich text from the editor. Clamped by height rather than
+                        {{-- Rich text from the editor. Cut at exactly six lines: 9.75em is
+                             6 x the 1.625 line height of leading-relaxed. Clamped by height rather than
                              by line count, since the quote is paragraphs, not one
                              run of text. No fade: it washed out the last visible
                              line, and the whole of a short quote. --}}
                         <blockquote x-ref="quote" :id="$id('review-quote')"
-                                    :class="{ 'max-h-24 overflow-hidden': ! open }"
-                                    class="review-quote mt-4 max-h-24 overflow-hidden break-words text-sm leading-relaxed text-slate-700">{!! \App\Support\HomepageContent::quoteHtml($review['quote']) !!}</blockquote>
+                                    :class="{ 'max-h-[9.75em] overflow-hidden is-clamped': ! open }"
+                                    class="review-quote mt-4 max-h-[9.75em] overflow-hidden is-clamped break-words text-sm leading-relaxed text-slate-700">{!! \App\Support\HomepageContent::quoteHtml($review['quote']) !!}</blockquote>
                         {{-- Right-aligned pill; the whole row is hidden when the
                              quote fits, so it takes no space then. --}}
                         <div x-cloak x-show="clamped || open" class="mt-3 flex justify-end">
@@ -710,6 +712,8 @@
     <style>
         .review-quote p { margin: 0 0 0.5rem; }
         .review-quote p:last-child { margin-bottom: 0; }
+        /* Paragraph gaps would push the last line off the six-line cut. */
+        .review-quote.is-clamped p { margin-bottom: 0; }
         .review-quote .ql-align-center { text-align: center; }
         .review-quote .ql-align-right { text-align: right; }
         .review-quote .ql-align-justify { text-align: justify; }
@@ -718,7 +722,7 @@
         .review-quote a { color: rgb(2 132 199); text-decoration: underline; }
     </style>
     <script>
-        // A review card: the quote is cut to four lines, and a "Show more"
+        // A review card: the quote is cut to six lines, and a "Show more"
         // control appears only when the text really overflows. Registered
         // in the body so it exists before Alpine (a deferred module) starts.
         window.reviewCard = function () {
@@ -744,13 +748,50 @@
         // before Alpine (a deferred module from the head) starts and reads
         // x-data="homeSlider()". Native scrolling does the moving: a swipe
         // on a phone, the arrows on a desktop, both snapping to cards.
-        window.homeSlider = function () {
+        // Pass a number of milliseconds to also advance one card by itself.
+        window.homeSlider = function (autoMs = 0) {
             return {
                 canPrev: false,
                 canNext: false,
                 init() {
                     this.update();
                     new ResizeObserver(() => this.update()).observe(this.$refs.track);
+                    if (autoMs > 0 && ! window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                        this.startAuto();
+                    }
+                },
+                // Holds still while someone is reading or using it: mouse
+                // over it, a finger on it (and a moment after), keyboard focus
+                // inside it, or when it cannot be seen at all.
+                startAuto() {
+                    const root = this.$el;
+                    let hovering = false;
+                    let touching = false;
+                    let touchTimer = null;
+                    root.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hovering = true; });
+                    root.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hovering = false; });
+                    root.addEventListener('touchstart', () => { touching = true; clearTimeout(touchTimer); }, { passive: true });
+                    const release = () => { clearTimeout(touchTimer); touchTimer = setTimeout(() => { touching = false; }, autoMs); };
+                    root.addEventListener('touchend', release, { passive: true });
+                    root.addEventListener('touchcancel', release, { passive: true });
+                    setInterval(() => {
+                        const box = root.getBoundingClientRect();
+                        const onScreen = box.bottom > 0 && box.top < window.innerHeight;
+                        if (hovering || touching || document.hidden || ! onScreen || root.querySelector(':focus-visible')) return;
+                        this.advance();
+                    }, autoMs);
+                },
+                // One card along, or back to the start after the last.
+                advance() {
+                    const t = this.$refs.track;
+                    if (t.scrollWidth <= t.clientWidth + 4 || ! t.firstElementChild) return;
+                    this.update();
+                    if (! this.canNext) {
+                        t.scrollTo({ left: 0, behavior: 'smooth' });
+                        return;
+                    }
+                    const gap = parseFloat(getComputedStyle(t).columnGap) || 0;
+                    t.scrollBy({ left: t.firstElementChild.offsetWidth + gap, behavior: 'smooth' });
                 },
                 update() {
                     const t = this.$refs.track;
