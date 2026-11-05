@@ -37,8 +37,8 @@ ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15
 
 | | |
 | --- | --- |
-| PHP | 8.3.14 (NTS, VC++ 2019 x64) at `C:\tools\php83\php.exe` |
-| Web server | `php artisan serve --host=0.0.0.0 --port=80` — no nginx, no IIS |
+| PHP | 8.3.36 (NTS, VC++ 2019 x64) at `C:\tools\php83\php.exe` — **does not update itself**, see [Upgrading PHP](#upgrading-php) |
+| Web server | `php artisan serve --host=0.0.0.0 --port=80`, run by the **`TuitionLMS`** Windows service (NSSM, automatic start, restarts it if it dies) — no nginx, no IIS |
 | Database | **SQLite** — `database\database.sqlite` |
 | Cache / session | `file` |
 | Filesystem disk | `local` |
@@ -157,37 +157,50 @@ A normal deploy needs no restart. PHP's built-in server re-reads source files on
 every request, so updated code is live as soon as `git reset --hard` finishes;
 config and routes come from the cache files rebuilt in step 4.
 
-Restart only if the process died, or if code changes visibly fail to appear.
-
-**Stop** — this kills both the `artisan serve` parent and the `php -S` child it
-spawns. Nothing else on this box runs PHP, so matching by name is safe:
-
-```bash
-ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15 "powershell -NoProfile -Command \"Stop-Process -Name php -Force\""
-```
-
-**Start** — this has to go through WMI:
+The server runs as the Windows service **`TuitionLMS`**, set up with NSSM
+(`C:\ProgramData\chocolatey\lib\NSSM\tools\nssm.exe`): it starts at boot and
+NSSM starts it again within seconds if the process dies. Restart it through the
+service, never by hand:
 
 ```bash
-ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15 "powershell -NoProfile -Command \"Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='C:\tools\php83\php.exe artisan serve --host=0.0.0.0 --port=80'; CurrentDirectory='C:\Users\Administrator\tuition-centre'}\""
+ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15 "sc stop TuitionLMS & timeout /t 3 >nul & sc start TuitionLMS"
 ```
 
-⚠️ **`Start-Process` does not work here.** Verified 2026-08-19: a server started
-with `Start-Process -WindowStyle Hidden` comes up fine and then dies the instant
-the SSH session closes — so it answers while you are connected and is gone by
-the time you check from anywhere else. `Invoke-CimMethod` creates the process
-outside the session and it survives. Both were tested on port 8080, leaving port
-80 alone; the WMI one returned `HTTP 200` from a fresh session, the
-`Start-Process` one returned `Unable to connect to the remote server`.
+⚠️ **Do not start `artisan serve` yourself** (`Invoke-CimMethod`, `Start-Process`).
+Found 2026-10-30: killing `php.exe` and starting a server by hand left *two*
+servers listening on port 80, because NSSM had already brought its own back.
+Windows lets both bind, and requests land on either. If you ever see more than
+one `artisan serve`, kill the one whose parent is not `nssm.exe`:
 
-⚠️ **`artisan serve` is not a service and has no scheduled task.** It was
-started by hand, so nothing brings it back: if the process dies or the server
-reboots, staging stays down until someone runs the start command above. Making
-it a scheduled task with *Run whether user is logged on or not* at startup would
-fix that permanently.
+```bash
+ssh -i ~/.ssh/hetzner_tuition Administrator@135.181.95.15 "wmic process where name='php.exe' get ProcessId,ParentProcessId,CommandLine /format:list"
+```
 
-`artisan serve` is also single-threaded — one request at a time. Fine for
-staging, unusable for production.
+`artisan serve` is single-threaded — one request at a time. Fine for staging,
+unusable for production.
+
+## Upgrading PHP
+
+Production gets PHP security fixes from Ubuntu automatically (unattended
+upgrades). **This box does not**: Windows PHP is an unpacked folder, so it stays
+on whatever version was copied in until someone replaces it. Check it whenever a
+PHP security release comes out.
+
+1. Find the current NTS x64 build and its SHA-256 in
+   `https://downloads.php.net/~windows/releases/releases.json` (key `8.3`, then
+   `nts-vs16-x64` → `zip`). Builds can carry a `-1` suffix
+   (`php-8.3.36-1-nts-Win32-vs16-x64.zip`), so take the file name from there
+   rather than guessing it.
+2. On the box: download it, check the hash, unpack to `C:\tools\php83-new`, and
+   copy over `php.ini` and `extras\ssl\cacert.pem` from `C:\tools\php83`
+   (`php.ini` points `curl.cainfo` and `openssl.cafile` at that file).
+3. Check before swapping: `C:\tools\php83-new\php.exe -m` lists curl, exif,
+   fileinfo, gd, intl, mbstring, openssl, pdo_mysql, pdo_sqlite, sqlite3, zip;
+   and `php.exe artisan --version` boots from the app folder.
+4. `sc stop TuitionLMS`, rename `php83` → `php83-old` and `php83-new` →
+   `php83`, then `sc start TuitionLMS`. The service points at
+   `C:\tools\php83\php.exe`, so the path never changes.
+5. Roll back by swapping the folder names again.
 
 ## Gotchas worth knowing before you debug something else
 
@@ -264,3 +277,4 @@ this server's configuration and are deliberately absent from git.
 | 2026-09-22 | `8577124` → `8dbb0a1` | Public header fits a phone: medium brand and a compact non-wrapping Student Login button below the sm breakpoint, the large sizes above it. No migration, no dependency change. **Asset rebuild** (`app-BoWZ_ywF.css`), verified served. `/login` and `/` 200. |
 | 2026-09-22 | `8dbb0a1` → `ba4f530` | Header button reads "Login" on phones and "Student Login" from the sm breakpoint up. Blade only: no migration, no dependency change, no asset change. `/login` and `/` 200; both labels verified in the page. |
 | 2026-09-29 | `ba4f530` → `9107b3a` | List pages no longer scroll sideways on a phone: the shared pager wraps, the filter dropdowns on /users and /courses are capped at the width of their box, the /courses heading buttons may wrap; the fallback Facebook glyph got its missing path. No migration, no dependency change. **Asset rebuild** (`app-CdSxhCwj.css`), verified served with the old file 404ing and the three utilities in it. `view:cache` skips `resources/views/vendor`, so the pager has no precompiled copy to check: it compiles on first use from the updated source. `/login` and `/` 200. |
+| 2026-10-30 | `9107b3a` (no code change) | **PHP 8.3.14 → 8.3.36** for CVE-2026-109618 / CVE-2026-109619 (unauthenticated RCE, fixed in 8.3.36). Official build `php-8.3.36-1-nts-Win32-vs16-x64.zip`, SHA-256 checked against releases.json; same `php.ini` and cacert; all eleven extensions load; app booted with it before the swap. Old folder kept as `C:\tools\php83-old`. Found the web server is the NSSM service `TuitionLMS`, not a hand-started process — a manual start made a duplicate on port 80, which was killed; the restart procedure above is corrected. `/` and `/login` 200. Production needed nothing: Ubuntu's `8.3.6-0ubuntu0.24.04.13` carries the fix, installed by unattended upgrades on 2026-10-22, and PHP-FPM has restarted since. |
