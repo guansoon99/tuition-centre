@@ -125,6 +125,16 @@ class CourseEditTabsTest extends TestCase
         $this->assertStringContainsString('tom-select', $html, 'Tom Select assets missing.');
     }
 
+    public function test_every_tab_uses_the_full_width_of_the_page(): void
+    {
+        foreach (['details', 'teachers', 'students', 'materials'] as $tab) {
+            $this->actingAs($this->admin)
+                ->get("/courses/{$this->course->slug}/edit?tab={$tab}")
+                ->assertOk()
+                ->assertDontSee('mx-auto max-w-6xl space-y-8');
+        }
+    }
+
     public function test_all_tabs_render_on_a_course_with_no_content(): void
     {
         foreach (['details', 'teachers', 'students', 'materials'] as $tab) {

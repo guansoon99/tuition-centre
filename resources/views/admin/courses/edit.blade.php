@@ -19,7 +19,7 @@
             : 'border-transparent text-slate-700 hover:text-slate-900';
     @endphp
 
-    <div class="mx-auto max-w-6xl space-y-8"
+    <div class="space-y-8"
          x-data="{
              tab: '{{ $activeTab }}',
              openSection: (() => {
