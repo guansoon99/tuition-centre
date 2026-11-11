@@ -21,4 +21,28 @@ import { registerNativeVideo } from './quill-native-video';
 // Uploaded lesson videos are <video> embeds; see quill-native-video.js.
 registerNativeVideo(Quill);
 
+// Images also keep their style attribute, which is where a height the teacher
+// typed at upload lives (Quill's own image keeps only alt, width and height).
+// Without this the height would be dropped when the material is opened for
+// editing again. The sanitiser limits what the style may say.
+const BaseImage = Quill.import('formats/image');
+class SizedImage extends BaseImage {
+    static formats(domNode) {
+        const formats = super.formats(domNode);
+        if (domNode.hasAttribute('style')) formats.style = domNode.getAttribute('style');
+        return formats;
+    }
+
+    format(name, value) {
+        if (name !== 'style') {
+            super.format(name, value);
+        } else if (value) {
+            this.domNode.setAttribute('style', value);
+        } else {
+            this.domNode.removeAttribute('style');
+        }
+    }
+}
+Quill.register(SizedImage, true);
+
 window.Quill = Quill;

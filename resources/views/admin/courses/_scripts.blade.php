@@ -1,6 +1,147 @@
 @include('partials.course-video-uploader')
     @vite('resources/js/sortable.js')
     <script>
+        // Asked after a teacher picks an image for a material: show it at its
+        // own size, or at a width/height they type, with proportions kept
+        // unless they untick the box. Resolves to
+        //   { width, height }  — height is null when proportions are kept, so
+        //                        the browser works it out from the width
+        //   null               — cancelled; nothing is uploaded
+        // It sets the display size only. The file itself is stored as uploaded.
+        window.askImageSize = function (file) {
+            return new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+                const probe = new Image();
+                probe.onload = () => open(probe.naturalWidth, probe.naturalHeight);
+                probe.onerror = () => open(0, 0);
+                probe.src = url;
+
+                function open(natW, natH) {
+                    const known = natW > 0 && natH > 0;
+                    const wrap = document.createElement('div');
+                    wrap.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 p-4';
+                    wrap.setAttribute('data-image-size-dialog', '');
+                    wrap.innerHTML = `
+                        <form class="w-full max-w-sm space-y-4 rounded-lg bg-white p-5 text-sm text-slate-800 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="image-size-title">
+                            <div class="flex items-center gap-3">
+                                <img src="${url}" alt="" class="h-14 w-14 shrink-0 rounded border border-slate-200 object-contain">
+                                <div class="min-w-0">
+                                    <p id="image-size-title" class="font-semibold text-slate-900">Image size</p>
+                                    <p class="truncate text-xs text-slate-600" data-name></p>
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2">
+                                <input type="radio" name="mode" value="original" checked>
+                                <span>Original size${known ? ` <span class="text-slate-600">(${natW} × ${natH} px)</span>` : ''}</span>
+                            </label>
+                            <div class="space-y-3">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="mode" value="custom">
+                                    <span>Custom size</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-3 pl-6" data-custom>
+                                    <label class="block">
+                                        <span class="text-xs font-medium text-slate-700">Width (px)</span>
+                                        <input type="number" name="width" min="1" max="5000" step="1" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-100">
+                                    </label>
+                                    <label class="block">
+                                        <span class="text-xs font-medium text-slate-700">Height (px)</span>
+                                        <input type="number" name="height" min="1" max="5000" step="1" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-100">
+                                    </label>
+                                    <label class="col-span-2 flex items-center gap-2">
+                                        <input type="checkbox" name="keep" checked>
+                                        <span>Keep proportions</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-600">An image wider than the page shrinks to fit it.</p>
+                            <p class="hidden text-xs text-red-600" data-error>Enter a width and height between 1 and 5000.</p>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" data-cancel class="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <button type="submit" class="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-800">Insert image</button>
+                            </div>
+                        </form>`;
+                    wrap.querySelector('[data-name]').textContent = file.name;
+
+                    const form = wrap.querySelector('form');
+                    const w = form.elements.width;
+                    const h = form.elements.height;
+                    const keep = form.elements.keep;
+                    const ratio = known ? natW / natH : null;
+                    w.value = known ? natW : '';
+                    h.value = known ? natH : '';
+                    if (! known) keep.checked = false;
+                    keep.disabled = ! known;
+
+                    const custom = () => form.elements.mode.value === 'custom';
+                    const sync = () => {
+                        [w, h, keep].forEach((el) => { el.disabled = ! custom() || (el === keep && ! known); });
+                    };
+                    sync();
+                    form.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', () => {
+                        sync();
+                        if (custom()) w.focus();
+                    }));
+                    w.addEventListener('input', () => {
+                        if (keep.checked && ratio && +w.value > 0) h.value = Math.max(1, Math.round(w.value / ratio));
+                    });
+                    h.addEventListener('input', () => {
+                        if (keep.checked && ratio && +h.value > 0) w.value = Math.max(1, Math.round(h.value * ratio));
+                    });
+                    keep.addEventListener('change', () => {
+                        if (keep.checked && ratio && +w.value > 0) h.value = Math.max(1, Math.round(w.value / ratio));
+                    });
+
+                    const finish = (value) => {
+                        wrap.remove();
+                        document.removeEventListener('keydown', onKey, true);
+                        URL.revokeObjectURL(url);
+                        resolve(value);
+                    };
+                    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(null); } };
+                    document.addEventListener('keydown', onKey, true);
+                    wrap.querySelector('[data-cancel]').addEventListener('click', () => finish(null));
+                    wrap.addEventListener('mousedown', (e) => { if (e.target === wrap) finish(null); });
+
+                    form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        if (! custom()) {
+                            finish({ width: known ? natW : null, height: null });
+                            return;
+                        }
+                        const width = Math.round(+w.value);
+                        const height = Math.round(+h.value);
+                        const ok = (n) => Number.isFinite(n) && n >= 1 && n <= 5000;
+                        if (! ok(width) || (! keep.checked && ! ok(height))) {
+                            wrap.querySelector('[data-error]').classList.remove('hidden');
+                            return;
+                        }
+                        finish({ width, height: keep.checked ? null : height });
+                    });
+
+                    document.body.appendChild(wrap);
+                    form.querySelector('input[name=mode]:checked').focus();
+                }
+            });
+        };
+
+        // Gives an image just inserted into a Quill editor the size picked in
+        // askImageSize. The width is the image's width attribute. A typed
+        // height (proportions unticked) is also an inline style: the page's
+        // base styles set every image's height to auto, and only an inline
+        // style beats that. Quill keeps both (see quill.js), and so does the
+        // sanitiser on save.
+        window.applyImageSize = function (editor, index, size) {
+            if (! size || ! size.width) return;
+            const formats = { width: String(size.width) };
+            if (size.height) {
+                formats.height = String(size.height);
+                formats.style = 'height: ' + size.height + 'px';
+            }
+            editor.formatText(index, 1, formats, 'user');
+        };
+    </script>
+    <script>
         // Initialize a Quill rich-text editor on the given container, syncing
         // its HTML output back into the hidden textarea so the form submits
         // the right value. Idempotent — re-calls are safe.
@@ -35,6 +176,10 @@
                                     const file = input.files[0];
                                     if (!file) return;
 
+                                    // Before uploading, so Cancel costs nothing.
+                                    const size = await window.askImageSize(file);
+                                    if (size === null) return;
+
                                     const ui = window.courseMediaOverlay(editor.root, 'Uploading image…');
                                     const form = new FormData();
                                     form.append('image', file);
@@ -52,6 +197,7 @@
                                         const data = await res.json();
                                         const range = editor.getSelection(true);
                                         editor.insertEmbed(range.index, 'image', data.url, 'user');
+                                        window.applyImageSize(editor, range.index, size);
                                         editor.setSelection(range.index + 1);
                                     } catch (e) {
                                         alert('Image upload failed: ' + e.message);

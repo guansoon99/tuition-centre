@@ -38,6 +38,10 @@
             .prose-section img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; }
             @media (min-width: 640px) {
                 .prose-section img { max-width: 50%; }
+                /* A size picked at upload is shown as picked; the page width
+                   is the only limit. Images without one keep the half-width
+                   default. */
+                .prose-section img[width] { max-width: 100%; }
             }
             .prose-section video { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; display: block; }
             .prose-section pre, .prose-section code { background: rgb(241 245 249); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }

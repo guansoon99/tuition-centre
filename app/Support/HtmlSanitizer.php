@@ -29,7 +29,7 @@ class HtmlSanitizer
             // below for the whitelist.
             $config->set(
                 'HTML.Allowed',
-                'p[class],br,strong[style],em[style],u[style],s[style],h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel|style],img[src|alt|width|height],blockquote[class],code[style],pre,hr,'
+                'p[class],br,strong[style],em[style],u[style],s[style],h1[class],h2[class],h3[class],ul,ol,li[class],a[href|target|rel|style],img[src|alt|width|height|style],blockquote[class],code[style],pre,hr,'
                 .'table,thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col,'
                 .'video[src|controls|width|height|preload|poster],source[src|type],'
                 // Quill emits colour/highlight as an inline style, but NOT always
@@ -49,7 +49,13 @@ class HtmlSanitizer
                 'ql-align-right',
                 'ql-align-justify',
             ]);
-            $config->set('CSS.AllowedProperties', ['color', 'background-color']);
+            // height is for images: a height the teacher typed at upload is an
+            // inline style, the only thing that beats the page's height:auto.
+            $config->set('CSS.AllowedProperties', ['color', 'background-color', 'height']);
+            // An image's width/height are the size the teacher picked at
+            // upload. The default cap (1200) would shrink one side of a large
+            // custom size and not the other, stretching the picture.
+            $config->set('HTML.MaxImgLength', null);
             $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'data' => true]);
             $config->set('HTML.TargetBlank', true);
             $config->set('AutoFormat.RemoveEmpty', true);
@@ -69,7 +75,7 @@ class HtmlSanitizer
             // actually recognized. Bumping DefinitionRev when this changes
             // invalidates any in-memory cache from an earlier request.
             $config->set('HTML.DefinitionID', 'tuition-html5-media');
-            $config->set('HTML.DefinitionRev', 2);
+            $config->set('HTML.DefinitionRev', 3);
             if ($def = $config->maybeGetRawHTMLDefinition()) {
                 $def->addElement('video', 'Block', 'Optional: (source, Flow) | (Flow)', 'Common', [
                     'src' => 'URI',
